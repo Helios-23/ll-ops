@@ -3,7 +3,7 @@ local ansible_connection=local
 
 ## Production Shared Resources
 [prod]
-repo0           ansible_host=195.201.226.77     host_name=repo1
+repo0           ansible_host=195.201.226.77     host_name=repo0
 
 ## Production AI
 [prod_ai]

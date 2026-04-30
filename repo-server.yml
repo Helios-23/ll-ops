@@ -1,5 +1,5 @@
 - name: Configure repo server baseline and Forgejo
-  hosts: repo1
+  hosts: repo0
   remote_user: devops
   become: true
   gather_facts: true

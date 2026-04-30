@@ -4,6 +4,16 @@
     state: present
     update_cache: true
 
+- name: Set UFW default deny incoming
+  community.general.ufw:
+    direction: incoming
+    default: deny
+
+- name: Set UFW default allow outgoing
+  community.general.ufw:
+    direction: outgoing
+    default: allow
+
 - name: Allow SSH through UFW
   community.general.ufw:
     rule: allow
@@ -18,6 +28,10 @@
   loop:
     - "80"
     - "443"
+
+- name: Enable UFW
+  community.general.ufw:
+    state: enabled
 
 - name: Install certbot packages
   apt:

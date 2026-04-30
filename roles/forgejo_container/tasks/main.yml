@@ -10,6 +10,12 @@
     - "{{ forgejo_data_dir }}"
     - "{{ forgejo_db_dir }}"
 
+- name: Allow Forgejo SSH through UFW
+  community.general.ufw:
+    rule: allow
+    port: "{{ forgejo_ssh_port }}"
+    proto: tcp
+
 - name: Write Forgejo compose file
   template:
     src: docker-compose.yml.j2
