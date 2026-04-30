@@ -1,0 +1,251 @@
+#keymaster tasks
+#Ensure python OpenSSL
+- name: Ensure python OpenSSL dependency.
+  pip:
+    name: pyOpenSSL
+    state: present
+  tags: never,install
+
+#Encrypt Keys with Ansible Vault
+- name: encrypt {{ item.site_crt }}
+  shell: |
+    head -1 {{ site_dir }}/{{ item.site_crt }} | grep -q \$ANSIBLE_VAULT
+    if [ $? -eq 0 ]; then exit 10;
+    else
+      ansible-vault encrypt {{ cert_dir }}/{{ item.site_crt }} --vault-password-file vault.pass
+      if [ $? -eq 0 ]; then exit 9; else exit $?; fi
+    fi
+  delegate_to: localhost
+  register: cmd_status
+  changed_when: cmd_status.rc != 10
+  failed_when: cmd_status.rc <= 5
+  loop: "{{site_certs}}"
+  tags: encrypt,never
+
+#SSH Generate Keypairs
+- name: ssh| create keypairs
+  openssh_keypair:
+    path: "{{ ssh_dir }}/{{ item.key_user }}.{{ key_domain }}"
+    comment: "{{ item.key_user }}@{{ key_domain }}"
+    type: "ed25519"
+    regenerate: full_idempotence
+    owner: "H23"
+    passphrase: "{{ item.key_pass | default('') }}"
+  #shell: |
+  #  ssh-keygen -t ed25519 -a 100 -f {{ ssh_dir }}/{{ item.key_user }}.{{ key_domain }} -N "{{ item.key_pass | default('') }}" -C "{{ item.key_user }}@{{ key_domain }}"
+  #  chown H23 {{ ssh_dir }}/{{ item.key_user }}.{{ key_domain }} {{ ssh_dir }}/{{ item.key_user }}.{{ key_domain }}.pub
+  delegate_to: localhost
+  with_items: "{{ auth_keys }}"
+  loop_control:
+    label: "{{ item.key_user }}"
+  when:
+    - inventory_hostname == "local"
+  tags: gen-ssh,ssh-gen,never
+
+#SSL
+# Generate CSR
+- name: ssl| gen priv key
+  openssl_privatekey:
+    path: "{{ priv_dir }}/{{ item.name}}.key"
+    backup: yes
+  loop: "{{ csr_list }}"
+  delegate_to: localhost
+  tags: gen-csr,never
+
+- name: ssl| gen csr
+  openssl_csr:
+    path: "{{ csr_dir }}/{{ item.name }}.csr"
+    common_name: "{{ item.cname | default ( item.name ) }}"
+    privatekey_path: "{{ priv_dir }}/{{ item.name }}.key"
+    email_address: "{{ item.email | default ( key_email ) }}"
+    organization_name: "{{ item.org_name | default ( key_org_name ) }}"
+    organizational_unit_name: "{{ item.org_unit | default( key_org_unit ) }}"
+    country_name: "{{ item.country | default ( key_country ) }}"
+    state_or_province_name: "{{ item.state | default ( key_state ) }}"
+    locality_name: "{{ item.city | default (key_city ) }}"
+  delegate_to: localhost
+  loop: "{{ csr_list }}"
+  tags: gen-csr,never
+
+- name: ssl| Check CSRs values
+  shell: |
+    openssl req -in {{ item.name }}.csr -noout -text | sed -n '4 p'
+  delegate_to: localhost
+  register: csr
+  args:
+    chdir: "{{ csr_dir }}"
+  loop: "{{ csr_list }}"
+  tags: check-csr,never
+
+- name: ssl| Output
+  debug:
+    msg: "{{ csr.results | map ( attribute='stdout_lines' ) }}"
+  tags: check-csr,never
+
+- include_tasks: mysql.yml
+  tags: mysql,never
+
+#km_deploy tasks
+
+# Encure pyOpenSSL
+- name: Ensure pyOpenSSL dependency.
+  pip:
+    name: pyOpenSSL
+    state: present
+  tags: never,install
+
+#Install SSH User keys
+- name: ssh| USER Keys
+  block:
+    - name: ssh| remove unauthorized
+      authorized_key:
+        user: "{{ ssh_user }}"
+        key: "{{ lookup ('file', '{{ ssh_dir }}/{{ item.key_user }}.{{ key_domain }}.pub') }}"
+        #comment: '{{item.key_user}}@{{key_domain}}'
+        state: absent
+      loop: "{{ auth_keys }}"
+      loop_control:
+        label: "{{ item.key_user }}"
+      when:
+        - not item.key_envs is search("all")
+        - inventory_hostname not in item.key_envs
+        - inventory_hostname != "localhost"
+
+    - name: ssh| install authorized
+      authorized_key:
+        user: "{{ ssh_user }}"
+        key: "{{ lookup ('file', '{{ ssh_dir }}/{{ item.key_user }}.{{ key_domain }}.pub') }}"
+        comment: "{{ item.key_user }}@{{ key_domain }}"
+        state: present
+      loop: "{{ auth_keys }}"
+      loop_control:
+        label: "{{ item.key_user }}"
+      when:
+        - item.key_envs is search("all") or item.key_envs is search(inventory_hostname)
+        - inventory_hostname != "localhost"
+
+    - name: ssh| rotate Keys
+      replace:
+        path: "/home/{{ ssh_user }}/.ssh/authorized_keys"
+        regexp: "^.*? {{ item.key_user }}@{{ key_domain }}"
+        replace: "{{ lookup ('file', '{{ ssh_dir }}/{{ item.key_user }}.{{ key_domain }}.pub') }}"
+      loop: "{{ auth_keys }}"
+      loop_control:
+        label: "{{ item.key_user }}"
+      when:
+        - item.key_envs is search("all") or item.key_envs is search(inventory_hostname)
+        - inventory_hostname != "localhost"
+
+  #end Block
+  tags: ssh-auth,never
+  #no_log: True
+
+- name: ssh| Auth Report
+  block:
+    - name: ssh| Initialize list
+      shell: |
+        echo "SSH User Access Report for: {{ ansible_date_time.iso8601 }} " > ./ssh_auth_report.txt
+        echo "" >> ./ssh_auth_report.txt
+      delegate_to: local
+
+    - name: ssh| Show Users and systems
+      shell: |
+        echo "------------------------------" >> ./ssh_auth_report.txt
+        echo "User Name: {{ item.key_user }}" >> ./ssh_auth_report.txt
+        echo "Systems: {{ item.key_envs }}" >> ./ssh_auth_report.txt
+        echo "" >> ./ssh_auth_report.txt
+      delegate_to: local
+      loop: "{{ auth_keys }}"
+      loop_control:
+        label: "{{ item.key_user }}"
+  tags: ssh-auth-review,never
+
+# key Report
+- name: ssh| Keys Report
+  block:
+    - name: "ssh| KeyReport"
+      shell: |
+        set -ue
+
+        tmp="$(mktemp -t fingerprint-authkeys.XXXXXXXX)"
+        trap 'rm -f "$tmp"' 0
+
+        while read opts key; do
+            case "$opts" in
+                [0-9]*|ssh-dss|ssh-rsa)
+                    # not options, first "word" is part of key
+                    key="$opts $key"
+                ;;
+            esac
+            echo "$key" >$tmp
+            set -- $(ssh-keygen -lf "$tmp")
+            bits="$1" fingerprint="$2"
+
+            set -- $key # Note: will mangle whitespace in the comment
+            case "$1" in
+                [0-9]*) # SSH v1 key
+                    type=rsa1
+                    shift 3
+                ;;
+                ssh-rsa|ssh-dss) # SSH v2 key
+                    type="$1"
+                    shift 2
+                ;;
+                *)
+                    type=unknown
+                    set --
+                ;;
+            esac
+
+            printf '%-14s %-9s %s %s\n' "$type" "$bits" "$*"
+              done <./authorized_keys
+      register: key_report
+      args:
+        chdir: "/home/{{ssh_user}}/.ssh"
+
+    - name: ssh| Key Reports
+      shell: |
+        echo "{{inventory_hostname}} ip: {{ ansible_host }} @ {{ ansible_date_time.iso8601 }}" >> ./ssh_key_report.txt
+
+        echo "------------------------------" >> ./ssh_key_report.txt
+        echo "{{ key_report.stdout }}" >> ./ssh_key_report.txt
+        echo "" >> ./ssh_key_report.txt
+      delegate_to: local
+      when: key_report.stdout_lines is defined
+  tags: never,ssh-key-report
+
+#Install Automation Keys
+- name: ssh| install key
+  template:
+    src: "keys/{{ ssh_user }}/id_rsa"
+    dest: "/home/{{ ssh_user }}/.ssh/id_rsa"
+    owner: "{{ ssh_user }}"
+    group: "{{ ssh_use r}}"
+    mode: 0400
+  tags: ssh-key,never
+
+- name: ssh|  install pub
+  template:
+    src: "keys/{{ ssh_user }}/id_rsa.pub"
+    dest: "/home/{{ ssh_user }}/.ssh/id_rsa.pub"
+    owner: "{{ ssh_user }}"
+    group: "{{ ssh_user }}"
+    mode: 0644
+  tags: ssh-key,never
+
+# SSL Install Remote
+- name: ssl| install site cert
+  copy:
+    src: "{{ site_dir }}/{{ item }}.crt"
+    dest: "{{ ssl_dir }}/{{ item }}.crt"
+    mode: "0644"
+  loop: "{{ sites }}"
+  tags: cert,never
+
+- name: ssl| install private key
+  copy:
+    src: "{{ priv_dir }}/{{ item }}.key"
+    dest: "{{ ssl_dir }}/{{ item }}.key"
+    mode: "0600"
+  loop: "{{ sites }}"
+  tags: cert,never

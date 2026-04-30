@@ -1,0 +1,37 @@
+# env
+local_ip: 127.0.0.1
+autobuild: true
+unattended_upgrades: true
+remote_user: devops
+
+# keys
+auth_user: viewer
+auth_pass: "{{vault_all.auth_pass}}"
+ansible_become_password: "{{vault_all.ansible_become_password}}"
+
+# Ports
+email_port: 587
+netcat_port: 1337
+postgres_port: 5432
+redis_port: 6379
+sonarqube_port: 9023
+
+# ssl
+ssl_dir: "/etc/ssl"
+ssl_sites_dir: "{{ssl_dir}}/epetype"
+
+# Email
+email_host: "smtp.mailgun.org"
+email_user: ""
+email_pass: "{{vault_all.email_pass}}"
+
+# certbot
+certbot_admin_email: "{{admin_email}}"
+certbot_domain_type: "single"
+
+#sonarqube
+monitor_ip: "{{hostvars['monitor_prd']['ansible_host']}}"
+sonardb:
+  name: "sonarqube"
+  user: "{{vault_all.sonardb.user}}"
+  pass: "{{vault_all.sonardb.pass}}"

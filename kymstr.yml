@@ -1,0 +1,13 @@
+- hosts: localhost, all
+#  strategy: free
+  pre_tasks:
+  - name: Info
+    debug:
+      msg:
+        - 'ip: {{ansible_host}}'
+        - 'name: {{host_name}}'
+        - 'os: {{ansible_lsb.description}}'
+
+  roles:
+    - keymaster
+    

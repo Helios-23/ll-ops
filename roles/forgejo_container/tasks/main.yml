@@ -1,0 +1,77 @@
+- name: Ensure Forgejo directories exist
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - "{{ forgejo_root_dir }}"
+    - "{{ forgejo_data_dir }}"
+    - "{{ forgejo_db_dir }}"
+
+- name: Write Forgejo compose file
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ forgejo_root_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Start Forgejo stack
+  command: docker compose up -d
+  args:
+    chdir: "{{ forgejo_root_dir }}"
+  register: forgejo_compose_up
+  changed_when: >
+    'Creating' in forgejo_compose_up.stdout or
+    'Recreating' in forgejo_compose_up.stdout or
+    'Starting' in forgejo_compose_up.stdout
+
+- name: Check if Forgejo TLS certificate already exists
+  stat:
+    path: /etc/letsencrypt/live/{{ forgejo_domain }}/fullchain.pem
+  register: forgejo_certbot_cert
+
+- name: Obtain Forgejo TLS certificate with certbot
+  command: >
+    certbot certonly --webroot
+    --webroot-path /var/www/certbot
+    --non-interactive
+    --agree-tos
+    --email {{ certbot_email }}
+    -d {{ forgejo_domain }}
+    --keep-until-expiring
+  when: not forgejo_certbot_cert.stat.exists
+  register: forgejo_certbot_result
+  changed_when: >
+    'obtained' in (forgejo_certbot_result.stdout | lower) or
+    'new certificate' in (forgejo_certbot_result.stdout | lower)
+
+- name: Deploy nginx reverse proxy config for Forgejo with TLS
+  template:
+    src: forgejo_nginx.conf.j2
+    dest: /etc/nginx/sites-available/forgejo
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload nginx
+
+- name: Enable nginx Forgejo site
+  file:
+    src: /etc/nginx/sites-available/forgejo
+    dest: /etc/nginx/sites-enabled/forgejo
+    state: link
+  notify: Reload nginx
+
+- name: Test nginx configuration
+  command: nginx -t
+  changed_when: false
+
+- name: Set up certbot auto-renewal cron job
+  cron:
+    name: "certbot auto-renew"
+    job: "certbot renew --quiet --post-hook 'systemctl reload nginx'"
+    minute: "0"
+    hour: "3"
+    state: present

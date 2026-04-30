@@ -1,0 +1,61 @@
+- include_vars: 
+    dir: 'roles/km_vars'
+
+#Mysql Key Creation
+- name: Ensure sslkeys directory for self-signed certs.
+  file:
+    path: sslkeys
+    state: directory
+
+- name: Generate Ca private key.
+  openssl_privatekey:
+    path:  sslkeys/ca-key.pem
+
+- name: Generate CA CSR.
+  openssl_csr:
+    path: sslkeys/ca.csr
+    privatekey_path: sslkeys/ca-key.pem
+    common_name: MY CA CSR 
+
+- name: Generate Self Signed CA cert
+  openssl_certificate:
+    path: sslkeys/ca-cert.crt
+    privatekey_path: sslkeys/ca-key.pem
+    csr_path: sslkeys/ca.csr
+    provider: selfsigned
+
+- name: Generate mysql server key.
+  openssl_privatekey:
+    path:  sslkeys/mysql-server.pem
+
+- name: Generate mysql server CSR.
+  openssl_csr:
+    path: sslkeys/mysql-server.csr
+    privatekey_path: sslkeys/mysql-server.pem
+    common_name: Mysql CSR
+
+- name: Generate Mysql server cert signed with your own CA certificate
+  openssl_certificate:
+    path: sslkeys//mysql-server.crt
+    csr_path: sslkeys/mysql-server.csr
+    ownca_path: sslkeys/ca-cert.crt
+    ownca_privatekey_path: sslkeys/ca-key.pem
+    provider: ownca
+
+- name: Generate mysql client key.
+  openssl_privatekey:
+    path:  sslkeys/mysql-client.pem
+
+- name: Generate mysql client CSR.
+  openssl_csr:
+    path: sslkeys/mysql-client.csr
+    privatekey_path: sslkeys/mysql-client.pem
+    common_name: Mysql CSR
+
+- name: Generate Mysql client cert signed with your own CA certificate
+  openssl_certificate:
+    path: sslkeys//mysql-client.crt
+    csr_path: sslkeys/mysql-client.csr
+    ownca_path: sslkeys/ca-cert.crt
+    ownca_privatekey_path: sslkeys/ca-key.pem
+    provider: ownca

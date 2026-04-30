@@ -1,0 +1,68 @@
+# roles/admin/tasks/main.yml
+- name: Update all packages and reboot if necessary
+  block:
+    - name: Get running kernel version
+      command: uname -r
+      register: running_kernel
+      changed_when: false
+
+    - name: Update all packages (preserve configs)
+      package:
+        name: "*"
+        state: latest
+      register: package_update
+
+    - name: Get latest installed kernel (Debian/Ubuntu)
+      shell: dpkg -l 'linux-image-*' 2>/dev/null | awk '/^ii/ {print $2}' | sed 's/linux-image-//' | sort -V | tail -1
+      register: latest_kernel
+      when: ansible_os_family == 'Debian'
+      changed_when: false
+      failed_when: false
+
+    - name: Get latest installed kernel (RHEL/CentOS)
+      shell: rpm -q kernel --qf '%{version}-%{release}.%{arch}\n' 2>/dev/null | sort -V | tail -1
+      register: latest_kernel
+      when: ansible_os_family == 'RedHat'
+      changed_when: false
+      failed_when: false
+
+    - name: Set reboot required flag
+      set_fact:
+        do_reboot: >-
+          {{
+            latest_kernel.stdout is defined and
+            latest_kernel.stdout != '' and
+            latest_kernel.stdout != running_kernel.stdout
+          }}
+
+    - name: Reboot if kernel changed
+      reboot:
+        reboot_timeout: 600
+        pre_reboot_delay: 0
+        post_reboot_delay: 30
+      when: do_reboot | bool
+
+    - name: Verify new kernel is running
+      command: uname -r
+      register: new_kernel
+      changed_when: false
+      when: do_reboot | bool
+
+    - name: Show system status
+      shell: uname -a
+      register: system_info_raw
+      changed_when: false
+
+    - name: Show system status
+      debug:
+        var: system_info
+      vars:
+        system_info:
+          - "Host:     {{ ansible_hostname }}"
+          - "OS:       {{ ansible_distribution }} {{ ansible_distribution_version }}"
+          - "Kernel:   {{ system_info_raw.stdout.split(' ')[2] }}"
+          - "Arch:     {{ system_info_raw.stdout.split(' ')[11] }}"
+          - "Rebooted: {{ do_reboot | default(false) }}"
+  when: "'update_reboot' in ansible_run_tags"
+  tags:
+    - update_reboot

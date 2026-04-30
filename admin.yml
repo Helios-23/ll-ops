@@ -1,0 +1,12 @@
+- name: Run administrative tasks
+  hosts: all
+  gather_facts: true
+  pre_tasks:
+    - name: "Check if limit is specified"
+      fail:
+        msg: "you must use -l or --limit"
+      when: ansible_limit is not defined
+      tags: always
+
+  roles:
+    - role: admin

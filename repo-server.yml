@@ -1,0 +1,14 @@
+- name: Configure repo server baseline and Forgejo
+  hosts: repo1
+  remote_user: devops
+  become: true
+  gather_facts: true
+  vars:
+    ansible_become_password: "{{ vault_all.ansible_become_password }}"
+
+  roles:
+    - role: ubuntu_pro_fips
+    - role: docker_engine
+    - role: nginx
+    - role: certbot_tls
+    - role: forgejo_container

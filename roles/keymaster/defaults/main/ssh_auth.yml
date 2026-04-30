@@ -1,0 +1,23 @@
+# Auth
+#  - key_user: ''
+#    key_envs: ''
+
+auth_keys:
+  # ops
+  #  - key_user: 'devops-prd'
+  #    key_envs: 'removed'
+  #    key_envs: 'all'
+  - key_user: "devops"
+    key_envs: "all"
+    key_pass: "{{ vault_all.ansible_become_password }}"
+
+  - key_user: "r"
+    key_envs: "all"
+
+  - key_user: "j"
+    key_envs: "all"
+
+  # developers
+  - key_user: "d"
+    #    key_envs: 'removed'
+    key_envs: "gex1"

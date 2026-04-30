@@ -1,0 +1,91 @@
+- name: Manage Terraform infrastructure and sync Ansible inventory
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    tf_dir: "{{ playbook_dir }}/tf"
+    inventory_file: "{{ playbook_dir }}/inventory/epytype"
+
+  tasks:
+    - name: Check Terraform is initialized
+      stat:
+        path: "{{ tf_dir }}/.terraform"
+      register: tf_init
+
+    - name: Initialize Terraform
+      command: terraform init
+      args:
+        chdir: "{{ tf_dir }}"
+      when: not tf_init.stat.exists
+
+    - name: Run Terraform plan
+      command: terraform plan -detailed-exitcode
+      args:
+        chdir: "{{ tf_dir }}"
+      register: tf_plan
+      changed_when: tf_plan.rc == 2
+      failed_when: tf_plan.rc > 2
+      ignore_errors: true
+
+    - name: Show Terraform plan summary
+      debug:
+        msg: |
+          {% if tf_plan.rc == 0 %}No infrastructure changes detected.
+          {% elif tf_plan.rc == 2 %}Changes planned. Review above.
+          {% endif %}
+
+    - name: Apply Terraform changes
+      command: terraform apply -auto-approve
+      args:
+        chdir: "{{ tf_dir }}"
+      register: tf_apply
+      when: tf_plan.rc == 2
+
+    - name: Show Terraform apply output
+      debug:
+        var: tf_apply.stdout_lines
+      when: tf_apply is changed
+
+    - name: Get Terraform outputs as JSON
+      command: terraform output -json
+      args:
+        chdir: "{{ tf_dir }}"
+      register: tf_outputs
+      changed_when: false
+
+    - name: Parse server details from outputs
+      set_fact:
+        tf_server_name: "{{ (tf_outputs.stdout | from_json).server_name.value | default('') }}"
+        tf_server_ipv4: "{{ (tf_outputs.stdout | from_json).server_ipv4.value | default('') }}"
+        tf_server_private_ip: "{{ (tf_outputs.stdout | from_json).server_private_ip.value | default('') }}"
+        tf_dedicated_server: "{{ (tf_outputs.stdout | from_json).dedicated_server.value | default({}) }}"
+        tf_dns_records: "{{ (tf_outputs.stdout | from_json).dns_record_values.value | default({}) }}"
+
+    - name: Read current inventory
+      slurp:
+        src: "{{ inventory_file }}"
+      register: inventory_raw
+
+    - name: Parse inventory lines
+      set_fact:
+        inventory_lines: "{{ (inventory_raw.content | b64decode).split('\n') }}"
+
+    - name: Check if cloud server exists in inventory
+      set_fact:
+        server_in_inventory: >-
+          {{ inventory_lines | select('search', '^\\s*' + tf_server_name + '\\d*\\s') | list | length > 0 }}
+
+    - name: Add cloud server to prod group
+      lineinfile:
+        path: "{{ inventory_file }}"
+        insertafter: "\\[prod\\]"
+        line: "{{ tf_server_name }}1            ansible_host={{ tf_server_ipv4 }}      host_name={{ tf_server_name }}1"
+      when: not server_in_inventory and tf_server_name | length > 0
+
+    - name: Show inventory sync result
+      debug:
+        msg: |
+          Server: {{ tf_server_name }}1 -> {{ tf_server_ipv4 }} (private: {{ tf_server_private_ip }})
+          {% if tf_dedicated_server %}Dedicated: {{ tf_dedicated_server.name }} -> {{ tf_dedicated_server.public_ip }} (private: {{ tf_dedicated_server.private_ip }}){% endif %}
+          {% if tf_dns_records %}DNS records: {{ tf_dns_records | to_json }}{% endif %}

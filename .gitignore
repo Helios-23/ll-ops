@@ -1,0 +1,21 @@
+# macOS
+.DS_Store
+
+# Ansible vault passwords
+.vault*
+
+# Ansible logs
+ansible.log
+
+# KeePass database
+keepass/*.kdbx
+
+# SSH private keys (keep *.pub only)
+keys/ssh/*
+!keys/ssh/*.pub
+
+# Terraform
+tf/.terraform/
+tf/terraform.tfstate
+tf/terraform.tfstate.backup
+tf/.terraform.lock.hcl

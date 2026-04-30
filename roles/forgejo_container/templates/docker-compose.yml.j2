@@ -1,0 +1,41 @@
+services:
+  db:
+    image: postgres:{{ forgejo_postgres_version }}
+    container_name: forgejo-db
+    restart: always
+    environment:
+      POSTGRES_DB: {{ forgejo_postgres_db }}
+      POSTGRES_USER: {{ forgejo_postgres_user }}
+      POSTGRES_PASSWORD: {{ forgejo_postgres_password }}
+    volumes:
+      - {{ forgejo_db_dir }}:/var/lib/postgresql/data
+
+  forgejo:
+    image: codeberg.org/forgejo/forgejo:{{ forgejo_version }}
+    container_name: forgejo
+    restart: always
+    depends_on:
+      - db
+    environment:
+      USER_UID: 1000
+      USER_GID: 1000
+      FORGEJO__database__DB_TYPE: postgres
+      FORGEJO__database__HOST: db:5432
+      FORGEJO__database__NAME: {{ forgejo_postgres_db }}
+      FORGEJO__database__USER: {{ forgejo_postgres_user }}
+      FORGEJO__database__PASSWD: {{ forgejo_postgres_password }}
+{% if forgejo_https_enabled | bool %}
+      FORGEJO__server__ROOT_URL: https://{{ certbot_domain }}/
+      FORGEJO__server__DOMAIN: {{ certbot_domain }}
+{% endif %}
+    volumes:
+      - {{ forgejo_data_dir }}:/data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    ports:
+{% if forgejo_https_enabled | bool %}
+      - "127.0.0.1:{{ forgejo_http_port }}:3000"
+{% else %}
+      - "{{ forgejo_http_port }}:3000"
+{% endif %}
+      - "{{ forgejo_ssh_port }}:22"

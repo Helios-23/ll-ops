@@ -1,0 +1,18 @@
+ubuntu_pro_enable: true
+ubuntu_pro_token: ""
+ubuntu_pro_fips_service: "fips-updates"
+ubuntu_pro_fips_use_official_mirror: true
+ubuntu_pro_usg_enable: true
+ubuntu_pro_usg_profile: "cis_level1_server"
+ubuntu_pro_usg_run_fix: true
+ubuntu_pro_usg_run_audit: true
+ubuntu_pro_usg_state_dir: "/var/lib/ansible/ubuntu_pro_fips"
+ubuntu_pro_preserve_access: true
+ubuntu_pro_access_user: "devops"
+ubuntu_pro_access_group: "devops"
+ubuntu_pro_access_public_key_path: "{{ playbook_dir }}/keys/ssh/devops.epytype.org.pub"
+ubuntu_pro_access_public_key_paths:
+  - "{{ playbook_dir }}/keys/ssh/devops.epytype.org.fips_rsa.pub"
+  - "{{ ubuntu_pro_access_public_key_path }}"
+ubuntu_pro_access_password: "{{ vault_all.ansible_become_password }}"
+ubuntu_pro_access_password_salt: "epytypeDevops"

@@ -1,0 +1,12 @@
+forgejo_root_dir: /opt/forgejo
+forgejo_data_dir: /opt/forgejo/data
+forgejo_db_dir: /opt/forgejo/postgres
+forgejo_http_port: 3000
+forgejo_ssh_port: 2222
+forgejo_version: "10"
+forgejo_postgres_version: "16"
+forgejo_postgres_db: forgejo
+forgejo_postgres_user: forgejo
+forgejo_postgres_password: change-me
+forgejo_domain: "repo.epytype.org"
+certbot_email: "helios23@gmail.com"
