@@ -1,0 +1,46 @@
+- name: Create Docker cleanup script
+  copy:
+    dest: /usr/local/bin/ai-cleanup.sh
+    mode: "0755"
+    content: |
+      #!/bin/bash
+      # Remove only stopped containers and dangling images (not pulled models)
+      docker container prune -f
+      docker image prune -f
+      docker volume prune -f
+      docker network prune -f
+      # Clear journald logs older than 7 days
+      journalctl --vacuum-time=7d
+
+- name: Create Systemd Service for Cleanup
+  copy:
+    dest: /etc/systemd/system/ai-maintenance.service
+    content: |
+      [Unit]
+      Description=Daily AI Server Maintenance
+      After=docker.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/bin/ai-cleanup.sh
+
+- name: Create Systemd Timer for Cleanup
+  copy:
+    dest: /etc/systemd/system/ai-maintenance.timer
+    content: |
+      [Unit]
+      Description=Run AI Maintenance Daily
+
+      [Timer]
+      OnCalendar=*-*-* 03:00:00
+      Persistent=true
+
+      [Install]
+      WantedBy=timers.target
+
+- name: Enable and start Cleanup Timer
+  systemd:
+    name: ai-maintenance.timer
+    state: started
+    enabled: true
+    daemon_reload: true

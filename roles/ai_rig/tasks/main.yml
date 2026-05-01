@@ -1,0 +1,137 @@
+- name: Install dependencies and NVIDIA drivers
+  apt:
+    name:
+      - "nvidia-driver-{{ nvidia_driver_version }}"
+      - docker.io
+      - python3-pip
+      - curl
+    state: present
+    update_cache: true
+
+- name: Install Docker SDK for Python
+  apt:
+    name: python3-docker
+    state: present
+    update_cache: true
+
+- name: Setup NVIDIA Container Toolkit repository
+  shell: |
+    curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+    curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+    sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+    tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+  args:
+    creates: /etc/apt/sources.list.d/nvidia-container-toolkit.list
+
+- name: Refresh apt cache after NVIDIA repo
+  apt:
+    update_cache: true
+
+- name: Install NVIDIA Container Toolkit
+  apt:
+    name: nvidia-container-toolkit
+    state: present
+    update_cache: true
+
+- name: Configure Docker to use NVIDIA runtime
+  template:
+    src: daemon.json.j2
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+    mode: "0644"
+  notify: restart docker
+
+- name: Ensure Docker is started
+  systemd:
+    name: docker
+    state: started
+    enabled: true
+
+- name: Create internal AI network
+  community.docker.docker_network:
+    name: ai_network
+
+- name: Deploy Ollama Container
+  community.docker.docker_container:
+    name: ollama
+    image: "ollama/ollama:{{ ollama_version }}"
+    state: started
+    restart_policy: always
+    networks:
+      - name: ai_network
+    published_ports:
+      - "{{ ollama_port }}:11434"
+    volumes:
+      - "{{ ollama_data_path }}:/root/.ollama"
+    env:
+      OLLAMA_KEEP_ALIVE: "{{ vram_keep_alive }}"
+      OLLAMA_MAX_LOADED_MODELS: "{{ max_vram_models }}"
+      OLLAMA_NUM_PARALLEL: "{{ parallel_requests }}"
+      OLLAMA_NUM_GPU: "{{ ollama_num_gpu }}"
+    memory: "28g"
+    memory_swap: "32g"
+    oom_kill_disable: false
+    device_requests:
+      - driver: nvidia
+        count: -1
+        capabilities: [gpu]
+    comparisons:
+      env: strict
+    recreate: false
+
+- name: Deploy LocalAI Container (disabled — Open WebUI + Ollama covers all needs)
+  debug:
+    msg: "LocalAI skipped. Open WebUI provides the web interface, Ollama provides the API."
+
+- name: Run hardware optimizations
+  include_tasks: optimizations.yml
+
+- name: Setup AI models
+  include_tasks: models.yml
+
+- name: Setup RAG and Agent Interface
+  include_tasks: agent.yml
+
+- name: Setup maintenance and cleanup
+  include_tasks: maintenance.yml
+
+- name: Check if AI TLS certificate already exists
+  stat:
+    path: /etc/letsencrypt/live/{{ ai_domain }}/fullchain.pem
+  register: ai_certbot_cert
+
+- name: Obtain AI TLS certificate with certbot
+  command: >
+    certbot certonly --webroot
+    --webroot-path /var/www/certbot
+    --non-interactive
+    --agree-tos
+    --email {{ certbot_email }}
+    -d {{ ai_domain }}
+    --keep-until-expiring
+  when: not ai_certbot_cert.stat.exists
+  register: ai_certbot_result
+  changed_when: >
+    'obtained' in (ai_certbot_result.stdout | lower) or
+    'new certificate' in (ai_certbot_result.stdout | lower)
+
+- name: Deploy nginx reverse proxy config for AI domain with TLS
+  template:
+    src: ai_proxy_conf.j2
+    dest: /etc/nginx/sites-available/ai-proxy.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload nginx
+
+- name: Enable nginx AI proxy site
+  file:
+    src: /etc/nginx/sites-available/ai-proxy.conf
+    dest: /etc/nginx/sites-enabled/ai-proxy.conf
+    state: link
+  notify: Reload nginx
+
+- name: Test nginx configuration
+  command: nginx -t
+  changed_when: false

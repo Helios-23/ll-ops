@@ -1,0 +1,24 @@
+- name: Wait for Ollama container to be healthy
+  pause:
+    seconds: 10
+
+- name: Get currently installed models
+  command: docker exec ollama ollama list
+  register: installed_models
+  changed_when: false
+  failed_when: false
+
+- name: Pull AI models
+  command: "docker exec ollama ollama pull {{ item }}"
+  loop: "{{ ai_models }}"
+  register: pull_results
+  changed_when: >
+    item.split(':')[0] not in (installed_models.stdout | default(''))
+
+- name: List installed models for confirmation
+  command: "docker exec ollama ollama list"
+  register: model_list
+
+- name: Show installed models
+  debug:
+    var: model_list.stdout_lines

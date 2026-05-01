@@ -1,0 +1,20 @@
+- name: Check if push-to-create for organizations is enabled
+  become: true
+  command: docker exec forgejo grep -q "ENABLE_PUSH_CREATE__org" /data/gitea/conf/app.ini
+  register: org_push_check
+  changed_when: false
+  failed_when: false
+
+- name: Enable push-to-create for organizations in Forgejo config
+  become: true
+  command: >
+    docker exec forgejo sh -c 'echo "\n[repository]\nENABLE_PUSH_CREATE__org = true" >> /data/gitea/conf/app.ini'
+  when: org_push_check.rc != 0
+  notify: Restart Forgejo
+
+- name: Verify push-to-create for organizations is enabled
+  become: true
+  command: docker exec forgejo grep "ENABLE_PUSH_CREATE__org" /data/gitea/conf/app.ini
+  register: org_push_create_check
+  changed_when: false
+  failed_when: '"true" not in org_push_create_check.stdout'

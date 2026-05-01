@@ -1,0 +1,9 @@
+- name: restart docker
+  systemd:
+    name: docker
+    state: restarted
+
+- name: Reload nginx
+  service:
+    name: nginx
+    state: reloaded

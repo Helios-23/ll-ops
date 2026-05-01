@@ -25,9 +25,13 @@ services:
       FORGEJO__database__USER: {{ forgejo_postgres_user }}
       FORGEJO__database__PASSWD: {{ forgejo_postgres_password }}
 {% if forgejo_https_enabled | bool %}
-      FORGEJO__server__ROOT_URL: https://{{ certbot_domain }}/
-      FORGEJO__server__DOMAIN: {{ certbot_domain }}
+      FORGEJO__server__ROOT_URL: https://{{ forgejo_domain }}/
+      FORGEJO__server__DOMAIN: {{ forgejo_domain }}
 {% endif %}
+      # Enable push-to-create repositories globally
+      FORGEJO__repository__ENABLE_PUSH_CREATE: "true"
+      # Enable push-to-create for organizations
+      FORGEJO__repository__ENABLE_PUSH_CREATE__org: "true"
     volumes:
       - {{ forgejo_data_dir }}:/data
       - /etc/timezone:/etc/timezone:ro

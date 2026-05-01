@@ -23,6 +23,7 @@
     owner: root
     group: root
     mode: "0644"
+  notify: Restart Forgejo
 
 - name: Start Forgejo stack
   command: docker compose up -d
@@ -33,6 +34,11 @@
     'Creating' in forgejo_compose_up.stdout or
     'Recreating' in forgejo_compose_up.stdout or
     'Starting' in forgejo_compose_up.stdout
+
+- name: Enable push-to-create for organizations
+  include_tasks: push_create_org.yml
+  tags:
+    - forgejo_push_create_org
 
 - name: Check if Forgejo TLS certificate already exists
   stat:

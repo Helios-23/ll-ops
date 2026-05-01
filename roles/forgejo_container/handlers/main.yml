@@ -2,3 +2,8 @@
   service:
     name: nginx
     state: reloaded
+
+- name: Restart Forgejo
+  command: docker compose -f {{ forgejo_root_dir }}/docker-compose.yml restart forgejo
+  register: forgejo_restart
+  changed_when: forgejo_restart.rc == 0

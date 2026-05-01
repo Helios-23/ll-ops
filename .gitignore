@@ -12,6 +12,7 @@ ansible.log
 
 # KeePass database
 keepass/*.kdbx
+kpxc/
 
 # SSH private keys (keep *.pub only)
 keys/ssh/*

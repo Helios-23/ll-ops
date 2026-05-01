@@ -1,0 +1,55 @@
+## ENV
+env_type: "prod"
+server_type: gex44
+# processors
+procs: "8"
+
+# swap
+swap_file_size_mb: "8192"
+# LoadBalancer
+loadbalance: true
+backend_name: "epytype"
+
+# auth logs
+ssh_auth_log: "/var/log/secure"
+
+# dirs
+media_dir: "/srv/media"
+deploy_dir: "/srv/{{server_type}}"
+
+# git messagess
+autobuild: false
+
+# Firewall
+fw_blacklist: true
+fw_nfs_out: true
+fw_https: true
+
+#Certbot
+certbot_domains:
+  - "app.epytype.org"
+
+## CONNECTIONS
+# Postgresql DB
+db_server_ip: "{{hostvars['prd_db1']['service_ip']}}"
+db_user: "{{ vault.postgres.db_user }}"
+db_pass: "{{ vault.postgres.db_pass }}"
+ro_user: "{{ vault.postgres.ro_user }}"
+ro_pass: "{{ vault.postgres.ro_pass }}"
+db_name: "epytype"
+db_report_name: "epytype_reports"
+psql_work_mem: "2097kB"
+psql_maintenance_work_mem: "512MB"
+psql_effective_cache_size: "6GB"
+psql_shared_buffers: "2GB"
+
+# Redis DB
+redis_server_ip: "{{hostvars['prd_redis1']['service_ip']}}"
+
+# nfs
+nfs_enabled: true
+nfs_root: "{{nfs_server}}:/nfsmnt/{{env_type}}"
+
+## 3RD PARTY INTEGRATIONS
+# Google
+google_app_creds: "file-storage-prod.json"
