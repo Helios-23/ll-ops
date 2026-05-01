@@ -18,6 +18,6 @@ auth_keys:
     key_envs: "all"
 
   # developers
-  - key_user: "d"
-    #    key_envs: 'removed'
-    key_envs: "gex1"
+  #- key_user: "d"
+  #  key_envs: 'removed'
+  #  key_envs: "gex1"

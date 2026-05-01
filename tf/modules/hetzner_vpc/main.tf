@@ -47,28 +47,7 @@ resource "hcloud_server" "this" {
   image       = var.server_image
   location    = var.server_location
   ssh_keys    = [hcloud_ssh_key.devops.id]
-
-  user_data = <<-EOT
-    #cloud-config
-    users:
-      - default
-      - name: ${var.devops_user}
-        shell: /bin/bash
-        groups: sudo
-        sudo: ALL=(ALL) NOPASSWD:ALL
-    write_files:
-      - path: /tmp/${var.devops_user}_authorized_key
-        owner: root:root
-        permissions: "0644"
-        content: |
-          ${var.ssh_public_key}
-          ${var.ssh_fips_public_key}
-    runcmd:
-      - install -d -m 700 -o ${var.devops_user} -g ${var.devops_user} /home/${var.devops_user}/.ssh
-      - install -m 600 -o ${var.devops_user} -g ${var.devops_user} /tmp/${var.devops_user}_authorized_key /home/${var.devops_user}/.ssh/authorized_keys
-      - chown ${var.devops_user}:${var.devops_user} /home/${var.devops_user}
-      - rm -f /tmp/${var.devops_user}_authorized_key
-  EOT
+  backups     = true
 
   lifecycle {
     ignore_changes = [
@@ -76,6 +55,7 @@ resource "hcloud_server" "this" {
       labels,
       placement_group_id,
       firewall_ids,
+      ssh_keys,
     ]
   }
 }
