@@ -82,8 +82,8 @@ Choose a directory for your repositories:
 
 ```bash
 # Create a directory for Epytype repos
-mkdir -p ~/epytype.org
-cd ~/epytype.org
+mkdir -p ~/Epytype
+cd ~/Epytype
 
 # Clone all repositories (fresh checkout)
 git clone git@repo.epytype.org:Epytype/epytype.git
@@ -97,10 +97,10 @@ git clone git@repo.epytype.org:Epytype/spec.git
 
 ```bash
 # List all repositories
-ls -la ~/epytype.org/
+ls -la ~/Epytype/
 
 # Check remotes for each repo
-cd ~/epytype.org/epytype && git remote -v
+cd ~/Epytype/epytype && git remote -v
 # Should show:
 # origin  git@repo.epytype.org:Epytype/epytype.git (fetch)
 # origin  git@repo.epytype.org:Epytype/epytype.git (push)
@@ -110,7 +110,7 @@ cd ~/epytype.org/epytype && git remote -v
 
 ## Step 3: Update Codex App to Use Fresh Checkouts
 
-After cloning the fresh repositories to `~/epytype.org/`, update your Codex app to point to these new local repositories.
+After cloning the fresh repositories to `~/Epytype/`, update your Codex app to point to these new local repositories.
 
 ### 3.1 Update Codex Configuration
 
@@ -119,11 +119,11 @@ Update any Codex app configuration or settings to reference the new repository p
 ```bash
 # Example: Update Codex to use fresh checkouts
 # Paths should now point to:
-# ~/epytype.org/epytype
-# ~/epytype.org/docstore
-# ~/epytype.org/kernel
-# ~/epytype.org/lang
-# ~/epytype.org/spec
+# ~/Epytype/epytype
+# ~/Epytype/docstore
+# ~/Epytype/kernel
+# ~/Epytype/lang
+# ~/Epytype/spec
 ```
 
 ### 3.2 Update References in Codex
@@ -147,7 +147,7 @@ grep -r "github.com/jperry303" .
 
 ```bash
 # Verify Codex is using the new local paths
-# Check that Codex references point to ~/epytype.org/ paths
+# Check that Codex references point to ~/Epytype/ paths
 # rather than old GitHub clone locations
 ```
 
@@ -158,7 +158,7 @@ grep -r "github.com/jperry303" .
 ### 4.1 Check Repository Content
 
 ```bash
-cd ~/epytype.org/epytype;
+cd ~/Epytype/epytype;
 
 # Verify branches
 git branch -a;
@@ -173,7 +173,7 @@ git log --oneline --decorate -10;
 ### 4.2 Test Push Access
 
 ```bash
-cd ~/epytype.org/epytype;
+cd ~/Epytype/epytype;
 
 # Make a test change
 echo "# Test" >> TEST.md;
@@ -219,7 +219,7 @@ https://repo.epytype.org/Epytype/spec.git;
 ### One-Line Clone All Repos
 
 ```bash
-mkdir -p ~/epytype.org && cd ~/epytype.org && \
+mkdir -p ~/Epytype && cd ~/Epytype && \
 git clone git@repo.epytype.org:Epytype/epytype.git && \
 git clone git@repo.epytype.org:Epytype/docstore.git && \
 git clone git@repo.epytype.org:Epytype/kernel.git && \

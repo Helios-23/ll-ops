@@ -30,7 +30,7 @@ All repositories have been successfully migrated from GitHub to Forgejo hosted o
 
 ### 3. Migration Scripts Created
 
-Location: `/Users/H23/logicallight/epytype.org/ops/repo_migration/`
+Location: `/Users/H23/logicallight/Epytype/ops/repo_migration/`
 
 **Documentation:**
 - `README.md` - Main migration plan and steps
@@ -109,10 +109,10 @@ git clone https://repo.epytype.org/Epytype/epytype.git
 
 ### Updated Files
 
-**Playbook:** `/Users/H23/logicallight/epytype.org/ops/repo-server.yml`
+**Playbook:** `/Users/H23/logicallight/Epytype/ops/repo-server.yml`
 - Added tags: `repo-server`, `forgejo`, `forgejo_push_create_org`, `forgejo_users`
 
-**Forgejo Role:** `/Users/H23/logicallight/epytype.org/ops/roles/forgejo_container/`
+**Forgejo Role:** `/Users/H23/logicallight/Epytype/ops/roles/forgejo_container/`
 - `defaults/main.yml` - Added `forgejo_https_enabled: false`, Forgejo user management variables
 - `tasks/main.yml` - Added user management tasks, fixed syntax
 - `tasks/push_create_org.yml` - New task for organization push-to-create
@@ -123,7 +123,7 @@ git clone https://repo.epytype.org/Epytype/epytype.git
 ### Running Ansible Tags
 
 ```bash
-cd /Users/H23/logicallight/epytype.org/ops
+cd /Users/H23/logicallight/Epytype/ops
 
 # Update Forgejo configuration only
 ansible-playbook repo-server.yml --tags forgejo -i inventory/epytype
@@ -210,8 +210,8 @@ ssh devops@195.201.226.77 'curl -s -H "Authorization: Bearer $HCLOUD_TOKEN" http
 ### Quick Migration (Already Completed)
 
 ```bash
-cd /Users/H23/logicallight/epytype.org/ops/repo_migration/scripts
-source /Users/H23/logicallight/epytype.org/ops/.env
+cd /Users/H23/logicallight/Epytype/ops/repo_migration/scripts
+source /Users/H23/logicallight/Epytype/ops/.env
 
 # List GitHub repositories
 ./list_github_repos.sh
@@ -267,7 +267,7 @@ ssh devops@195.201.226.77 'docker restart forgejo'
 
 ## Git Commits
 
-Relevant commits in `/Users/H23/logicallight/epytype.org/ops/`:
+Relevant commits in `/Users/H23/logicallight/Epytype/ops/`:
 
 1. `feat: Enable push-to-create for Forgejo organizations`
    - Added ENABLE_PUSH_CREATE_ORG to Forgejo config
@@ -300,7 +300,7 @@ Relevant commits in `/Users/H23/logicallight/epytype.org/ops/`:
 ### One-Line Clone All Repos
 
 ```bash
-mkdir -p ~/epytype.org && cd ~/epytype.org && \
+mkdir -p ~/Epytype && cd ~/Epytype && \
 git clone git@repo.epytype.org:Epytype/epytype.git && \
 git clone git@repo.epytype.org:Epytype/docstore.git && \
 git clone git@repo.epytype.org:Epytype/kernel.git && \

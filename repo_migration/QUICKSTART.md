@@ -20,7 +20,7 @@
 
 3. **Update .env file**
    ```bash
-   # Add to /Users/H23/logicallight/epytype.org/ops/.env or repo_migration/.env
+   # Add to /Users/H23/logicallight/Epytype/ops/.env or repo_migration/.env
    export FORGEJO_ADMIN_TOKEN="your_forgejo_token_here"
    export GITHUB_TOKEN="ghp_your_classic_github_token_here"
    export GITHUB_ORG="org-name-if-applicable"  # if repos are in an org
@@ -31,8 +31,8 @@
 
 ### 1. List GitHub Repositories
 ```bash
-cd /Users/H23/logicallight/epytype.org/ops/repo_migration/scripts
-source /Users/H23/logicallight/epytype.org/ops/.env
+cd /Users/H23/logicallight/Epytype/ops/repo_migration/scripts
+source /Users/H23/logicallight/Epytype/ops/.env
 
 # List all repos
 ./list_github_repos.sh

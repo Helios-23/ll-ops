@@ -18,7 +18,7 @@
 ## Prerequisites (Verify Tokens are Set)
 
 ```bash
-source /Users/H23/logicallight/epytype.org/ops/.env
+source /Users/H23/logicallight/Epytype/ops/.env
 echo "GitHub Token: ${GITHUB_TOKEN:+set}"
 echo "Forgejo Token: ${FORGEJO_ADMIN_TOKEN:+set}"
 ```
@@ -29,13 +29,13 @@ echo "Forgejo Token: ${FORGEJO_ADMIN_TOKEN:+set}"
 
 ### Step 1: Review Repository List
 ```bash
-cd /Users/H23/logicallight/epytype.org/ops/repo_migration/scripts
+cd /Users/H23/logicallight/Epytype/ops/repo_migration/scripts
 cat github_repos.txt
 ```
 
 ### Step 2: Execute Migration
 ```bash
-source /Users/H23/logicallight/epytype.org/ops/.env
+source /Users/H23/logicallight/Epytype/ops/.env
 ./batch_migrate.sh github_repos.txt
 ```
 
@@ -63,7 +63,7 @@ After migration, these repos will exist on Forgejo:
 
 ### Check All Repos Migrated
 ```bash
-source /Users/H23/logicallight/epytype.org/ops/.env
+source /Users/H23/logicallight/Epytype/ops/.env
 ./verify_migration.sh github_repos.txt
 ```
 
@@ -126,10 +126,10 @@ Visit: https://repo.epytype.org/Epytype
 
 ```bash
 # Navigate to scripts
-cd /Users/H23/logicallight/epytype.org/ops/repo_migration/scripts
+cd /Users/H23/logicallight/Epytype/ops/repo_migration/scripts
 
 # Source environment
-source /Users/H23/logicallight/epytype.org/ops/.env
+source /Users/H23/logicallight/Epytype/ops/.env
 
 # Run migration (when ready)
 ./batch_migrate.sh github_repos.txt
@@ -154,7 +154,7 @@ source /Users/H23/logicallight/epytype.org/ops/.env
 
 **Run when ready:**
 ```bash
-cd /Users/H23/logicallight/epytype.org/ops/repo_migration/scripts
-source /Users/H23/logicallight/epytype.org/ops/.env
+cd /Users/H23/logicallight/Epytype/ops/repo_migration/scripts
+source /Users/H23/logicallight/Epytype/ops/.env
 ./batch_migrate.sh github_repos.txt
 ```

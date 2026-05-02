@@ -19,13 +19,13 @@ Important: dedicated and repo are intentionally on separate subnets and communic
 ## 2) Prerequisites
 
 From this repo:
-- Terraform config path: `/Users/H23/logicallight/epytype.org/ops/tf`
+- Terraform config path: `/Users/H23/logicallight/Epytype/ops/tf`
 - `hcloud` and `terraform` installed locally
 - `HCLOUD_TOKEN` available (or passed inline)
 
 Terraform apply command:
 ```sh
-HCLOUD_TOKEN='<token>' terraform -chdir=/Users/H23/logicallight/epytype.org/ops/tf apply
+HCLOUD_TOKEN='<token>' terraform -chdir=/Users/H23/logicallight/Epytype/ops/tf apply
 ```
 
 ## 3) Robot admin handoff (required)
