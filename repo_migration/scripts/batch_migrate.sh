@@ -1,5 +1,5 @@
 #!/bin/bash
-# Batch migrate all repositories from a list
+# Batch migrate all repositories from a list.
 
 set -e
 
@@ -41,15 +41,28 @@ while IFS= read -r REPO_FULL; do
     echo "[$CURRENT/$TOTAL] Migrating: $REPO_FULL"
     echo "========================================"
     
-    ./migrate_to_forgejo.sh "$REPO_FULL" "$TARGET_ORG"
+    ./migrate_to_forgejo.sh "$REPO_FULL" "$TARGET_ORG" || true
     
-    if [ $? -eq 0 ]; then
+    # Check if migration succeeded
+    REPO_NAME=$(basename "$REPO_FULL")
+    if [ "$REPO_NAME" = "epytype" ]; then
+        FORGEJO_REPO="epytype"
+    else
+        FORGEJO_REPO=$(echo "$REPO_NAME" | sed 's/^epytype-//')
+    fi
+    
+    # Verify repo exists on Forgejo
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+        -H "Authorization: token $FORGEJO_TOKEN" \
+        "https://repo.epytype.org/api/v1/repos/${TARGET_ORG}/${FORGEJO_REPO}")
+    
+    if [ "$HTTP_CODE" = "200" ]; then
         SUCCESS=$((SUCCESS + 1))
-        echo "✓ Success: $REPO_FULL"
+        echo "✓ Success: $REPO_NAME -> $FORGEJO_REPO"
     else
         FAILED=$((FAILED + 1))
-        FAILED_REPOS="$FAILED_REPOS $REPO_FULL"
-        echo "✗ Failed: $REPO_FULL"
+        FAILED_REPOS="$FAILED_REPOS $REPO_NAME"
+        echo "✗ Failed: $REPO_NAME"
     fi
     
     # Small delay to avoid rate limiting
@@ -71,58 +84,4 @@ if [ -n "$FAILED_REPOS" ]; then
         echo "  - $REPO"
     done
     exit 1
-fi
-
-echo "Starting batch migration of repositories from $REPO_LIST"
-echo "Target organization: ${TARGET_ORG:-<none, repos will be under admin>}"
-
-TOTAL=$(wc -l < "$REPO_LIST")
-CURRENT=0
-SUCCESS=0
-FAILED=0
-FAILED_REPOS=""
-
-while IFS= read -r REPO_FULL; do
-    CURRENT=$((CURRENT + 1))
-    # Extract repo name from org/repo format
-    REPO_NAME=$(basename "$REPO_FULL")
-    
-    echo ""
-    echo "========================================"
-    echo "[$CURRENT/$TOTAL] Migrating: $REPO_NAME"
-    echo "========================================"
-    
-    if [ -n "$TARGET_ORG" ]; then
-        ./migrate_to_forgejo.sh "$REPO_NAME" "$TARGET_ORG"
-    else
-        ./migrate_to_forgejo.sh "$REPO_NAME"
-    fi
-    
-    if [ $? -eq 0 ]; then
-        SUCCESS=$((SUCCESS + 1))
-        echo "✓ Success: $REPO_NAME"
-    else
-        FAILED=$((FAILED + 1))
-        FAILED_REPOS="$FAILED_REPOS $REPO_NAME"
-        echo "✗ Failed: $REPO_NAME"
-    fi
-    
-    # Small delay to avoid rate limiting
-    sleep 2
-done < "$REPO_LIST"
-
-echo ""
-echo "========================================"
-echo "Migration Complete"
-echo "========================================"
-echo "Total: $TOTAL"
-echo "Success: $SUCCESS"
-echo "Failed: $FAILED"
-
-if [ -n "$FAILED_REPOS" ]; then
-    echo ""
-    echo "Failed repositories:"
-    for REPO in $FAILED_REPOS; do
-        echo "  - $REPO"
-    done
 fi

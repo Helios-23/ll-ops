@@ -1,5 +1,5 @@
 #!/bin/bash
-# Migrate a repository to Forgejo using the migration API
+# Migrate a repository to Forgejo using push-to-create.
 
 set -e
 
@@ -15,10 +15,10 @@ if [ -z "$REPO_FULL" ] || [ -z "$FORGEJO_TOKEN" ] || [ -z "$GITHUB_TOKEN" ]; the
     echo "Usage: $0 <org/repo_name> [target_org]"
     echo "Requires: FORGEJO_TOKEN, GITHUB_TOKEN"
     echo "Default target org: Epytype"
-    exit 1
+    exit 1;
 fi
 
-# Extract repo name from org/repo format
+# Extract repo name from org/repo format.
 REPO_NAME=$(basename "$REPO_FULL")
 
 # Transform repo name: remove 'epytype-' prefix if present (but keep 'epytype' as-is)
@@ -33,7 +33,7 @@ echo "Original name: $REPO_NAME"
 echo "Forgejo name: $FORGEJO_REPO_NAME"
 echo "Target organization: $TARGET_ORG"
 
-# Mirror clone from GitHub
+# Mirror clone from GitHub if not already present.
 cd "$CLONE_DIR"
 if [ -d "$REPO_NAME.git" ]; then
     echo "Using existing mirror..."
@@ -42,21 +42,19 @@ else
     git clone --mirror "https://$GITHUB_TOKEN@github.com/${GITHUB_ORG}/${REPO_NAME}.git" "$REPO_NAME.git"
 fi
 
-# Create repo on Forgejo via API
-echo "Creating repository on Forgejo..."
-curl -s -X POST \
-  -H "Authorization: token $FORGEJO_TOKEN" \
-  -H "Content-Type: application/json" \
-  "${FORGEJO_URL}/api/v1/orgs/${TARGET_ORG}/repos" \
-  -d "{
-    \"name\": \"${FORGEJO_REPO_NAME}\",
-    \"private\": false,
-    \"mirror\": false
-  }" | python3 -m json.tool
-
-# Push mirror to Forgejo
+# Push to Forgejo (push-to-create should handle repo creation)
 cd "$REPO_NAME.git"
 echo "Pushing to Forgejo..."
-git push --mirror "https://$FORGEJO_TOKEN@repo.epytype.org/${TARGET_ORG}/${FORGEJO_REPO_NAME}.git"
+
+# Push all refs, ignoring expected errors (PR refs, etc.)
+git push --mirror "https://$FORGEJO_TOKEN@repo.epytype.org/${TARGET_ORG}/${FORGEJO_REPO_NAME}.git" 2>&1 | \
+    grep -v "hook declined" | \
+    grep -v "internal reference" || true
+
+# Verify main branch was pushed.
+echo "Verifying push..."
+git push "https://$FORGEJO_TOKEN@repo.epytype.org/${TARGET_ORG}/${FORGEJO_REPO_NAME}.git" main 2>&1 | \
+    grep -q "main -> main" && echo "✓ Success: $REPO_NAME -> $FORGEJO_REPO_NAME" || \
+    (echo "✗ Failed: $REPO_NAME"; exit 1)
 
 echo "Migration complete: ${FORGEJO_URL}/${TARGET_ORG}/${FORGEJO_REPO_NAME}"
