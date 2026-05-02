@@ -16,16 +16,32 @@ printf "Database password: "
 read -s DB_PASS
 echo ""
 
-# Query function (simple pipe approach)
+# Check for empty password
+if [ -z "$DB_PASS" ]; then
+  echo "ERROR: Password cannot be empty"
+  return 1 2>/dev/null || exit 1
+fi
+
+# Query function
 query_entry() {
-  echo "$DB_PASS" | "$KEEPASSXC" show -s "$DB" "$1" 2>/dev/null
+  local entry="$1"
+  echo "$DB_PASS" | "$KEEPASSXC" show -s "$DB" "$entry" 2>&1
 }
 
-# Get Hetzner token
-HCLOUD_TOKEN=$(query_entry "Hetzner devops API token" | awk '/Password:/ {print $2}')
+# Test password with Hetzner token query
+OUTPUT=$(query_entry "Hetzner devops API token")
+if echo "$OUTPUT" | grep -q "Invalid credentials"; then
+  echo "ERROR: Invalid database password"
+  unset DB_PASS
+  pkill -f "keepassxc-cli" 2>/dev/null
+  return 1 2>/dev/null || exit 1
+fi
+
+HCLOUD_TOKEN=$(echo "$OUTPUT" | awk '/Password:/ {print $2}')
 if [ -z "$HCLOUD_TOKEN" ]; then
   echo "ERROR: Failed to load HCLOUD_TOKEN"
   unset DB_PASS
+  pkill -f "keepassxc-cli" 2>/dev/null
   return 1 2>/dev/null || exit 1
 fi
 export HCLOUD_TOKEN
@@ -38,6 +54,7 @@ CLOUDFLARE_ZONE_ID=$(echo "$CF_ENTRY" | awk '/UserName:/ {print $2}')
 if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ZONE_ID" ]; then
   echo "ERROR: Failed to load Cloudflare credentials"
   unset DB_PASS
+  pkill -f "keepassxc-cli" 2>/dev/null
   return 1 2>/dev/null || exit 1
 fi
 export CLOUDFLARE_API_TOKEN
