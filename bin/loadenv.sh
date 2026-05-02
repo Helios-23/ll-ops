@@ -16,7 +16,7 @@ printf "Database password: "
 read -s DB_PASS
 echo ""
 
-# Query function
+# Query function (simple pipe approach)
 query_entry() {
   echo "$DB_PASS" | "$KEEPASSXC" show -s "$DB" "$1" 2>/dev/null
 }
