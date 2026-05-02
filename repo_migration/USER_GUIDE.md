@@ -11,19 +11,31 @@ All repositories have been migrated from GitHub to Forgejo at `https://repo.epyt
 
 ## Step 1: Set Up SSH Access for Forgejo
 
-### 1.1 Add Your SSH Key to Forgejo
+### 1.1 Configure SSH Config (REQUIRED)
+
+**Required before any git operations will work.**
+
+Add the following to `~/.ssh/config`:
+
+```
+Host repo.epytype.org
+  HostName 195.201.226.77
+  Port 2222
+  User git
+  IdentityFile ~/.ssh/j.epetype.org
+  IdentitiesOnly yes
+```
+
+### 1.2 Add Your SSH Key to Forgejo
 
 You should already have an SSH key. Add it to Forgejo:
 
 1. Copy your public key:
    ```bash
    # List your SSH keys
-   ls -la ~/.ssh/id_ed25519*
    ls -la ~/.ssh/j.epetype.org*
    
-   # Copy the public key (choose the correct one)
-   cat ~/.ssh/id_ed25519.pub
-   # or
+   # Copy the public key
    cat ~/.ssh/j.epetype.org.pub
    ```
 
@@ -33,14 +45,14 @@ You should already have an SSH key. Add it to Forgejo:
    - Paste your public key
    - Click "Add Key"
 
-### 1.2 Test SSH Connection
+### 1.3 Test SSH Connection
 
 ```bash
 # Test SSH connection to Forgejo
 ssh -T git@repo.epytype.org
 
-# You should see something like:
-# Welcome to Forgejo, <your_username>!
+# You should see:
+# Hi there, you've successfully authenticated over SSH.
 ```
 
 ---
@@ -96,65 +108,48 @@ cd ~/epytype.org/epytype && git remote -v
 
 ---
 
-## Step 3: Update Local Development Workflow
+## Step 3: Update Codex App to Use Fresh Checkouts
 
-### 3.1 If You Have Existing Local Copies
+After cloning the fresh repositories to `~/epytype.org/`, update your Codex app to point to these new local repositories.
 
-If you have existing local copies with unpushed work:
+### 3.1 Update Codex Configuration
 
-```bash
-# Navigate to your existing local copy
-cd /path/to/old/epytype-clone;
-
-# Check status
-git status;
-git log --oneline --decorate --graph --all;
-
-# Add new Forgejo remote
-git remote add forgejo git@repo.epytype.org:Epytype/epytype.git;
-
-# Push any unpushed work to Forgejo
-git push forgejo main;
-
-# Or push all branches
-git push forgejo --all;
-
-# Set Forgejo as default remote
-git remote remove origin  # Remove old GitHub remote
-git remote rename forgejo origin;
-
-# Update local main branch
-git branch --set-upstream-to=origin/main main;
-```
-
-### 3.2 Update All Existing Local Repos
-
-If you have local clones of the old GitHub repos:
+Update any Codex app configuration or settings to reference the new repository paths:
 
 ```bash
-# For each existing local repository:
-cd /path/to/old/epytype;
-git remote set-url origin git@repo.epytype.org:Epytype/epytype.git;
-git remote -v  # Verify
-git fetch origin;
-git branch --set-upstream-to=origin/main main;
-
-# Repeat for other repos:
-# epytype-docstore -> Epytype/docstore
-# epytype-kernel -> Epytype/kernel
-# epytype-lang -> Epytype/lang;
-# epytype-spec -> Epytype/spec;
+# Example: Update Codex to use fresh checkouts
+# Paths should now point to:
+# ~/epytype.org/epytype
+# ~/epytype.org/docstore
+# ~/epytype.org/kernel
+# ~/epytype.org/lang
+# ~/epytype.org/spec
 ```
 
-### 3.3 Update CI/CD References
+### 3.2 Update References in Codex
 
-Update any CI/CD pipelines, GitHub Actions, or automation scripts to point to the new URLs:
+Search for and update any hardcoded references in your Codex app:
 
-**Old:** `https://github.com/jperry303/epytype.git`
-**New:** `https://repo.epytype.org/Epytype/epytype.git`
+```bash
+# Search for old GitHub URLs in Codex app
+cd /path/to/codex-app
+grep -r "github.com/jperry303" .
 
-**Old:** `git@github.com:jperry303/epytype.git`
-**New:** `git@repo.epytype.org:Epytype/epytype.git`
+# Update references to point to new Forgejo URLs:
+# Old: https://github.com/jperry303/epytype
+# New: https://repo.epytype.org/Epytype/epytype
+#
+# Old: git@github.com:jperry303/epytype.git
+# New: git@repo.epytype.org:Epytype/epytype.git
+```
+
+### 3.3 Verify Codex Points to Fresh Checkouts
+
+```bash
+# Verify Codex is using the new local paths
+# Check that Codex references point to ~/epytype.org/ paths
+# rather than old GitHub clone locations
+```
 
 ---
 
@@ -245,8 +240,8 @@ ssh -vT git@repo.epytype.org
 # Check SSH key permissions
 ls -la ~/.ssh/
 chmod 700 ~/.ssh
-chmod 600 ~/.ssh/j.epetype.org
-chmod 644 ~/.ssh/j.epetype.org.pub
+chmod 600 ~/.ssh/r.epetype.org
+chmod 644 ~/.ssh/r.epetype.org.pub
 ```
 
 ### Push Rejected
