@@ -11,3 +11,22 @@ forgejo_postgres_password: change-me
 forgejo_domain: "repo.epytype.org"
 forgejo_https_enabled: false
 certbot_email: "helios23@gmail.com"
+
+# Forgejo user management (optional)
+# forgejo_users:
+#   - username: jdoe
+#     password: secret123
+#     email: jdoe@example.com
+#     admin: false
+
+# Forgejo organization membership (optional)
+# forgejo_org_members:
+#   - username: jdoe
+#     organization: Epytype
+#     role: member  # or 'admin'
+
+# Forgejo repository access (optional)
+# forgejo_repo_access:
+#   - team: developers
+#     repository: Epytype/website
+#     access: write  # read, write, or admin

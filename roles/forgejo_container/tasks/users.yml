@@ -1,0 +1,36 @@
+- name: Manage Forgejo users, groups, and repository access
+  block:
+    - name: Create Forgejo user
+      command: >
+        docker exec forgejo gitea admin user create
+        --username {{ item.username }}
+        --password {{ item.password }}
+        --email {{ item.email }}
+        --admin {{ item.admin | default(false) | lower }}
+      loop: "{{ forgejo_users | default([]) }}"
+      when: forgejo_users is defined
+      register: create_user_result
+      changed_when: "'already exists' not in create_user_result.stderr"
+
+    - name: Add user to organization
+      command: >
+        docker exec forgejo gitea admin user change-org-role
+        --username {{ item.username }}
+        --org {{ item.organization }}
+        --role {{ item.role | default('member') }}
+      loop: "{{ forgejo_org_members | default([]) }}"
+      when: forgejo_org_members is defined
+
+    - name: Add user to repository (team access)
+      command: >
+        docker exec forgejo gitea admin repo change-team-access;
+        --team {{ item.team }}
+        --repo {{ item.repository }}
+        --access {{ item.access | default('read') }}
+      loop: "{{ forgejo_repo_access | default([]) }}"
+      when: forgejo_repo_access is defined
+
+  tags:
+    - forgejo_users
+    - never
+
