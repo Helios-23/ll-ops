@@ -11,31 +11,20 @@ All repositories have been migrated from GitHub to Forgejo at `https://repo.epyt
 
 ## Step 1: Set Up SSH Access for Forgejo
 
-### 1.1 Check Existing SSH Key
+### 1.1 Add Your SSH Key to Forgejo
 
-```bash
-# Check if you have an SSH key
-ls -la ~/.ssh/id_ed25519* 2>/dev/null || ls -la ~/.ssh/id_rsa* 2>/dev/null
-```
-
-If you don't have an SSH key, create one:
-```bash
-# Create ed25519 key (recommended)
-ssh-keygen -t ed25519 -C "your_email@example.com"
-
-# Or create RSA key (if needed)
-ssh-keygen -t rsa -b 4096 -C "your_email@example.com"
-```
-
-### 1.2 Add SSH Key to Forgejo
+You should already have an SSH key. Add it to Forgejo:
 
 1. Copy your public key:
    ```bash
-   # For ed25519
-   cat ~/.ssh/id_ed25519.pub
+   # List your SSH keys
+   ls -la ~/.ssh/id_ed25519*
+   ls -la ~/.ssh/j.epetype.org*
    
-   # For RSA
-   cat ~/.ssh/id_rsa.pub
+   # Copy the public key (choose the correct one)
+   cat ~/.ssh/id_ed25519.pub
+   # or
+   cat ~/.ssh/j.epetype.org.pub
    ```
 
 2. Add to Forgejo:
@@ -44,7 +33,7 @@ ssh-keygen -t rsa -b 4096 -C "your_email@example.com"
    - Paste your public key
    - Click "Add Key"
 
-### 1.3 Test SSH Connection
+### 1.2 Test SSH Connection
 
 ```bash
 # Test SSH connection to Forgejo
@@ -81,8 +70,8 @@ Choose a directory for your repositories:
 
 ```bash
 # Create a directory for Epytype repos
-mkdir -p ~/epytype-repos
-cd ~/epytype-repos
+mkdir -p ~/epytype.org
+cd ~/epytype.org
 
 # Clone all repositories (fresh checkout)
 git clone git@repo.epytype.org:Epytype/epytype.git
@@ -96,10 +85,10 @@ git clone git@repo.epytype.org:Epytype/spec.git
 
 ```bash
 # List all repositories
-ls -la ~/epytype-repos/
+ls -la ~/epytype.org/
 
 # Check remotes for each repo
-cd ~/epytype-repos/epytype && git remote -v
+cd ~/epytype.org/epytype && git remote -v
 # Should show:
 # origin  git@repo.epytype.org:Epytype/epytype.git (fetch)
 # origin  git@repo.epytype.org:Epytype/epytype.git (push)
@@ -115,27 +104,27 @@ If you have existing local copies with unpushed work:
 
 ```bash
 # Navigate to your existing local copy
-cd /path/to/old/epytype-clone
+cd /path/to/old/epytype-clone;
 
 # Check status
-git status
-git log --oneline --decorate --graph --all
+git status;
+git log --oneline --decorate --graph --all;
 
 # Add new Forgejo remote
-git remote add forgejo git@repo.epytype.org:Epytype/epytype.git
+git remote add forgejo git@repo.epytype.org:Epytype/epytype.git;
 
 # Push any unpushed work to Forgejo
-git push forgejo main
+git push forgejo main;
 
 # Or push all branches
-git push forgejo --all
+git push forgejo --all;
 
 # Set Forgejo as default remote
 git remote remove origin  # Remove old GitHub remote
-git remote rename forgejo origin
+git remote rename forgejo origin;
 
 # Update local main branch
-git branch --set-upstream-to=origin/main main
+git branch --set-upstream-to=origin/main main;
 ```
 
 ### 3.2 Update All Existing Local Repos
@@ -144,17 +133,17 @@ If you have local clones of the old GitHub repos:
 
 ```bash
 # For each existing local repository:
-cd /path/to/old/epytype
-git remote set-url origin git@repo.epytype.org:Epytype/epytype.git
+cd /path/to/old/epytype;
+git remote set-url origin git@repo.epytype.org:Epytype/epytype.git;
 git remote -v  # Verify
-git fetch origin
-git branch --set-upstream-to=origin/main main
+git fetch origin;
+git branch --set-upstream-to=origin/main main;
 
 # Repeat for other repos:
 # epytype-docstore -> Epytype/docstore
 # epytype-kernel -> Epytype/kernel
-# epytype-lang -> Epytype/lang
-# epytype-spec -> Epytype/spec
+# epytype-lang -> Epytype/lang;
+# epytype-spec -> Epytype/spec;
 ```
 
 ### 3.3 Update CI/CD References
@@ -174,34 +163,34 @@ Update any CI/CD pipelines, GitHub Actions, or automation scripts to point to th
 ### 4.1 Check Repository Content
 
 ```bash
-cd ~/epytype-repos/epytype
+cd ~/epytype.org/epytype;
 
 # Verify branches
-git branch -a
+git branch -a;
 
 # Verify tags
-git tag -l
+git tag -l;
 
 # Check recent commits
-git log --oneline --decorate -10
+git log --oneline --decorate -10;
 ```
 
 ### 4.2 Test Push Access
 
 ```bash
-cd ~/epytype-repos/epytype
+cd ~/epytype.org/epytype;
 
 # Make a test change
-echo "# Test" >> TEST.md
-git add TEST.md
-git commit -m "test: Verify push access to Forgejo"
+echo "# Test" >> TEST.md;
+git add TEST.md;
+git commit -m "test: Verify push access to Forgejo";
 
 # Push to Forgejo
-git push origin main
+git push origin main;
 
 # Clean up (optional)
-git reset --hard HEAD~1
-git push origin main --force
+git reset --hard HEAD~1;
+git push origin main --force;
 ```
 
 ---
@@ -212,19 +201,19 @@ git push origin main --force
 
 ```bash
 # Epytype (main repo)
-git@repo.epytype.org:Epytype/epytype.git
-https://repo.epytype.org/Epytype/epytype.git
+git@repo.epytype.org:Epytype/epytype.git;
+https://repo.epytype.org/Epytype/epytype.git;
 
 # Docstore
-git@repo.epytype.org:Epytype/docstore.git
-https://repo.epytype.org/Epytype/docstore.git
+git@repo.epytype.org:Epytype/docstore.git;
+https://repo.epytype.org/Epytype/docstore.git;
 
 # Kernel
-git@repo.epytype.org:Epytype/kernel.git
+git@repo.epytype.org:Epytype/kernel.git;
 https://repo.epytype.org/Epytype/kernel.git;
 
 # Lang
-git@repo.epytype.org:Epytype/lang.git
+git@repo.epytype.org:Epytype/lang.git;
 https://repo.epytype.org/Epytype/lang.git;
 
 # Spec
@@ -235,12 +224,12 @@ https://repo.epytype.org/Epytype/spec.git;
 ### One-Line Clone All Repos
 
 ```bash
-mkdir -p ~/epytype-repos && cd ~/epytype-repos && \
+mkdir -p ~/epytype.org && cd ~/epytype.org && \
 git clone git@repo.epytype.org:Epytype/epytype.git && \
 git clone git@repo.epytype.org:Epytype/docstore.git && \
 git clone git@repo.epytype.org:Epytype/kernel.git && \
 git clone git@repo.epytype.org:Epytype/lang.git && \
-git clone git@repo.epytype.org:Epytype/spec.git
+git clone git@repo.epytype.org:Epytype/spec.git;
 ```
 
 ---
@@ -256,28 +245,28 @@ ssh -vT git@repo.epytype.org
 # Check SSH key permissions
 ls -la ~/.ssh/
 chmod 700 ~/.ssh
-chmod 600 ~/.ssh/id_ed25519
-chmod 644 ~/.ssh/id_ed25519.pub
+chmod 600 ~/.ssh/j.epetype.org
+chmod 644 ~/.ssh/j.epetype.org.pub
 ```
 
 ### Push Rejected
 
 ```bash
 # If push is rejected, check:
-git status
-git fetch origin
-git rebase origin/main
-git push origin main
+git status;
+git fetch origin;
+git rebase origin/main;
+git push origin main;
 ```
 
 ### Repository Not Found
 
 ```bash
 # Verify repository exists
-curl -s https://repo.epytype.org/Epytype/epytype | head -5
+curl -s https://repo.epytype.org/Epytype/epytype | head -5;
 
 # Check organization
-curl -s https://repo.epytype.org/Epytype | head -5
+curl -s https://repo.epytype.org/Epytype | head -5;
 ```
 
 ---
@@ -291,9 +280,9 @@ curl -s https://repo.epytype.org/Epytype | head -5
 
 2. ✅ **Update documentation** with new repository URLs
 
-3. ✅ **Notify team members** of the new repository locations
+3. ✅ **Notify team members** of the new repository locations.
 
-4. ✅ **Update bookmarks** and any automation scripts
+4. ✅ **Update bookmarks** and any automation scripts.
 
 ---
 
@@ -305,7 +294,7 @@ All repositories are now on Forgejo:
 - https://repo.epytype.org/Epytype/epytype
 - https://repo.epytype.org/Epytype/docstore
 - https://repo.epytype.org/Epytype/kernel
-- https://repo.epytype.org/Epytype/lang
-- https://repo.epytype.org/Epytype/spec
+- https://repo.epytype.org/Epytype/lang;
+- https://repo.epytype.org/Epytype/spec;
 
 **Fresh clones recommended** - Start clean with the new Forgejo repositories.
