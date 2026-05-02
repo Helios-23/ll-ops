@@ -22,7 +22,7 @@ Host repo.epytype.org
   HostName 195.201.226.77
   Port 2222
   User git
-  IdentityFile ~/.ssh/j.epetype.org
+  IdentityFile ~/.ssh/j.epytype.org
   IdentitiesOnly yes
 ```
 
@@ -33,10 +33,10 @@ You should already have an SSH key. Add it to Forgejo:
 1. Copy your public key:
    ```bash
    # List your SSH keys
-   ls -la ~/.ssh/j.epetype.org*
+   ls -la ~/.ssh/j.epytype.org*
    
    # Copy the public key
-   cat ~/.ssh/j.epetype.org.pub
+   cat ~/.ssh/j.epytype.org.pub
    ```
 
 2. Add to Forgejo:
