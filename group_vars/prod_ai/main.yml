@@ -53,3 +53,8 @@ nfs_root: "{{nfs_server}}:/nfsmnt/{{env_type}}"
 ## 3RD PARTY INTEGRATIONS
 # Google
 google_app_creds: "file-storage-prod.json"
+
+# WebUI users (auto-provisioned on startup, exclude admin user)
+webui_users:
+  - "helios23@gmail.com"
+  - "jperry303@gmail.com"

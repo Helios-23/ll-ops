@@ -1,5 +1,7 @@
-- hosts: localhost, all
-#  strategy: free
+- hosts: all
+  #  strategy: free
+  tags:
+    - kymstr
   pre_tasks:
   - name: Info
     debug:
@@ -10,4 +12,3 @@
 
   roles:
     - keymaster
-    

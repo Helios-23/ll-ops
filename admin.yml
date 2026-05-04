@@ -1,6 +1,8 @@
 - name: Run administrative tasks
   hosts: all
   gather_facts: true
+  tags:
+    - admin
   pre_tasks:
     - name: "Check if limit is specified"
       fail:

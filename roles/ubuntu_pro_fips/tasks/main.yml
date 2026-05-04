@@ -66,14 +66,12 @@
     'already enabled' not in ((ubuntu_pro_enable_fips.stdout ~ ubuntu_pro_enable_fips.stderr) | lower)
   when:
     - ubuntu_pro_enable | bool
+    - ubuntu_pro_fips_service | length > 0
     - >
-      ubuntu_pro_fips_service not in
-      (((ubuntu_pro_status_after_attach.stdout | from_json).services | default([]))
-      | selectattr('name', 'equalto', ubuntu_pro_fips_service)
-      | selectattr('status', 'equalto', 'enabled')
-      | list
-      | map(attribute='name')
-      | list)
+        (ubuntu_pro_status_after_attach.stdout | from_json).services
+        | selectattr('name', 'equalto', ubuntu_pro_fips_service)
+        | list
+        | length == 0
 
 - name: Reboot after FIPS enablement
   reboot:
@@ -109,13 +107,10 @@
     - ubuntu_pro_enable | bool
     - ubuntu_pro_usg_enable | bool
     - >
-      'usg' not in
-      (((ubuntu_pro_status_before_usg.stdout | from_json).services | default([]))
-      | selectattr('name', 'equalto', 'usg')
-      | selectattr('status', 'equalto', 'enabled')
-      | list
-      | map(attribute='name')
-      | list)
+        ((ubuntu_pro_status_before_usg.stdout | from_json).services | default([]))
+        | selectattr('name', 'equalto', 'usg')
+        | list
+        | length == 0
 
 - name: Install Ubuntu Security Guide
   apt:

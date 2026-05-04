@@ -1,0 +1,62 @@
+#!/bin/sh
+
+API="${API:-http://localhost:3000/api/v1}"
+WHITELIST_FILE="${WHITELIST_FILE:-/opt/open-webui/user-whitelist.txt}"
+DEFAULT_PASS="${DEFAULT_PASS:-changeme}"
+COMPOSE_FILE="${COMPOSE_FILE:-/opt/open-webui/docker-compose.yml}"
+
+echo "Using API endpoint: $API"
+
+if [ ! -f "$WHITELIST_FILE" ]; then
+  echo "Whitelist file not found, skipping."
+  exit 0
+fi
+
+echo "Enabling signup in compose file..."
+sed -i 's/ENABLE_SIGNUP: "false"/ENABLE_SIGNUP: "true"/' "$COMPOSE_FILE"
+grep -q "ENABLE_PERSISTENT_CONFIG" "$COMPOSE_FILE" || sed -i '/ENABLE_SIGNUP/a\      ENABLE_PERSISTENT_CONFIG: "false"' "$COMPOSE_FILE"
+
+echo "Restarting WebUI with signup enabled..."
+systemctl restart open-webui.service
+
+echo "Waiting for WebUI to be ready..."
+i=0
+while ! curl -sf "$API/auths/signin" > /dev/null 2>&1; do
+  i=$((i+1))
+  if [ $i -ge 60 ]; then
+    echo "WebUI did not become ready in time."
+    exit 1
+  fi
+  sleep 1
+done
+
+echo "Processing whitelist: $WHITELIST_FILE"
+while IFS= read -r email || [ -n "$email" ]; do
+  email=$(echo "$email" | tr -d '[:space:]')
+  [ -z "$email" ] && continue
+  echo "Creating user $email..."
+
+  RESULT=$(curl -s -w "\n%{http_code}" -X POST "$API/auths/signup" \
+    -H "Content-Type: application/json" \
+    -d "{\"email\": \"$email\", \"password\": \"$DEFAULT_PASS\", \"name\": \"$email\"}")
+
+  HTTP_CODE=$(echo "$RESULT" | tail -1)
+  BODY=$(echo "$RESULT" | head -n -1)
+
+  if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ]; then
+    echo "  User $email created successfully."
+  elif echo "$BODY" | grep -q "already exists\|already registered"; then
+    echo "  User $email already exists, skipping."
+  else
+    echo "  Failed to create $email (HTTP $HTTP_CODE): $BODY"
+  fi
+done < "$WHITELIST_FILE"
+
+echo "Disabling signup in compose file..."
+sed -i 's/ENABLE_SIGNUP: "true"/ENABLE_SIGNUP: "false"/' "$COMPOSE_FILE"
+sed -i '/ENABLE_PERSISTENT_CONFIG/d' "$COMPOSE_FILE"
+
+echo "Restarting WebUI with signup disabled..."
+systemctl restart open-webui.service
+
+echo "Whitelist provisioning complete."

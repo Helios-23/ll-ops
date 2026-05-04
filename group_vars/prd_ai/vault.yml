@@ -1,9 +1,0 @@
-# Vault Encrypted Values
-vault:
-  # Open WebUI session signing key
-  ai_webui_secret: "change-me-USE-openssl-rand-TO-GENERATE"
-  # Cloudflare API token for DNS/SSL management
-  ai_cloudflare_api_token: ""
-  # Certbot email for Let's Encrypt notifications
-  ai_certbot_email: "helios23@gmail.com"
-

@@ -7,4 +7,10 @@ cloudflare_dns_records = {
     type    = "A"
     proxied = true
   }
+  ai = {
+    name    = "ai"
+    value   = "5.9.86.250"
+    type    = "A"
+    proxied = true
+  }
 }

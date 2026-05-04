@@ -1,59 +1,77 @@
-ai_domain: "ai.epytype.org"
-
-home_ip_address: "1.2.3.4"
-
 # Models sized to fit 20GB VRAM on RTX 4000 SFF Ada
-# Only 1-2 large models can be resident at once (see OLLAMA_MAX_LOADED_MODELS)
+# Only 1-2 large models can be resident at once
 ai_models:
-  # Coding & Logic (use Q4_K_M quantized)
-  - "qwen2.5-coder:32b"
-  - "deepseek-coder-v2:16b"
-  - "starcoder2:7b"
-  - "phi4:latest"
+  # Coding & Logic
+  - "qwen2.5-coder:32b"  # 32B coder, 32K context
+  - "deepseek-coder-v2:16b"  # 16B coding specialist
+  - "starcoder2:7b"  # Fast code completion, 16K context
+  - "phi4:latest"  # 14B reasoning model
+
   # General LLM & Writing
-  - "llama3.3:8b"
-  - "mistral:7b"
-  - "gemma2:9b"
-  - "qwen2.5:14b"
+  - "llama3.1:8b"  # Meta 8B instruct, 8K context
+  - "mistral:7b"  # Fast 7B general purpose
+  - "gemma2:9b"  # Google 9B, balanced
+  - "qwen2.5:14b"  # 14B multilingual support
+
   # Reasoning / Chain-of-Thought
-  - "deepseek-r1:8b"
+  - "deepseek-r1:8b"  # 8B reasoning specialist
+
   # Multimodal / Vision
-  - "llava:7b"
-  - "moondream:latest"
+  - "llava:7b"  # Vision-language, image understanding
+  - "bakllava:7b"  # Mistral 7B + vision
+
+  # Small fast models
+  - "phi4-mini:3.8b"  # Tiny Phi-4, 128K context
+  - "gemma:2b"  # Ultra-lightweight
+
+  # Coding (small/fast)
+  - "starcoder2:3b"  # Tiny coder, 3B params
+  - "codegemma:2b"  # Small Google coder
+
   # Structured Output / Agents
-  - "hermes3:8b"
+  - "hermes3:8b"  # 8B agentic capabilities
+
   # Embeddings (for RAG)
-  - "nomic-embed-text:latest"
-  - "mxbai-embed-large:latest"
+  - "nomic-embed-text:latest"  # High-quality embeddings
+
+# Open WebUI settings
+open_webui_show_all_models: true  # Show all installed models in UI
+open_webui_model_selection: "advanced"  # "simple" or "advanced"
 
 # GEX44 hardware specs
 nvidia_driver_version: "535"
 cpu_governor: "performance"
 cpu_threads: 14
+force_reboot: false  # Set to true for driver installs
 
-# VRAM management — critical for 20GB GPU
-# Set to 1 so only one large model stays resident at a time
-max_vram_models: 1
-# Keep model in VRAM for 30 min of inactivity (not 24h, wastes VRAM)
-vram_keep_alive: "30m"
-# Limit concurrent parallel requests to avoid memory spikes
-parallel_requests: 2
+# VRAM management (20GB GPU)
+max_vram_models: 1  # Max models resident in VRAM
+vram_keep_alive: "30m"  # Keep in VRAM (30 min inactivity)
+parallel_requests: 2  # Max concurrent requests
 
 # Docker storage paths
 ollama_data_path: "/opt/ollama"
-localai_data_path: "/opt/localai/models"
 open_webui_data_path: "/opt/open-webui"
 
 # Port configurations
 ollama_port: 11434
-localai_port: 8080
 agent_ui_port: 3000
 
 # Docker image versions
-ollama_version: "latest"
-localai_version: "latest"
-localai_image: "localai/localai:latest-gpu-nvidia-cuda-12"
 ollama_image: "ollama/ollama:latest"
+
+# Open WebUI session signing key (override in vault)
+webui_secret: "{{ vault.webui.token | default('change-me') }}"
+
+# Open WebUI admin account (override in vault)
+webui_admin_user: "{{ vault.webui.admin_user | default('admin@epytype.org') }}"
+webui_admin_pass: "{{ vault.webui.admin_pass | default('change-me') }}"
+
+# Ollama GPU settings
+ollama_num_gpu: 999  # Enable all GPU layers
+
+# Domain and network settings
+ai_domain: "ai.epytype.org"
 
 # Nginx proxy settings
 nginx_proxy_buffering: "off"
@@ -62,16 +80,5 @@ nginx_read_timeout: 600s
 # Certbot settings
 certbot_email: "{{ vault.ai_certbot_email | default('helios23@gmail.com') }}"
 
-# RAG embedding model
-rag_embedding_model: "sentence-transformers/all-MiniLM-L6-v2"
-
-# Open WebUI session signing key — override in group_vars or vault
-webui_secret: "{{ vault.ai_webui_secret | default('change-me') }}"
-
 # Memory protection settings
-# Swap size in MB for CPU offload when VRAM is full (0 = disable, 16384 = 16GB)
-swap_size_mb: 16384
-# Percentage of VRAM Ollama is allowed to use (85% leaves room for fragmentation)
-ollama_gpu_memory_utilization: 0.85
-# Enable CPU offload as fallback when VRAM is exhausted
-ollama_num_gpu: 999
+swap_size_mb: 16384  # Swap size in MB for CPU offload

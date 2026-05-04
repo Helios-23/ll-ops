@@ -73,18 +73,18 @@
     owner: root
     group: root
     mode: "0644"
-  notify: Reload nginx:
+  notify: Reload nginx
 
 - name: Enable nginx Forgejo site
   file:
     src: /etc/nginx/sites-available/forgejo
     dest: /etc/nginx/sites-enabled/forgejo
     state: link
-  notify: Reload nginx:
+  notify: Reload nginx
 
 - name: Test nginx configuration
   command: nginx -t
-  changed_when: false:
+  changed_when: false
 
 - name: Set up certbot auto-renewal cron job
   cron:

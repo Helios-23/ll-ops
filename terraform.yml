@@ -2,10 +2,8 @@
   hosts: localhost
   connection: local
   gather_facts: false
-
-  vars:
-    tf_dir: "{{ playbook_dir }}/tf"
-    inventory_file: "{{ playbook_dir }}/inventory/epytype"
+  tags:
+    - terraform
 
   tasks:
     - name: Check Terraform is initialized

@@ -1,18 +1,48 @@
-- name: Install dependencies and NVIDIA drivers
+- name: Install NVIDIA drivers and dependencies
   apt:
     name:
       - "nvidia-driver-{{ nvidia_driver_version }}"
-      - docker.io
       - python3-pip
       - curl
     state: present
     update_cache: true
 
-- name: Install Docker SDK for Python
+- name: Check if reboot is needed after driver install
+  stat:
+    path: /var/run/reboot-required
+  register: reboot_required
+
+- name: Reboot to load NVIDIA kernel modules
+  reboot:
+    reboot_timeout: 300
+    connect_timeout: 300
+    pre_reboot_delay: 5
+  when: reboot_required.stat.exists or force_reboot | bool
+  become: true
+
+- name: Wait for system to come back online
+  wait_for_connection:
+    delay: 30
+    timeout: 300
+  when: reboot_required.stat.exists or force_reboot | bool
+
+- name: Check if NVIDIA driver is already installed
+  shell: dpkg -l | grep -q "nvidia-driver-{{ nvidia_driver_version }}"
+  register: nvidia_driver_check
+  failed_when: false
+  changed_when: false
+
+- name: Install NVIDIA drivers and dependencies
   apt:
-    name: python3-docker
+    name:
+      - "nvidia-driver-{{ nvidia_driver_version }}"
+      - python3-pip
+      - curl
     state: present
     update_cache: true
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+  when: nvidia_driver_check.rc != 0
 
 - name: Setup NVIDIA Container Toolkit repository
   shell: |
@@ -33,65 +63,45 @@
     state: present
     update_cache: true
 
-- name: Configure Docker to use NVIDIA runtime
-  template:
-    src: daemon.json.j2
-    dest: /etc/docker/daemon.json
-    owner: root
-    group: root
-    mode: "0644"
+- name: Configure NVIDIA Container Runtime for Docker
+  command: nvidia-ctk runtime configure --runtime=docker
+  changed_when: true
   notify: restart docker
 
-- name: Ensure Docker is started
+- name: Check if nvidia-smi works
+  command: nvidia-smi
+  register: nvidia_smi_check
+  changed_when: false
+  failed_when: false
+
+- name: Enable NVIDIA Persistence Mode
+  command: nvidia-smi -pm 1
+  changed_when: false
+  when: nvidia_smi_check.rc == 0
+  ignore_errors: true
+
+- name: Enable and start NVIDIA Persistence Daemon
   systemd:
-    name: docker
+    name: nvidia-persistenced
     state: started
     enabled: true
+  when: nvidia_smi_check.rc == 0
+  ignore_errors: true
 
 - name: Create internal AI network
   community.docker.docker_network:
     name: ai_network
 
-- name: Deploy Ollama Container
-  community.docker.docker_container:
-    name: ollama
-    image: "ollama/ollama:{{ ollama_version }}"
-    state: started
-    restart_policy: always
-    networks:
-      - name: ai_network
-    published_ports:
-      - "{{ ollama_port }}:11434"
-    volumes:
-      - "{{ ollama_data_path }}:/root/.ollama"
-    env:
-      OLLAMA_KEEP_ALIVE: "{{ vram_keep_alive }}"
-      OLLAMA_MAX_LOADED_MODELS: "{{ max_vram_models }}"
-      OLLAMA_NUM_PARALLEL: "{{ parallel_requests }}"
-      OLLAMA_NUM_GPU: "{{ ollama_num_gpu }}"
-    memory: "28g"
-    memory_swap: "32g"
-    oom_kill_disable: false
-    device_requests:
-      - driver: nvidia
-        count: -1
-        capabilities: [gpu]
-    comparisons:
-      env: strict
-    recreate: false
-
-- name: Deploy LocalAI Container (disabled — Open WebUI + Ollama covers all needs)
-  debug:
-    msg: "LocalAI skipped. Open WebUI provides the web interface, Ollama provides the API."
-
 - name: Run hardware optimizations
   include_tasks: optimizations.yml
 
-- name: Setup AI models
-  include_tasks: models.yml
+- name: Setup Ollama
+  include_tasks: ollama.yml
+  tags: ollama
 
-- name: Setup RAG and Agent Interface
-  include_tasks: agent.yml
+- name: Setup WebUI
+  include_tasks: webui.yml
+  tags: webui
 
 - name: Setup maintenance and cleanup
   include_tasks: maintenance.yml
@@ -101,10 +111,16 @@
     path: /etc/letsencrypt/live/{{ ai_domain }}/fullchain.pem
   register: ai_certbot_cert
 
-- name: Obtain AI TLS certificate with certbot
+- name: Stop nginx before certbot (free port 80 for standalone mode)
+  systemd:
+    name: nginx
+    state: stopped
+  ignore_errors: true
+  when: not ai_certbot_cert.stat.exists
+
+- name: Obtain AI TLS certificate with certbot (standalone mode)
   command: >
-    certbot certonly --webroot
-    --webroot-path /var/www/certbot
+    certbot certonly --standalone
     --non-interactive
     --agree-tos
     --email {{ certbot_email }}
@@ -115,6 +131,12 @@
   changed_when: >
     'obtained' in (ai_certbot_result.stdout | lower) or
     'new certificate' in (ai_certbot_result.stdout | lower)
+
+- name: Start nginx after certbot
+  systemd:
+    name: nginx
+    state: started
+  when: not ai_certbot_cert.stat.exists
 
 - name: Deploy nginx reverse proxy config for AI domain with TLS
   template:

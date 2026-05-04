@@ -1,6 +1,20 @@
-- name: Wait for Ollama container to be healthy
-  pause:
-    seconds: 10
+- name: Check Ollama systemd service is active
+  command: systemctl is-active ollama.service
+  register: ollama_service_status
+  changed_when: false
+  failed_when: ollama_service_status.stdout != "active"
+
+- name: Check Ollama container is running
+  command: docker ps --filter "name=ollama" --quiet
+  register: ollama_container_status
+  changed_when: false
+  failed_when: ollama_container_status.stdout | length == 0
+
+- name: Wait for Ollama API to be ready
+  wait_for:
+    port: "{{ ollama_port }}"
+    delay: 5
+    timeout: 60
 
 - name: Get currently installed models
   command: docker exec ollama ollama list
@@ -8,12 +22,20 @@
   changed_when: false
   failed_when: false
 
-- name: Pull AI models
+- name: Pull AI models (including quantized variants)
   command: "docker exec ollama ollama pull {{ item }}"
   loop: "{{ ai_models }}"
   register: pull_results
   changed_when: >
     item.split(':')[0] not in (installed_models.stdout | default(''))
+  
+- name: Verify all models are installed
+  command: "docker exec ollama ollama list"
+  register: model_verify
+  
+- name: Show installed models for UI
+  debug:
+    msg: "Installed models: {{ model_verify.stdout_lines }}"
 
 - name: List installed models for confirmation
   command: "docker exec ollama ollama list"
