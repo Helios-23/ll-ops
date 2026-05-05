@@ -1,0 +1,33 @@
+{
+	// Tag definition and who can assign it.
+	"tagOwners": {
+		"tag:epytype": ["autogroup:admin"],
+	},
+
+	// Network connectivity rules.
+	"grants": [
+		{"src": ["*"], "dst": ["*"], "ip": ["*"]},
+	],
+
+	// Tailscale SSH authorization rules.
+	"ssh": [
+		{
+			"action": "check",
+			"src": ["autogroup:member"],
+			"dst": ["autogroup:self"],
+			"users": ["autogroup:nonroot", "root"],
+		},
+		{
+			"action": "accept",
+			"src": ["helios23@gmail.com"],
+			"dst": ["tag:epytype"],
+			"users": ["devops"],
+		},
+		{
+			"action": "accept",
+			"src": ["jperry303@gmail.com"],
+			"dst": ["tag:epytype"],
+			"users": ["j"],
+		},
+	],
+}

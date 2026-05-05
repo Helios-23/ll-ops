@@ -1,0 +1,15 @@
+---
+# Set true to push tailnet policy via API.
+tailscale_policy_enabled: "true"
+
+# Example: "example.com"
+tailscale_tailnet: "{{ vault_all.tailscale.tailnet | default('') }}"
+
+# API token with admin/network-admin permissions.
+tailscale_api_key: "{{ vault_all.tailscale.api_key | default('') }}"
+
+# Path to huJSON policy file on control node.
+tailscale_policy_src: "{{ role_path }}/files/tailscale.hujson"
+
+# Keep API task output hidden by default.
+tailscale_no_log: true

@@ -1,0 +1,41 @@
+---
+- name: Validate Tailscale policy inputs
+  become: false
+  ansible.builtin.assert:
+    that:
+      - tailscale_tailnet | length > 0
+      - tailscale_api_key | length > 0
+    fail_msg: "Set tailscale_tailnet and tailscale_api_key before running tailscale_admin."
+  when: tailscale_policy_enabled | bool
+  tags:
+    - tailscale
+    - tailscale_policy
+
+- name: Read Tailscale policy file
+  become: false
+  ansible.builtin.set_fact:
+    tailscale_policy_content: "{{ lookup('file', tailscale_policy_src) }}"
+  when: tailscale_policy_enabled | bool
+  tags:
+    - tailscale
+    - tailscale_policy
+
+- name: Push tailnet policy with Tailscale API
+  become: false
+  ansible.builtin.uri:
+    url: "https://api.tailscale.com/api/v2/tailnet/{{ tailscale_tailnet }}/acl"
+    method: POST
+    user: "{{ tailscale_api_key }}"
+    password: ""
+    force_basic_auth: true
+    headers:
+      Content-Type: application/hujson
+    body_format: raw
+    body: "{{ tailscale_policy_content }}"
+    status_code:
+      - 200
+  when: tailscale_policy_enabled | bool
+  no_log: "{{ tailscale_no_log | bool }}"
+  tags:
+    - tailscale
+    - tailscale_policy
