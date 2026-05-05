@@ -12,7 +12,9 @@
 | Model | Size | Purpose | Context |
 |-------|------|---------|---------|
 | `qwen2.5-coder:32b` | 20GB | Large coding model, multilingual support | 32K |
+| `qwen3-coder:30b` | ~19GB | Newer large coding model | 32K |
 | `deepseek-coder-v2:16b` | 9GB | Strong coding performance, 600+ languages | 16K |
+| `deepseek-r1:32b` | ~20GB | Large reasoning + coding assistant | 32K |
 | `starcoder2:7b` | 4GB | Fast code completion, 17 languages | 16K |
 | `phi4:latest` | 9.1GB | Microsoft's 14B model, strong reasoning | 16K |
 
@@ -20,18 +22,21 @@
 | Model | Size | Purpose | Context |
 |-------|------|---------|---------|
 | `llama3.1:8b` | 4.7GB | Meta's 8B instruct model | 8K |
-| `mistral:7b` | 4.1GB | Fast 7B general purpose model | 8K |
-| `gemma2:9b` | 5.4GB | Google's 9B, good balance | 8K |
+| `mistral-small3.2:24b` | ~15GB | General-purpose model with improved tool use | 128K |
+| `mistral-small3.1:24b` | ~15GB | General-purpose multilingual model | 128K |
+| `gemma4:e4b` | ~9.6GB | Google multimodal model | 128K |
 | `qwen2.5:14b` | 9GB | Alibaba's 14B, multilingual | 32K |
 
 ### Reasoning
 | Model | Size | Purpose | Context |
 |-------|------|---------|---------|
 | `deepseek-r1:8b` | 4.7GB | Reasoning specialist with chain-of-thought | 8K |
+| `magistral:24b` | ~15GB | Larger reasoning-focused model | 128K |
 
 ### Multimodal / Vision
 | Model | Size | Purpose | Context |
 |-------|------|---------|---------|
+| `gemma4:e4b` | ~9.6GB | Multimodal (image + text) | 128K |
 | `llava:7b` | 4.7GB | Vision-language model, image understanding | 8K |
 | `bakllava:7b` | 4.7GB | Mistral 7B + LLaVA architecture | 32K |
 
@@ -39,12 +44,8 @@
 | Model | Size | Purpose | Context |
 |-------|------|---------|---------|
 | `phi4-mini:3.8b` | 2.5GB | Tiny Phi-4, 128K context, fast inference | 128K |
+| `gemma4:e2b` | ~7.2GB | Fast multimodal edge-oriented model | 128K |
 | `gemma:2b` | 1.3GB | Ultra-lightweight, good for simple tasks | 8K |
-
-### Math & Proofs
-| Model | Size | Purpose | Context |
-|-------|------|---------|---------|
-| `ima/deepseek-math:latest` | 4GB | Math specialist (7B), step-by-step reasoning | 4K |
 
 ### Coding (Small/Fast)
 | Model | Size | Purpose | Context |
@@ -61,56 +62,16 @@
 | Model | Size | Purpose |
 |-------|------|---------|
 | `nomic-embed-text:latest` | 274MB | High-quality text embeddings |
-| `mxbai-embed-large:latest` | 438MB | Large embedding model for RAG |
 
 ---
 
-## Server Optimizations
+## Server Optimization
 
-### GPU & VRAM Management
-- **Max Loaded Models:** 1 large model at a time (20GB VRAM limit)
-- **OLLAMA_MAX_LOADED_MODELS:** 4 (for small models)
-- **OLLAMA_KEEP_ALIVE:** 30 minutes (not 24h - saves VRAM)
-- **OLLAMA_NUM_PARALLEL:** 2 (limit concurrent requests)
-- **OLLAMA_NUM_GPU:** 999 (use all available GPU)
-- **Swap File:** 16GB (`/swapfile`) for CPU offload when VRAM full
-- **GPU Memory Utilization:** 85% (leaves room for fragmentation)
-
-### NVIDIA Configuration
-- **Driver:** Version 535 (installed via `nvidia-driver-535`)
-- **NVIDIA Container Toolkit:** Configured for Docker (`nvidia-ctk runtime configure`)
-- **Persistence Mode:** Enabled (`nvidia-smi -pm 1`)
-- **Persistence Daemon:** `nvidia-persistenced` enabled + started
-- **Transparent HugePages:** Enabled for better memory performance
-
-### CPU & System
-- **CPU Governor:** Performance mode (`cpupower frequency-set -g performance`)
-- **Virtual Memory Tuning:**
-  - `vm.swappiness = 10` (prefer RAM)
-  - `vm.dirty_ratio = 10`
-  - `vm.dirty_background_ratio = 5`
-  - `vm.overcommit_memory = 1`
-- **OOM Score:** Configured for Ollama process protection
-
-### Docker & Networking
-- **Docker Engine:** Official Docker repo (docker-ce, containerd.io)
-- **Docker Compose:** v2 plugin installed
-- **Internal Network:** `ai_network` (isolated Docker network)
-- **Ollama Port:** `11434` (published)
-- **Open WebUI Port:** `3000` (localhost only, proxied via nginx)
-
-### Nginx Reverse Proxy
-- **Domain:** `ai.epetype.org`
-- **TLS:** Let's Encrypt certificates (auto-renewal)
-- **Proxy Buffering:** Off (streaming responses)
-- **Read Timeout:** 600s (long model responses)
-- **Client Max Body:** 128M
-
-### Maintenance & Monitoring
-- **GPU Watchdog:** `gpu-oom-watcher.sh` (restarts Ollama if VRAM >95% for 5 checks)
-- **Daily Cleanup:** `ai-cleanup.sh` (removed stopped containers, dangling images)
-- **Log Rotation:** Journald logs vacuumed to 7 days
-- **Certbot Timer:** Auto-renews TLS certificates
+- **GPU VRAM:** 20GB target, 1 large active model, `OLLAMA_KEEP_ALIVE=30m`, `OLLAMA_NUM_PARALLEL=2`
+- **GPU Runtime:** `nvidia-driver-535`, NVIDIA Container Toolkit, persistence mode + `nvidia-persistenced`
+- **Memory Safety:** 16GB swap (`/swapfile`) + VM tuning (`swappiness=10`, `overcommit_memory=1`)
+- **Network Path:** WebUI on `127.0.0.1:3000`, TLS endpoint `https://ai.epetype.org`, Ollama reachable through proxy
+- **Ops Safety:** GPU OOM watchdog, daily cleanup timer, certbot auto-renew
 
 ---
 
@@ -130,8 +91,9 @@ Write a Python function to implement a binary search tree with insert and search
 
 ### 2. Mathematical Proofs & Reasoning
 **Best Models:**
-- `ima/deepseek-math:latest` - Math problems (add "Please reason step by step, and put your final answer within \boxed{}.")
-- `deepseek-r1:8b` - General reasoning chains
+- `deepseek-r1:32b` - Best quality reasoning
+- `deepseek-r1:8b` - Fast general reasoning chains
+- `magistral:24b` - Strong long-form reasoning
 - `phi4:latest` - Logic and reasoning
 
 **Example:**
@@ -144,7 +106,7 @@ Please reason step by step, and put your final answer within \boxed{}.
 **Best Models:**
 - `llama3.1:8b` - Balanced general purpose
 - `qwen2.5:14b` - Multilingual writing
-- `gemma2:9b` - Creative writing
+- `mistral-small3.2:24b` - High-quality writing and summarization
 - `hermes3:8b` - Agentic conversations
 
 ### 4. Vision & Image Understanding
@@ -165,7 +127,7 @@ Please reason step by step, and put your final answer within \boxed{}.
 
 ### 6. RAG (Retrieval-Augmented Generation)
 **Workflow:**
-1. Use `nomic-embed-text` or `mxbai-embed-large` to generate embeddings
+1. Use `nomic-embed-text` to generate embeddings
 2. Store in vector database
 3. Query with any chat model (recommended: `llama3.1:8b`, `qwen2.5:14b`)
 
@@ -188,6 +150,42 @@ Please reason step by step, and put your final answer within \boxed{}.
 - Image upload for vision models
 - RAG document upload
 - Function/tool calling support
+
+### Generate an API Key in Open WebUI
+1. Sign in to `https://ai.epetype.org` with your WebUI account.
+2. Open your user menu in the top-right corner.
+3. Go to `Settings` then `Account` (or `Profile`, depending on WebUI version).
+4. Find the `API Keys` section.
+5. Click `Create New Key`.
+6. Enter a label (example: `ci-agent`), then confirm.
+7. Copy the generated key immediately and store it in your secret manager.
+8. Test the key with a simple request against the WebUI API endpoint.
+
+Example test:
+```bash
+curl -H "Authorization: Bearer <WEBUI_API_KEY>" https://ai.epetype.org/api/v1/models
+```
+
+### Use Open WebUI API Token in Zed (Private CLI)
+1. Generate a WebUI API key using the steps above.
+2. In your shell profile (`~/.zshrc` or `~/.bashrc`), add:
+   ```bash
+   export OPENAI_API_KEY="<WEBUI_API_KEY>"
+   export OPENAI_API_BASE="https://ai.epetype.org/api/v1"
+   ```
+3. Reload your shell:
+   ```bash
+   source ~/.zshrc
+   ```
+4. Open Zed, then go to `Settings` -> `AI` (or `Assistant`) and add a new provider using the OpenAI-compatible option.
+5. Set provider fields as follows:
+   - **Base URL / Endpoint:** `https://ai.epetype.org/api/v1`
+   - **API Key:** use environment variable `OPENAI_API_KEY` (or paste the token directly if your Zed build requires manual entry)
+   - **Compatibility/Provider Type:** `OpenAI-compatible` (not hosted OpenAI)
+6. In the model selection field, pick a server-installed model name exactly as listed in this doc (example: `deepseek-coder-v2:16b`).
+7. Open a new assistant chat in Zed and run a verification prompt such as `Reply with exactly: PRIVATE_AI_OK`. Success criteria: low-latency response and exact output from the selected private model.
+
+Note: Some Zed builds label this as "OpenAI-compatible endpoint" rather than "OpenAI API Base".
 
 ---
 

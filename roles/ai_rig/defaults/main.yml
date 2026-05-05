@@ -52,7 +52,7 @@ force_reboot: false  # Set to true for driver installs
 # VRAM management (20GB GPU)
 max_vram_models: 1  # Max models resident in VRAM
 vram_keep_alive: "30m"  # Keep in VRAM (30 min inactivity)
-parallel_requests: 2  # Max concurrent requests
+parallel_requests: 6  # Max concurrent requests
 
 # Docker storage paths
 ollama_data_path: "/opt/ollama"
