@@ -1,0 +1,51 @@
+#!/bin/bash
+# Unban an IP address from all active fail2ban jails.
+# Installed to /root by harden role.
+
+set -u
+
+if [ "$#" -ne 1 ]; then
+    echo "Usage: $0 <ip-address>"
+    exit 2
+fi
+
+ip="$1"
+
+if ! command -v fail2ban-client >/dev/null 2>&1; then
+    echo "ERROR: fail2ban-client is not installed"
+    exit 1
+fi
+
+if ! systemctl is-active --quiet fail2ban; then
+    echo "ERROR: fail2ban service is not running"
+    exit 1
+fi
+
+jail_list=$(fail2ban-client status 2>/dev/null | grep "Jail list:" | sed 's/.*Jail list:\s*//' | tr ',' ' ')
+
+if [ -z "$jail_list" ]; then
+    echo "No active fail2ban jails found"
+    exit 1
+fi
+
+found=0
+unbanned=0
+
+for jail in $jail_list; do
+    if fail2ban-client status "$jail" 2>/dev/null | grep -Eq "(^|[[:space:]])${ip}([[:space:]]|$)"; then
+        found=1
+        if fail2ban-client set "$jail" unbanip "$ip" >/dev/null 2>&1; then
+            echo "Unbanned $ip from $jail"
+            unbanned=$((unbanned + 1))
+        else
+            echo "Failed to unban $ip from $jail"
+        fi
+    fi
+done
+
+if [ "$found" -eq 0 ]; then
+    echo "$ip was not banned in any active jail"
+    exit 0
+fi
+
+echo "Done. Unbanned $ip from $unbanned jail(s)."

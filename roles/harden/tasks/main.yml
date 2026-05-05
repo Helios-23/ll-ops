@@ -208,12 +208,18 @@
     line: 'AllowUsers {{ allowed_ssh_users | join(" ") }}'
   notify: restart sshd
 
-- name: Deny all other users explicitly
+- name: Remove dangerous global DenyUsers lockout
   lineinfile:
     path: /etc/ssh/sshd_config
-    regexp: '^#?DenyUsers'
-    line: 'DenyUsers *'
+    regexp: '^#?DenyUsers\\s+\\*\\s*$'
+    state: absent
   notify: restart sshd
+
+- name: Safety guard - fail if DenyUsers * is present
+  command: grep -E '^[[:space:]]*DenyUsers[[:space:]]+\\*[[:space:]]*$' /etc/ssh/sshd_config
+  register: ssh_denyusers_wildcard
+  changed_when: false
+  failed_when: ssh_denyusers_wildcard.rc == 0
 
 - name: Configure PAM to only allow specific users for SSH
   blockinfile:
@@ -221,7 +227,7 @@
     marker: "# {mark} ANSIBLE MANAGED - Allowed SSH Users"
     block: |
       # Only allow specific users
-      auth required pam_listfile.so item=user sense=allow file=/etc/ssh/allowed_users onerr=fail
+      account required pam_listfile.so item=user sense=allow file=/etc/ssh/allowed_users onerr=fail
   notify: restart sshd
 
 - name: Create allowed users file for PAM
@@ -281,6 +287,14 @@
   template:
     src: fail2ban-status.sh.j2
     dest: /root/fail2ban-status.sh
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Install fail2ban unban script
+  template:
+    src: unban.sh.j2
+    dest: /root/unban.sh
     owner: root
     group: root
     mode: "0700"
