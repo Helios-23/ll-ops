@@ -1,0 +1,56 @@
+#!/bin/bash
+# Fail2ban Jail Status Script
+# Installed to /root by harden role
+
+echo "========================================"
+echo "  Fail2ban Jail Status Report"
+echo "  Generated: $(date)"
+echo "========================================"
+echo ""
+
+# Check if fail2ban is running
+if ! systemctl is-active --quiet fail2ban; then
+    echo "ERROR: fail2ban service is not running"
+    exit 1
+fi
+
+# Get jail list
+jail_list=$(fail2ban-client status 2>/dev/null | grep "Jail list:" | sed 's/.*Jail list:\s*//' | tr -d ',')
+
+if [ -z "$jail_list" ]; then
+    echo "No jails configured or fail2ban not responding"
+    exit 1
+fi
+
+echo "Active Jails: $jail_list"
+echo ""
+echo "========================================"
+echo ""
+
+# Show status for each jail
+for jail in $jail_list; do
+    echo "--- Jail: $jail ---"
+    fail2ban-client status "$jail" 2>/dev/null
+    echo ""
+    echo "----------------------------------------"
+    echo ""
+done
+
+# Show banned IPs summary
+echo "========================================"
+echo "  Currently Banned IPs Summary"
+echo "========================================"
+echo ""
+
+for jail in $jail_list; do
+    banned=$(fail2ban-client status "$jail" 2>/dev/null | grep "Currently banned:" | awk '{print $NF}')
+    if [ "$banned" -gt 0 ] 2>/dev/null; then
+        echo "$jail: $banned IP(s) banned"
+        fail2ban-client status "$jail" 2>/dev/null | grep -A 100 "Banned IP list:" | tail -n +2 | grep -v "^$"
+        echo ""
+    fi
+done
+
+echo "========================================"
+echo "  End of Report"
+echo "========================================"

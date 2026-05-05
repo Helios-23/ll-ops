@@ -1,0 +1,33 @@
+# Custom sshd filter for Ubuntu 24 with PAM support
+# Extends default sshd filter with PAM authentication failures
+
+[Definition]
+
+# Standard sshd patterns (from default filter)
+failregex = ^%(__prefix_line)s(?:error: PAM: )?Authentication failure(?: for invalid user (?P<cond_user>\S+) from <HOST>)?(?: (via method \S+))?\s*$
+            ^%(__prefix_line)s(?:error: PAM: )?User not known to the underlying authentication module for (?P<cond_user>\S+) from <HOST>\s*$
+            ^%(__prefix_line)sFailed (?:password|publickey) for (?P<cond_user>\S+) from <HOST>(?: port \d+)?(?: ssh\d*)?$
+            ^%(__prefix_line)sInvalid user (?P<cond_user>\S+) from <HOST>$
+            ^%(__prefix_line)sUser (?P<cond_user>\S+) from <HOST> not allowed$
+            ^%(__prefix_line)sUser (?P<cond_user>\S+) from <HOST> (?:denied|disallowed)$
+            ^%(__prefix_line)sROOT LOGIN REFUSED.*FROM <HOST>$
+            ^%(__prefix_line)s[Ii]llegal user .* from <HOST>$
+            ^%(__prefix_line)sReceived disconnect from <HOST>: 11: Bye Bye \[preauth\]$
+            ^%(__prefix_line)sConnection closed by <HOST> \[preauth\]$
+            ^%(__prefix_line)sConnection reset by <HOST> \[preauth\]$
+            ^%(__prefix_line)sDid not receive identification string from <HOST>$
+            ^%(__prefix_line)sBad protocol version identification .* from <HOST>$
+
+# PAM-specific patterns
+            ^.*pam_unix\(sshd:auth\): authentication failure; .* rhost=<HOST>(?:\s+user=(?P<cond_user>\S+))?\s*$
+            ^.*pam_unix\(sshd:auth\): authentication failure; .* ruser=\S* rhost=<HOST>(?:\s+user=(?P<cond_user>\S+))?\s*$
+
+# DenyUsers pattern
+            ^%(__prefix_line)sUser <HOST> not allowed because listed in DenyUsers\s*$
+
+__prefix_line = \s*(?:\S+ )?(?:kernel: \[\d+\.\d+\] )?(?:@vserver_\S+ )?(?:\[sshd\]\s*)?(?:\[pid \d+\])?(?:\[\d+\])? (?:\S+ )?ssh(d)?(?:\[\d+\])?:?
+
+ignoreregex =
+
+[Init]
+journalmatch = _SYSTEMD_UNIT=ssh.service

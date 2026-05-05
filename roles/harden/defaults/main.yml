@@ -1,0 +1,29 @@
+# Hardening settings
+fail2ban_admin_email: "helios23@gmail.com"
+
+# SSH hardening
+sshd_port: 22
+sshd_permit_root_login: "no"
+sshd_password_auth: "no"
+sshd_challenge_response: "no"
+
+# Port knocking (optional - set enable_knockd to true to enable)
+enable_knockd: false
+knock_ports: "7000,8000,9000"
+
+# Honeypot (optional - set enable_honeypot to true to enable)
+enable_honeypot: false
+
+# Whitelisted IPs (bypass fail2ban and iptables rate limiting)
+whitelisted_ips:
+  - "100.96.33.6"
+  - "100.72.123.112"
+  - "100.119.26.114"
+  - "100.106.28.43"
+  - "178.156.230.199"
+  - "60.47.215.84"
+
+# Allowed SSH users (all other usernames will be rejected)
+allowed_ssh_users:
+  - "devops"
+  - "j"

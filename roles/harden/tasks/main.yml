@@ -1,0 +1,375 @@
+- name: Install fail2ban
+  apt:
+    name: fail2ban
+    state: present
+    update_cache: true
+
+- name: Configure SSHD to disable ChallengeResponseAuthentication
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?ChallengeResponseAuthentication'
+    line: 'ChallengeResponseAuthentication no'
+    state: present
+  notify: restart sshd
+
+- name: Ensure SSHD uses public key authentication only
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PasswordAuthentication'
+    line: 'PasswordAuthentication no'
+    state: present
+  notify: restart sshd
+
+- name: Disable root login via SSH
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?PermitRootLogin'
+    line: 'PermitRootLogin no'
+    state: present
+  notify: restart sshd
+
+- name: Set SSH idle timeout
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?ClientAliveInterval'
+    line: 'ClientAliveInterval 300'
+    state: present
+  notify: restart sshd
+
+- name: Set maximum SSH authentication attempts
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?MaxAuthTries'
+    line: 'MaxAuthTries 3'
+    state: present
+  notify: restart sshd
+
+- name: Disable SSH X11 forwarding
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?X11Forwarding'
+    line: 'X11Forwarding no'
+    state: present
+  notify: restart sshd
+
+- name: Ensure sshd config is valid
+  command: sshd -t
+  changed_when: false
+
+- name: Force sshd reload to apply config
+  systemd:
+    name: ssh
+    state: reloaded
+
+- name: Harden PAM SSH configuration to respect max retries
+  lineinfile:
+    path: /etc/pam.d/sshd
+    regexp: '^auth.*pam_unix\.so'
+    line: 'auth       required     pam_unix.so nullok_secure deny=3 unlock_time=300'
+  notify: restart sshd
+
+- name: Remove PAM tally2/tally if present (conflicts with deny=)
+  lineinfile:
+    path: /etc/pam.d/sshd
+    regexp: '^auth.*pam_tally'
+    state: absent
+  notify: restart sshd
+
+- name: Install iptables-persistent for rate limiting
+  apt:
+    name: iptables-persistent
+    state: present
+    update_cache: true
+
+- name: Allow whitelisted IPs to bypass rate limiting
+  iptables:
+    table: filter
+    chain: INPUT
+    protocol: tcp
+    destination_port: "{{ sshd_port }}"
+    source: "{{ item }}"
+    jump: ACCEPT
+  loop: "{{ whitelisted_ips }}"
+  notify: save iptables
+
+- name: Rate limit SSH connections with iptables
+  iptables:
+    table: filter
+    chain: INPUT
+    protocol: tcp
+    destination_port: "{{ sshd_port }}"
+    ctstate: NEW
+    limit: 3/min
+    limit_burst: 3
+    jump: ACCEPT
+  notify: save iptables
+
+- name: Set MaxStartups to prevent resource exhaustion
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?MaxStartups'
+    line: 'MaxStartups 10:30:60'
+  notify: restart sshd
+
+- name: Set LoginGraceTime to reduce attack window
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?LoginGraceTime'
+    line: 'LoginGraceTime 30'
+  notify: restart sshd
+
+- name: Create systemd override for sshd with resource limits
+  blockinfile:
+    path: /etc/systemd/system/ssh.service.d/resource-limits.conf
+    create: true
+    block: |
+      [Service]
+      # Prevent resource exhaustion
+      MemoryMax=512M
+      TasksMax=100
+      # Restart on failure
+      Restart=on-failure
+      RestartSec=5
+      # Limit CPU usage
+      CPUQuota=50%
+  notify: restart sshd
+
+- name: Reload systemd to pick up override
+  systemd:
+    daemon_reload: true
+
+- name: Apply sysctl tweaks for SSH robustness
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+    sysctl_set: true
+    reload: true
+  loop:
+    - { key: net.ipv4.tcp_max_syn_backlog, value: "4096" }
+    - { key: net.core.somaxconn, value: "4096" }
+    - { key: net.ipv4.tcp_syncookies, value: "1" }
+    - { key: net.ipv4.tcp_max_tw_buckets, value: "1440000" }
+    - { key: net.ipv4.tcp_fin_timeout, value: "15" }
+    - { key: vm.swappiness, value: "10" }
+
+- name: Install haveged for entropy (prevents SSH hang on low entropy)
+  apt:
+    name: haveged
+    state: present
+    update_cache: true
+
+- name: Enable and start haveged
+  systemd:
+    name: haveged
+    state: started
+    enabled: true
+
+- name: Apply kernel hardening sysctl
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    state: present
+    sysctl_set: true
+    reload: true
+  loop:
+    - { key: kernel.kptr_restrict, value: "2" }
+    - { key: kernel.dmesg_restrict, value: "1" }
+    - { key: kernel.sysrq, value: "0" }
+    - { key: kernel.core_uses_pid, value: "1" }
+
+- name: Mount /tmp with noexec,nodev,nosuid
+  mount:
+    path: /tmp
+    src: tmpfs
+    fstype: tmpfs
+    opts: noexec,nodev,nosuid,size=1G
+    state: mounted
+
+- name: Blacklist unused filesystems
+  blockinfile:
+    path: /etc/modprobe.d/unused-filesystems.conf
+    create: true
+    block: |
+      # Block unused and potentially dangerous filesystems
+      install cramfs /bin/true
+      install freevxfs /bin/true
+      install jffs2 /bin/true
+      install hfs /bin/true
+      install hfsplus /bin/true
+      install squashfs /bin/true
+      install udf /bin/true
+    mode: "0644"
+
+- name: Allow only specific users to connect via SSH
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?AllowUsers'
+    line: 'AllowUsers {{ allowed_ssh_users | join(" ") }}'
+  notify: restart sshd
+
+- name: Deny all other users explicitly
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?DenyUsers'
+    line: 'DenyUsers *'
+  notify: restart sshd
+
+- name: Configure PAM to only allow specific users for SSH
+  blockinfile:
+    path: /etc/pam.d/sshd
+    marker: "# {mark} ANSIBLE MANAGED - Allowed SSH Users"
+    block: |
+      # Only allow specific users
+      auth required pam_listfile.so item=user sense=allow file=/etc/ssh/allowed_users onerr=fail
+  notify: restart sshd
+
+- name: Create allowed users file for PAM
+  copy:
+    dest: /etc/ssh/allowed_users
+    content: |
+      {% for user in allowed_ssh_users %}
+      {{ user }}
+      {% endfor %}
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Configure fail2ban for SSH
+  template:
+    src: jail.local.j2
+    dest: /etc/fail2ban/jail.local
+    owner: root
+    group: root
+    mode: "0644"
+  notify: reload fail2ban
+
+- name: Fix fail2ban socket permissions
+  file:
+    path: /var/run/fail2ban
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Ensure fail2ban socket has correct permissions
+  lineinfile:
+    path: /etc/fail2ban/fail2ban.conf
+    regexp: '^#?socket'
+    line: 'socket = /var/run/fail2ban/fail2ban.sock'
+  notify: restart fail2ban
+
+- name: Deploy sshd-ddos filter for Ubuntu 24
+  template:
+    src: sshd-ddos.conf.j2
+    dest: /etc/fail2ban/filter.d/sshd-ddos.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: reload fail2ban
+
+- name: Deploy custom sshd filter with PAM support
+  template:
+    src: sshd-custom.conf.j2
+    dest: /etc/fail2ban/filter.d/sshd-custom.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: reload fail2ban
+
+- name: Install jail status script
+  template:
+    src: fail2ban-status.sh.j2
+    dest: /root/fail2ban-status.sh
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Install knockd for port knocking
+  apt:
+    name: knockd
+    state: present
+    update_cache: true
+
+- name: Configure knockd for port knocking
+  template:
+    src: knockd.conf.j2
+    dest: /etc/knockd.conf
+    owner: root
+    group: root
+    mode: "0600"
+  notify: restart knockd
+
+- name: Create fake SSH motd to mislead attackers
+  copy:
+    dest: /etc/ssh/login_banner
+    content: |
+      ************************************************************
+      * WARNING: UNAUTHORIZED ACCESS PROHIBITED                   *
+      * All activities on this system are MONITORED and LOGGED     *
+      * Violators will be prosecuted to the full extent of the law *
+      *                                                          *
+      * Host: decoy-server-01 (Ubuntu 18.04 - EOL)              *
+      * Last login: Never                                         *
+      ************************************************************
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Apply login banner to SSH
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?Banner'
+    line: 'Banner /etc/ssh/login_banner'
+  notify: restart sshd
+
+- name: Install cowrie honeypot dependencies
+  apt:
+    name:
+      - python3-virtualenv
+      - python3-twisted
+      - python3-crypto
+      - python3-paramiko
+      - iptables-persistent
+    state: present
+    update_cache: true
+  when: enable_honeypot | default(false) | bool
+
+- name: Enable knockd service
+  systemd:
+    name: knockd
+    state: started
+    enabled: true
+    daemon_reload: true
+  when: enable_knockd | default(false) | bool
+
+- name: Install unattended-upgrades
+  apt:
+    name:
+      - unattended-upgrades
+      - apt-listchanges
+    state: present
+    update_cache: true
+
+- name: Configure unattended-upgrades for security updates only
+  template:
+    src: 50unattended-upgrades.j2
+    dest: /etc/apt/apt.conf.d/50unattended-upgrades
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Enable automatic updates
+  template:
+    src: 20auto-upgrades.j2
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Enable and start unattended-upgrades
+  systemd:
+    name: unattended-upgrades
+    state: started
+    enabled: true
+    daemon_reload: true

@@ -1,0 +1,22 @@
+- name: restart sshd
+  systemd:
+    name: ssh
+    state: restarted
+
+- name: restart fail2ban
+  systemd:
+    name: fail2ban
+    state: restarted
+
+- name: reload fail2ban
+  command: fail2ban-client reload
+  changed_when: true
+
+- name: restart knockd
+  systemd:
+    name: knockd
+    state: restarted
+
+- name: save iptables
+  command: netfilter-persistent save
+  changed_when: true

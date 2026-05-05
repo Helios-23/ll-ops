@@ -1,0 +1,40 @@
+[DEFAULT]
+# Ban for 12 hours
+bantime = 43200
+# Find time window for counting attempts
+findtime = 600
+# Number of attempts before ban
+maxretry = 3
+# Use iptables for banning
+banaction = iptables-multiport
+# Email action (optional)
+destemail = {{ fail2ban_admin_email | default('root@localhost') }}
+sender = fail2ban@{{ ansible_hostname }}
+# Whitelisted IPs - bypass fail2ban
+ignoreip = 127.0.0.1/8 ::1 {{ whitelisted_ips | join(' ') }}
+
+[sshd]
+enabled = true
+port = ssh
+filter = sshd-custom
+logpath = /var/log/auth.log
+maxretry = 3
+bantime = 43200
+
+[sshd-ddos]
+enabled = true
+port = ssh
+filter = sshd-ddos
+logpath = /var/log/auth.log
+maxretry = 2
+bantime = 86400
+
+# Custom aggressive jail for rapid attempts
+[sshd-aggressive]
+enabled = true
+port = ssh
+filter = sshd-custom
+logpath = /var/log/auth.log
+maxretry = 2
+findtime = 300
+bantime = 86400

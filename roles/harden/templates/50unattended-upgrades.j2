@@ -1,0 +1,44 @@
+// Unattended-Upgrade configuration file
+// Automatic upgrades only for security updates (no reboot required)
+Unattended-Upgrade::Allowed-Origins {
+    "${distro_id}:${distro_codename}-security";
+    // Disable other updates to avoid unexpected reboots
+    // "${distro_id}:${distro_codename}-updates";
+    // "${distro_id}:${distro_codename}-proposed";
+    // "${distro_id}:${distro_codename}-backports";
+};
+
+// Do not automatically upgrade packages from here
+Unattended-Upgrade::Package-Blacklist {
+    // List packages to never auto-upgrade
+};
+
+// This option allows you to control if automatic upgrades are allowed
+Unattended-Upgrade::AutoFixInterruptedDpkg "true";
+Unattended-Upgrade::MinimalSteps "true";
+
+// Enable logging
+Unattended-Upgrade::SyslogEnable "true";
+Unattended-Upgrade::SyslogFacility "daemon";
+
+// Do not automatically reboot (security updates here don't require reboot)
+Unattended-Upgrade::Automatic-Reboot "false";
+Unattended-Upgrade::Automatic-Reboot-Time "02:00";
+Unattended-Upgrade::Automatic-Reboot-WithUsers "false";
+
+// Remove unused dependencies
+Unattended-Upgrade::Remove-Unused-Dependencies "true";
+
+// Do not download mail
+Unattended-Upgrade::Mail "false";
+
+// Do not skip updates
+Unattended-Upgrade::Skip-Updates "false";
+
+// Verbose output
+Unattended-Upgrade::Verbose "true";
+
+// Only upgrade when there are no held packages
+Unattended-Upgrade::Update-Days {
+    // Every day
+};
