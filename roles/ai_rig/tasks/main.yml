@@ -4,6 +4,7 @@
       - "nvidia-driver-{{ nvidia_driver_version }}"
       - python3-pip
       - curl
+      - certbot
     state: present
     update_cache: true
 
@@ -25,24 +26,6 @@
     delay: 30
     timeout: 300
   when: reboot_required.stat.exists or force_reboot | bool
-
-- name: Check if NVIDIA driver is already installed
-  shell: dpkg -l | grep -q "nvidia-driver-{{ nvidia_driver_version }}"
-  register: nvidia_driver_check
-  failed_when: false
-  changed_when: false
-
-- name: Install NVIDIA drivers and dependencies
-  apt:
-    name:
-      - "nvidia-driver-{{ nvidia_driver_version }}"
-      - python3-pip
-      - curl
-    state: present
-    update_cache: true
-  environment:
-    DEBIAN_FRONTEND: noninteractive
-  when: nvidia_driver_check.rc != 0
 
 - name: Setup NVIDIA Container Toolkit repository
   shell: |
@@ -98,6 +81,10 @@
 - name: Setup Ollama
   include_tasks: ollama.yml
   tags: ollama
+
+- name: Pull AI models
+  include_tasks: models.yml
+  tags: ollama, pull_models
 
 - name: Setup WebUI
   include_tasks: webui.yml

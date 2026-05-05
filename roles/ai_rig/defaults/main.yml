@@ -3,18 +3,22 @@
 ai_models:
   # Coding & Logic
   - "qwen2.5-coder:32b"  # 32B coder, 32K context
+  - "qwen3-coder:30b"  # 30B coder, Q4_K_M quantized
   - "deepseek-coder-v2:16b"  # 16B coding specialist
+  - "deepseek-r1:32b"  # 32B reasoning, Q4_K_M quantized
   - "starcoder2:7b"  # Fast code completion, 16K context
   - "phi4:latest"  # 14B reasoning model
 
   # General LLM & Writing
   - "llama3.1:8b"  # Meta 8B instruct, 8K context
-  - "mistral:7b"  # Fast 7B general purpose
-  - "gemma2:9b"  # Google 9B, balanced
+  - "mistral-small3.2:24b"  # 24B, improved function calling
+  - "mistral-small3.1:24b"  # 24B, 128K context, multimodal
+  - "gemma4:e4b"  # 9.6GB, 128K context, multimodal
   - "qwen2.5:14b"  # 14B multilingual support
 
   # Reasoning / Chain-of-Thought
   - "deepseek-r1:8b"  # 8B reasoning specialist
+  - "magistral:24b"  # 24B reasoning specialist
 
   # Multimodal / Vision
   - "llava:7b"  # Vision-language, image understanding
@@ -22,6 +26,7 @@ ai_models:
 
   # Small fast models
   - "phi4-mini:3.8b"  # Tiny Phi-4, 128K context
+  - "gemma4:e2b"  # 7.2GB, 128K context, edge device ready
   - "gemma:2b"  # Ultra-lightweight
 
   # Coding (small/fast)
@@ -66,6 +71,7 @@ webui_secret: "{{ vault.webui.token | default('change-me') }}"
 # Open WebUI admin account (override in vault)
 webui_admin_user: "{{ vault.webui.admin_user | default('admin@epytype.org') }}"
 webui_admin_pass: "{{ vault.webui.admin_pass | default('change-me') }}"
+webui_users: []
 
 # Ollama GPU settings
 ollama_num_gpu: 999  # Enable all GPU layers

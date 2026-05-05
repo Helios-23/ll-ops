@@ -87,8 +87,10 @@
       register: whitelist_result
       changed_when: false
       failed_when: false
-      when: whitelist_script is changed or whitelist_file is changed
-      when: whitelist_script is defined and whitelist_file is defined
+      when:
+        - whitelist_script is defined
+        - whitelist_file is defined
+        - whitelist_script is changed or whitelist_file is changed
       notify: restart open-webui
 
     - name: Debug whitelist result

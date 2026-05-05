@@ -12,6 +12,7 @@ services:
       OLLAMA_MAX_LOADED_MODELS: "{{ max_vram_models }}"
       OLLAMA_NUM_PARALLEL: "{{ parallel_requests }}"
       OLLAMA_NUM_GPU: "{{ ollama_num_gpu }}"
+      OLLAMA_KV_CACHE_TYPE: "q8_0"
     mem_limit: 28g
     memswap_limit: 32g
     devices:

@@ -4,16 +4,10 @@
     state: present
     update_cache: true
 
-- name: Allow SSH through UFW
-  community.general.ufw:
-    rule: allow
-    port: "22"
-    proto: tcp
-
-- name: Set UFW default allow incoming (prevents lockout during setup)
+- name: Set UFW default deny incoming
   community.general.ufw:
     direction: incoming
-    default: allow
+    default: deny
 
 - name: Set UFW default allow outgoing
   community.general.ufw:
@@ -28,12 +22,13 @@
 #     proto: tcp
 #     from_ip: "{{ home_ip_address }}"
 
-- name: Allow HTTP and HTTPS
+- name: Allow public ingress ports (SSH/HTTP/HTTPS) from anywhere
   community.general.ufw:
     rule: allow
     port: "{{ item }}"
     proto: tcp
   loop:
+    - "22"
     - "80"
     - "443"
 
@@ -44,6 +39,8 @@
 - name: Enable NVIDIA Persistence Mode
   command: nvidia-smi -pm 1
   changed_when: false
+  when: nvidia_smi_check.rc == 0
+  ignore_errors: true
 
 - name: Install CPU power management tools
   apt:
@@ -59,7 +56,7 @@
 
 - name: Create swap file for CPU offload overflow
   command:
-    cmd: fallocate -l {{ (swap_size_mb / 1024) | round(0, 'ceil') | int }}G /swapfile
+    cmd: "fallocate -l {{ (swap_size_mb / 1024) | round(0, 'ceil') | int }}G /swapfile"
     creates: /swapfile
   when: swap_size_mb > 0
 
