@@ -93,6 +93,14 @@
 - name: Setup maintenance and cleanup
   include_tasks: maintenance.yml
 
+- name: Install kill_zombies helper script for root
+  copy:
+    src: "{{ playbook_dir }}/bin/kill_zombies.sh"
+    dest: /root/kill_zombies.sh
+    owner: root
+    group: root
+    mode: "0700"
+
 - name: Check if AI TLS certificate already exists
   stat:
     path: /etc/letsencrypt/live/{{ ai_domain }}/fullchain.pem

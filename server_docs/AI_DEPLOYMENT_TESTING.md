@@ -6,7 +6,7 @@
 # 1. Load credentials
 cd /Users/H23/logicallight/Epytype/ops
 source ./bin/loadenv.sh
-# Enter password: "take me to the spaceport at oxford valley mall"
+# Enter password: "ask your manager for password"
 
 # 2. Deploy AI server stack (uses wrapper for correct relative paths)
 apb ai-server.yml --ask-become-pass

@@ -37,7 +37,7 @@ Location: `/Users/H23/logicallight/Epytype/ops/repo_migration/`
 - `QUICKSTART.md` - Step-by-step quick start guide
 - `FINAL_SUMMARY.md` - Final preparation summary
 - `TEST_GUIDE.md` - Test migration guide
-- `USER_GUIDE.md` - User guide for checking out repositories
+- `../USER_GUIDE.md` - User guide for checking out repositories
 
 **Scripts:**
 - `scripts/list_github_repos.sh` - List accessible GitHub repositories
@@ -170,7 +170,7 @@ forgejo_repo_access:
 
 ### 1. For Users
 
-Follow the user guide at `repo_migration/USER_GUIDE.md`:
+Follow the user guide at `ops/USER_GUIDE.md`:
 - Add SSH key to Forgejo at https://repo.epytype.org/user/settings/keys
 - Test SSH connection: `ssh -T git@repo.epytype.org`
 - Clone fresh copies of all repositories
@@ -312,7 +312,7 @@ git clone git@repo.epytype.org:Epytype/spec.git
 
 ## Summary
 
-The migration from GitHub to Forgejo is complete. All 5 repositories have been successfully migrated to the Epytype organization on Forgejo. The push-to-create functionality is enabled, allowing future repositories to be automatically created when pushed. Ansible roles have been updated with proper tags and user management capabilities. Users should follow the USER_GUIDE.md document to set up their access and clone fresh copies of the repositories.
+The migration from GitHub to Forgejo is complete. All 5 repositories have been successfully migrated to the Epytype organization on Forgejo. The push-to-create functionality is enabled, allowing future repositories to be automatically created when pushed. Ansible roles have been updated with proper tags and user management capabilities. Users should follow `ops/USER_GUIDE.md` to set up their access and clone fresh copies of the repositories.
 
 **Migration Status: COMPLETE**  
 **Next Steps:** Archive GitHub repos, update documentation, notify team members.
