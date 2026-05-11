@@ -1,4 +1,123 @@
 ---
+- name: Build effective Tailscale hostnames for current play
+  become: false
+  ansible.builtin.set_fact:
+    tailscale_effective_hostnames: |-
+      {% set names = [] %}
+      {% for h in ansible_play_hosts_all %}
+      {% set _ = names.append(hostvars[h].tailscale_hostname | default(h)) %}
+      {% endfor %}
+      {{ names }}
+  run_once: true
+  when:
+    - tailscale_machine_enabled | bool
+    - tailscale_check_unique_hostname | bool
+  tags:
+    - tailscale
+    - tailscale_machine
+
+- name: Validate Tailscale hostname uniqueness
+  become: false
+  ansible.builtin.assert:
+    that:
+      - tailscale_effective_hostnames | length == (tailscale_effective_hostnames | unique | length)
+    fail_msg: "Duplicate tailscale_hostname detected in play hosts. Set unique tailscale_hostname per host."
+  run_once: true
+  when:
+    - tailscale_machine_enabled | bool
+    - tailscale_check_unique_hostname | bool
+  tags:
+    - tailscale
+    - tailscale_machine
+
+- name: Check tailscale binary presence
+  become: true
+  ansible.builtin.command: command -v tailscale
+  register: tailscale_bin_check
+  failed_when: false
+  changed_when: false
+  when: tailscale_machine_enabled | bool
+  tags:
+    - tailscale
+    - tailscale_machine
+
+- name: Install tailscale when missing
+  become: true
+  ansible.builtin.shell: curl -fsSL https://tailscale.com/install.sh | sh
+  args:
+    executable: /bin/bash
+  when:
+    - tailscale_machine_enabled | bool
+    - tailscale_install_if_missing | bool
+    - tailscale_bin_check.rc != 0
+  tags:
+    - tailscale
+    - tailscale_machine
+
+- name: Verify tailscale binary after install
+  become: true
+  ansible.builtin.command: tailscale version
+  changed_when: false
+  when: tailscale_machine_enabled | bool
+  tags:
+    - tailscale
+    - tailscale_machine
+
+- name: Check current tailscale auth state
+  become: true
+  ansible.builtin.command: tailscale status
+  register: tailscale_status_check
+  failed_when: false
+  changed_when: false
+  when: tailscale_machine_enabled | bool
+  tags:
+    - tailscale
+    - tailscale_machine
+
+- name: Require auth key for first non-interactive enrollment
+  become: false
+  ansible.builtin.assert:
+    that:
+      - tailscale_status_check.rc == 0 or (tailscale_authkey | length > 0)
+    fail_msg: "tailscale is not authenticated on host and tailscale_authkey is empty. Set vault_all.tailscale.authkey."
+  when: tailscale_machine_enabled | bool
+  tags:
+    - tailscale
+    - tailscale_machine
+
+- name: Build tailscale up arguments
+  become: false
+  ansible.builtin.set_fact:
+    tailscale_up_argv: >-
+      {{
+        [
+          'tailscale',
+          'up',
+          '--hostname=' ~ tailscale_hostname,
+          '--netfilter-mode=' ~ tailscale_netfilter_mode,
+          '--advertise-tags=' ~ (tailscale_advertise_tags | join(',')),
+          ('--ssh' if (tailscale_ssh_enabled | bool) else '--ssh=false')
+        ]
+        + (['--authkey=' ~ tailscale_authkey] if (tailscale_authkey | length > 0) else [])
+      }}
+  when: tailscale_machine_enabled | bool
+  tags:
+    - tailscale
+    - tailscale_machine
+
+- name: Configure tailscaled machine settings
+  become: true
+  ansible.builtin.command:
+    argv: "{{ tailscale_up_argv }}"
+  register: tailscale_up_result
+  changed_when: >
+    'already running' not in (tailscale_up_result.stdout | lower)
+    and 'already up' not in (tailscale_up_result.stdout | lower)
+  when: tailscale_machine_enabled | bool
+  tags:
+    - tailscale
+    - tailscale_machine
+
 - name: Validate Tailscale policy inputs
   become: false
   ansible.builtin.assert:
@@ -11,10 +130,10 @@
     - tailscale
     - tailscale_policy
 
-- name: Read Tailscale policy file
+- name: Render Tailscale policy from template
   become: false
   ansible.builtin.set_fact:
-    tailscale_policy_content: "{{ lookup('file', tailscale_policy_src) }}"
+    tailscale_policy_content: "{{ lookup('template', tailscale_policy_template_src) }}"
   when: tailscale_policy_enabled | bool
   tags:
     - tailscale

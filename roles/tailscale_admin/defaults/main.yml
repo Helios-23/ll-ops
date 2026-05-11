@@ -1,6 +1,6 @@
 ---
 # Set true to push tailnet policy via API.
-tailscale_policy_enabled: "true"
+tailscale_policy_enabled: "{{ vault_all.tailscale.policy_enabled | default(false) }}"
 
 # Example: "example.com"
 tailscale_tailnet: "{{ vault_all.tailscale.tailnet | default('') }}"
@@ -8,8 +8,69 @@ tailscale_tailnet: "{{ vault_all.tailscale.tailnet | default('') }}"
 # API token with admin/network-admin permissions.
 tailscale_api_key: "{{ vault_all.tailscale.api_key | default('') }}"
 
-# Path to huJSON policy file on control node.
-tailscale_policy_src: "{{ role_path }}/files/tailscale.hujson"
+# Optional auth key for non-interactive machine enrollment.
+tailscale_authkey: "{{ vault_all.tailscale.authkey | default('') }}"
+
+# Path to HuJSON policy template on control node.
+tailscale_policy_template_src: "{{ role_path }}/templates/tailscale.hujson.j2"
+
+# Policy dictionaries/lists (can be overridden from group_vars).
+tailscale_policy_groups:
+  group:epytype-admins:
+    - "helios23@gmail.com"
+  group:epytype-users:
+    - "jperry303@gmail.com"
+
+tailscale_policy_tag_owners:
+  tag:epytype:
+    - "group:epytype-admins"
+
+tailscale_policy_grants:
+  - src:
+      - "group:epytype-admins"
+      - "group:epytype-users"
+    dst:
+      - "tag:epytype"
+    ip:
+      - "tcp:22"
+
+tailscale_policy_ssh:
+  - action: "accept"
+    src:
+      - "group:epytype-admins"
+    dst:
+      - "tag:epytype"
+    users:
+      - "devops"
+  - action: "accept"
+    src:
+      - "group:epytype-users"
+    dst:
+      - "tag:epytype"
+    users:
+      - "j"
 
 # Keep API task output hidden by default.
 tailscale_no_log: true
+
+# Set true to manage machine-level tailscale settings on target hosts.
+tailscale_machine_enabled: false
+
+# Auto-install Tailscale when binary is missing.
+tailscale_install_if_missing: true
+
+# Hostname that tailscaled should advertise for this node.
+tailscale_hostname: "{{ inventory_hostname }}"
+
+# Validate hostname uniqueness across the current play host set.
+tailscale_check_unique_hostname: true
+
+# Netfilter mode for tailscaled on Linux hosts.
+tailscale_netfilter_mode: "off"
+
+# Manage Tailscale SSH mode explicitly so repeated tailscale up runs are stable.
+tailscale_ssh_enabled: true
+
+# Tags to advertise from this machine.
+tailscale_advertise_tags:
+  - "tag:epytype"

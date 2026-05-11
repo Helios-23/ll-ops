@@ -1,0 +1,34 @@
+{
+  "groups": {
+{% for group_name, members in tailscale_policy_groups.items() %}
+    "{{ group_name }}": {{ members | to_json }}{% if not loop.last %},{% endif %}
+{% endfor %}
+  },
+
+  "tagOwners": {
+{% for tag_name, owners in tailscale_policy_tag_owners.items() %}
+    "{{ tag_name }}": {{ owners | to_json }}{% if not loop.last %},{% endif %}
+{% endfor %}
+  },
+
+  "grants": [
+{% for grant in tailscale_policy_grants %}
+    {
+      "src": {{ grant.src | to_json }},
+      "dst": {{ grant.dst | to_json }},
+      "ip": {{ grant.ip | to_json }}
+    }{% if not loop.last %},{% endif %}
+{% endfor %}
+  ],
+
+  "ssh": [
+{% for rule in tailscale_policy_ssh %}
+    {
+      "action": "{{ rule.action }}",
+      "src": {{ rule.src | to_json }},
+      "dst": {{ rule.dst | to_json }},
+      "users": {{ rule.users | to_json }}
+    }{% if not loop.last %},{% endif %}
+{% endfor %}
+  ]
+}
