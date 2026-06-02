@@ -1,0 +1,287 @@
+- name: Check Epytype repository exists
+  ansible.builtin.stat:
+    path: "{{ epytype_release_repo_dir }}/.git"
+  register: epytype_release_git_dir
+
+- name: Fail when Epytype repository is missing
+  ansible.builtin.fail:
+    msg: "{{ epytype_release_project_name }} git repository not found at {{ epytype_release_repo_dir }}"
+  when: not epytype_release_git_dir.stat.exists
+
+- name: Check configured release version components
+  ansible.builtin.assert:
+    that:
+      - epytype_release_major_version | string is match('^[0-9]+$')
+      - epytype_release_minor_version | string is match('^[0-9]+$')
+      - epytype_release_number | string == '' or epytype_release_number | string is match('^[0-9]+$')
+    fail_msg: "Release major, minor, and release number must be non-negative integers"
+
+- name: Check working tree status
+  ansible.builtin.command: git status --porcelain
+  args:
+    chdir: "{{ epytype_release_repo_dir }}"
+  register: epytype_release_status_before
+  changed_when: false
+
+- name: Fail when working tree is dirty
+  ansible.builtin.fail:
+    msg: "Working tree is dirty for {{ epytype_release_project_name }}. Commit/stash changes or run with -e epytype_release_allow_dirty=true."
+  when:
+    - not epytype_release_allow_dirty | bool
+    - epytype_release_status_before.stdout | length > 0
+
+- name: Read current release version
+  ansible.builtin.shell: |
+    set -euo pipefail
+    {{ epytype_release_current_version_command }}
+  args:
+    chdir: "{{ epytype_release_repo_dir }}"
+    executable: /bin/bash
+  register: epytype_release_current_version_cmd
+  changed_when: false
+
+- name: Fail when current release version cannot be read
+  ansible.builtin.fail:
+    msg: "{{ epytype_release_current_version_error_message }}"
+  when: epytype_release_current_version_cmd.stdout | trim | length == 0
+
+- name: Compute next release version
+  ansible.builtin.shell: |
+    set -euo pipefail
+    explicit="{{ epytype_release_version }}"
+    current="{{ epytype_release_current_version_cmd.stdout | trim }}"
+    configured_major="{{ epytype_release_major_version }}"
+    configured_minor="{{ epytype_release_minor_version }}"
+    configured_release="{{ epytype_release_number }}"
+    if [ -n "${explicit}" ]; then
+      printf '%s\n' "${explicit}"
+      exit 0
+    fi
+    IFS=. read -r current_major current_minor current_release <<< "${current}"
+    if [ -n "${configured_release}" ]; then
+      next_release="${configured_release}"
+    elif [ "${configured_major}" != "${current_major}" ] || [ "${configured_minor}" != "${current_minor}" ]; then
+      next_release=0
+    else
+      next_release=$((current_release + 1))
+    fi
+    printf '%s.%s.%s\n' "${configured_major}" "${configured_minor}" "${next_release}"
+  args:
+    executable: /bin/bash
+  register: epytype_release_next_version_cmd
+  changed_when: false
+
+- name: Store release metadata
+  ansible.builtin.set_fact:
+    epytype_release_current_version: "{{ epytype_release_current_version_cmd.stdout | trim }}"
+    epytype_release_next_version: "{{ epytype_release_next_version_cmd.stdout | trim }}"
+    epytype_release_next_tag: "v{{ epytype_release_next_version_cmd.stdout | trim }}"
+
+- name: Validate next release version format
+  ansible.builtin.assert:
+    that:
+      - epytype_release_next_version is match('^[0-9]+\\.[0-9]+\\.[0-9]+$')
+    fail_msg: "Next release version must be x.y.z; got {{ epytype_release_next_version }}"
+
+- name: Update tracked release version references
+  ansible.builtin.shell: |
+    set -euo pipefail
+    git grep -l -F "${CURRENT_VERSION}" -- . {% for path in epytype_release_version_reference_exclude_paths %}':!{{ path }}' {% endfor %} |
+      while IFS= read -r path; do
+        perl -0pi -e 's/\Q$ENV{CURRENT_VERSION}\E/$ENV{NEXT_VERSION}/g' "$path"
+      done
+  args:
+    chdir: "{{ epytype_release_repo_dir }}"
+    executable: /bin/bash
+  environment:
+    CURRENT_VERSION: "{{ epytype_release_current_version }}"
+    NEXT_VERSION: "{{ epytype_release_next_version }}"
+
+- name: Update release changelog marker date in policy
+  ansible.builtin.replace:
+    path: "{{ epytype_release_policy_marker_path }}"
+    regexp: "{{ epytype_release_policy_marker_regexp }}"
+    replace: "{{ epytype_release_policy_marker_replace }}"
+  when: epytype_release_policy_marker_enabled | bool
+
+- name: Update release checklist changelog marker date
+  ansible.builtin.replace:
+    path: "{{ epytype_release_checklist_marker_path }}"
+    regexp: "{{ epytype_release_checklist_marker_regexp }}"
+    replace: "{{ epytype_release_checklist_marker_replace }}"
+  when: epytype_release_checklist_marker_enabled | bool
+
+- name: Check whether changelog already has release heading
+  ansible.builtin.command: grep -F "{{ epytype_release_changelog_heading_template }}" "{{ epytype_release_changelog_path | basename }}"
+  args:
+    chdir: "{{ epytype_release_changelog_path | dirname }}"
+  register: epytype_release_changelog_heading
+  failed_when: false
+  changed_when: false
+  when: epytype_release_changelog_enabled | bool
+
+- name: Add changelog release heading
+  ansible.builtin.replace:
+    path: "{{ epytype_release_changelog_path }}"
+    regexp: "{{ epytype_release_changelog_insert_regexp }}"
+    replace: "{{ epytype_release_changelog_insert_replace }}"
+  when:
+    - epytype_release_changelog_enabled | bool
+    - epytype_release_changelog_heading.rc != 0
+
+- name: Update README CI badge link for GitHub
+  ansible.builtin.replace:
+    path: "{{ epytype_release_repo_dir }}/README.md"
+    regexp: 'href="(?:\.forgejo/workflows/ci\.yml|https://github\.com/[^"]+/actions/workflows/ci\.yml)"'
+    replace: 'href="https://github.com/{{ epytype_release_ci_badge_link_repo }}/actions/workflows/ci.yml"'
+  when: epytype_release_ci_badge_link_repo | length > 0
+
+- name: Run release checks
+  ansible.builtin.shell: |
+    {{ epytype_release_checks_command }}
+  args:
+    chdir: "{{ epytype_release_repo_dir }}"
+    executable: /bin/bash
+  when: epytype_release_run_checks | bool
+
+- name: Check release prep diff
+  ansible.builtin.command: git status --porcelain
+  args:
+    chdir: "{{ epytype_release_repo_dir }}"
+  register: epytype_release_status_after
+  changed_when: false
+
+- name: Configure release git user
+  ansible.builtin.shell: |
+    set -euo pipefail
+    git config user.name "{{ epytype_release_git_user_name }}"
+    git config user.email "{{ epytype_release_git_user_email }}"
+  args:
+    chdir: "{{ epytype_release_repo_dir }}"
+    executable: /bin/bash
+  when: epytype_release_status_after.stdout | length > 0
+
+- name: Commit release prep changes
+  ansible.builtin.shell: |
+    set -euo pipefail
+    git add -u
+    {% for path in epytype_release_extra_add_paths %}
+    git add {{ path | quote }}
+    {% endfor %}
+    git commit -m "{{ epytype_release_commit_message }}"
+  args:
+    chdir: "{{ epytype_release_repo_dir }}"
+    executable: /bin/bash
+  when: epytype_release_status_after.stdout | length > 0
+
+- name: Ensure release tag exists locally
+  ansible.builtin.shell: |
+    set -euo pipefail
+    if git rev-parse "{{ epytype_release_next_tag }}" >/dev/null 2>&1; then
+      exit 0
+    fi
+    git tag -a "{{ epytype_release_next_tag }}" -m "Release {{ epytype_release_next_tag }}"
+  args:
+    chdir: "{{ epytype_release_repo_dir }}"
+    executable: /bin/bash
+  when: epytype_release_create_tag | bool
+
+- name: Push release branch to Forgejo
+  ansible.builtin.command: git push "{{ epytype_release_remote }}" HEAD:{{ epytype_release_branch }}
+  args:
+    chdir: "{{ epytype_release_repo_dir }}"
+  when: epytype_release_push | bool
+
+- name: Push release tag to Forgejo
+  ansible.builtin.command: git push "{{ epytype_release_remote }}" "{{ epytype_release_next_tag }}"
+  args:
+    chdir: "{{ epytype_release_repo_dir }}"
+  when:
+    - epytype_release_push | bool
+    - epytype_release_create_tag | bool
+
+- name: Check GitHub remote
+  ansible.builtin.command: git remote get-url "{{ epytype_release_github_remote }}"
+  args:
+    chdir: "{{ epytype_release_repo_dir }}"
+  register: epytype_release_github_remote_check
+  failed_when: false
+  changed_when: false
+  when:
+    - epytype_release_push_github | bool
+    - epytype_release_github_exclude_paths | length == 0
+
+- name: Configure GitHub remote
+  ansible.builtin.command: git remote add "{{ epytype_release_github_remote }}" "{{ epytype_release_github_remote_url }}"
+  args:
+    chdir: "{{ epytype_release_repo_dir }}"
+  when:
+    - epytype_release_push_github | bool
+    - epytype_release_github_exclude_paths | length == 0
+    - epytype_release_github_remote_check.rc != 0
+
+- name: Push release branch to GitHub
+  ansible.builtin.command: git push "{{ epytype_release_github_remote }}" HEAD:{{ epytype_release_branch }}
+  args:
+    chdir: "{{ epytype_release_repo_dir }}"
+  when:
+    - epytype_release_push_github | bool
+    - epytype_release_github_exclude_paths | length == 0
+
+- name: Push release tag to GitHub
+  ansible.builtin.command: git push "{{ epytype_release_github_remote }}" "{{ epytype_release_next_tag }}"
+  args:
+    chdir: "{{ epytype_release_repo_dir }}"
+  when:
+    - epytype_release_push_github | bool
+    - epytype_release_github_exclude_paths | length == 0
+    - epytype_release_create_tag | bool
+
+- name: Create GitHub mirror temp directory
+  ansible.builtin.tempfile:
+    state: directory
+    prefix: "{{ epytype_release_project_name | lower }}-github-release-"
+  register: epytype_release_github_tempdir
+  when:
+    - epytype_release_push_github | bool
+    - epytype_release_github_exclude_paths | length > 0
+
+- name: Build and push GitHub mirror branch and tag
+  ansible.builtin.shell: |
+    set -euo pipefail
+    git clone "{{ epytype_release_repo_dir }}" "{{ epytype_release_github_tempdir.path }}/repo"
+    cd "{{ epytype_release_github_tempdir.path }}/repo"
+    git checkout --detach HEAD
+    git config user.name "{{ epytype_release_git_user_name }}"
+    git config user.email "{{ epytype_release_git_user_email }}"
+    git rm -f --ignore-unmatch -- {% for path in epytype_release_github_exclude_paths %}{{ path | quote }} {% endfor %}
+    if ! git diff --cached --quiet; then
+      git commit -m "{{ epytype_release_github_mirror_commit_message }}"
+    fi
+    git remote add "{{ epytype_release_github_remote }}" "{{ epytype_release_github_remote_url }}"
+    git push "{{ epytype_release_github_remote }}" +HEAD:{{ epytype_release_branch }}
+    {% if epytype_release_create_tag | bool %}
+    git tag -fa "{{ epytype_release_next_tag }}" -m "Release {{ epytype_release_next_tag }}"
+    git push "{{ epytype_release_github_remote }}" +refs/tags/{{ epytype_release_next_tag }}:refs/tags/{{ epytype_release_next_tag }}
+    {% endif %}
+  args:
+    executable: /bin/bash
+  when:
+    - epytype_release_push_github | bool
+    - epytype_release_github_exclude_paths | length > 0
+
+- name: Remove GitHub mirror temp directory
+  ansible.builtin.file:
+    path: "{{ epytype_release_github_tempdir.path }}"
+    state: absent
+  when:
+    - epytype_release_push_github | bool
+    - epytype_release_github_exclude_paths | length > 0
+
+- name: Show release result
+  ansible.builtin.debug:
+    msg:
+      - "Prepared {{ epytype_release_project_name }} release {{ epytype_release_next_tag }}"
+      - "Pushed {{ epytype_release_remote }} HEAD:{{ epytype_release_branch }}={{ epytype_release_push | bool }}"
+      - "Pushed {{ epytype_release_github_remote }} HEAD:{{ epytype_release_branch }}={{ epytype_release_push_github | bool }}"
+      - "Forgejo Release Pipeline will publish GitHub release assets when its secrets and variables are configured"

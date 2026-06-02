@@ -1,0 +1,81 @@
+- name: Prepare and publish an Epytype release
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tags:
+    - epytype
+  roles:
+    - role: epytype_release
+
+- name: Prepare and publish a Lantern release
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tags:
+    - lantern
+  vars:
+    lantern_release_repo_dir: "{{ playbook_dir }}/../lantern"
+    lantern_release_remote: origin
+    lantern_release_branch: release
+    lantern_release_major_version: 0
+    lantern_release_minor_version: 7
+    lantern_release_number: ""
+    lantern_release_version: ""
+    lantern_release_date: "{{ lookup('pipe', 'date +%F') }}"
+    lantern_release_run_checks: true
+    lantern_release_push: true
+    lantern_release_allow_dirty: false
+    lantern_release_create_tag: true
+    lantern_release_github_repo: ""
+    lantern_release_push_github: "{{ lantern_release_github_repo | length > 0 }}"
+  roles:
+    - role: epytype_release
+      vars:
+        epytype_release_project_name: "Lantern"
+        epytype_release_repo_dir: "{{ lantern_release_repo_dir }}"
+        epytype_release_remote: "{{ lantern_release_remote }}"
+        epytype_release_branch: "{{ lantern_release_branch }}"
+        epytype_release_major_version: "{{ lantern_release_major_version }}"
+        epytype_release_minor_version: "{{ lantern_release_minor_version }}"
+        epytype_release_number: "{{ lantern_release_number }}"
+        epytype_release_version: "{{ lantern_release_version }}"
+        epytype_release_date: "{{ lantern_release_date }}"
+        epytype_release_run_checks: "{{ lantern_release_run_checks }}"
+        epytype_release_push: "{{ lantern_release_push }}"
+        epytype_release_allow_dirty: "{{ lantern_release_allow_dirty }}"
+        epytype_release_create_tag: "{{ lantern_release_create_tag }}"
+        epytype_release_github_repo: "{{ lantern_release_github_repo }}"
+        epytype_release_push_github: "{{ lantern_release_push_github }}"
+        epytype_release_ci_badge_link_repo: ""
+        epytype_release_github_exclude_paths:
+          - docs/release-automation.md
+        epytype_release_current_version_command: >-
+          sed -n 's/^downstream_version = "\([^"]*\)"$/\1/p' docs/compatibility.md | head -n1
+        epytype_release_current_version_error_message: >-
+          Could not read downstream_version from docs/compatibility.md
+        epytype_release_version_reference_exclude_paths:
+          - docs/release-automation.md
+        epytype_release_policy_marker_enabled: false
+        epytype_release_checklist_marker_enabled: false
+        epytype_release_changelog_enabled: false
+        epytype_release_extra_add_paths: []
+        epytype_release_checks_command: |
+          set -euo pipefail
+          git remote -v
+          ! git remote -v | grep -i 'github.com'
+          git remote get-url origin | grep -Fx 'git@repo.epytype.org:Epytype/lantern.git'
+          test -z "$(find . -path ./.git -prune -o -name '*.rs' -print -quit)"
+          test ! -e Cargo.toml
+          test ! -e Cargo.lock
+          find data -name '*.json' -print0 | xargs -0 -n1 python3 -m json.tool >/dev/null
+          grep -Fx 'epytype_min = "{{ epytype_release_next_version }}"' docs/compatibility.md
+          grep -Fx 'epytype_tested = "{{ epytype_release_next_version }}"' docs/compatibility.md
+          grep -Fx 'downstream_version = "{{ epytype_release_next_version }}"' docs/compatibility.md
+          grep -Fx 'epytype_language_abi = "epytype.language.abi.v1"' docs/compatibility.md
+          grep -Fx 'downstream_schema = "lantern.framework.schema.v1"' docs/compatibility.md
+          if command -v epytype >/dev/null 2>&1; then
+            mkdir -p target/epy-check
+            find . -name '*.epy' -print0 | xargs -0 -n1 sh -c 'epytype check "$1" --build-dir target/epy-check' sh
+          fi
