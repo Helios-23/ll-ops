@@ -9,6 +9,8 @@
   roles:
     - role: ubuntu_pro_fips
       tags: ubuntu_pro_fips
+    - role: harden
+      tags: harden
     - role: docker_engine
       tags: docker_engine
     - role: nginx

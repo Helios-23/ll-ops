@@ -15,6 +15,12 @@ ubuntu_pro_access_public_key_paths:
 ubuntu_pro_access_password: "{{ vault_all.ansible_become_password }}"
 
 # Forgejo
+allowed_ssh_users:
+  - "devops"
+sshd_password_auth: "yes"
+sshd_additional_protected_ports:
+  - 2222
+forgejo_fail2ban_enabled: true
 forgejo_http_port: 3000
 forgejo_ssh_port: 2222
 forgejo_postgres_password: "{{ vault_all.forgejo.postgres_password }}"
@@ -22,8 +28,11 @@ forgejo_postgres_password: "{{ vault_all.forgejo.postgres_password }}"
 forgejo_mailer_enabled: true
 forgejo_mailer_from: "devops@epytype.org"
 forgejo_mailer_protocol: "smtp+starttls"
-forgejo_mailer_smtp_addr: "smtp.gmail.com"
 forgejo_mailer_smtp_port: 587
+forgejo_mailer_smtp_addr: "smtp.gmail.com"
 forgejo_mailer_user: "{{ vault_all.forgejo.smtp_user }}"
 forgejo_mailer_passwd: "{{ vault_all.forgejo.smtp_password }}"
 forgejo_mailer_enable_notify_mail: true
+forgejo_mailer_enable_helo: true
+forgejo_mailer_helo_hostname: "repo.epytype.org"
+forgejo_mailer_envelope_from: "{{ vault_all.forgejo.smtp_user }}"

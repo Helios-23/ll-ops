@@ -22,6 +22,9 @@ forgejo_mailer_user: ""
 forgejo_mailer_passwd: ""
 forgejo_mailer_enable_notify_mail: true
 forgejo_mailer_subject_prefix: "[Forgejo]"
+forgejo_mailer_enable_helo: true
+forgejo_mailer_helo_hostname: "{{ forgejo_domain }}"
+forgejo_mailer_envelope_from: ""
 
 # Forgejo user management (optional)
 # forgejo_users:

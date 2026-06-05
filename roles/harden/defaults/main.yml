@@ -1,11 +1,22 @@
 # Hardening settings
 fail2ban_admin_email: "helios23@gmail.com"
+forgejo_fail2ban_enabled: false
+forgejo_fail2ban_logpath: "{{ (forgejo_data_dir | default('/opt/forgejo/data')) ~ '/gitea/log/gitea.log' }}"
+forgejo_fail2ban_logdir: "{{ (forgejo_data_dir | default('/opt/forgejo/data')) ~ '/gitea/log' }}"
+forgejo_fail2ban_uid: 1000
+forgejo_fail2ban_gid: 1000
+forgejo_fail2ban_maxretry: 10
+forgejo_fail2ban_findtime: 3600
+forgejo_fail2ban_bantime: 900
 
 # SSH hardening
 sshd_port: 22
+sshd_additional_protected_ports: []
 sshd_permit_root_login: "no"
 sshd_password_auth: "no"
 sshd_challenge_response: "no"
+harden_manage_pam_ssh_lockout: false
+harden_manage_pam_allowed_users: false
 
 # Port knocking (optional - set enable_knockd to true to enable)
 enable_knockd: false

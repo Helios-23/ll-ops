@@ -1,3 +1,11 @@
+- name: Safety guard - ensure current automation user remains allowed
+  assert:
+    that:
+      - (ansible_user | default(remote_user | default(''))) in allowed_ssh_users
+    fail_msg: >-
+      The current SSH/Ansible user is not present in allowed_ssh_users.
+      Refusing to apply harden because it could lock out access.
+
 - name: Install fail2ban
   apt:
     name: fail2ban
@@ -8,7 +16,7 @@
   lineinfile:
     path: /etc/ssh/sshd_config
     regexp: '^#?ChallengeResponseAuthentication'
-    line: 'ChallengeResponseAuthentication no'
+    line: 'ChallengeResponseAuthentication {{ sshd_challenge_response }}'
     state: present
   notify: restart sshd
 
@@ -16,7 +24,7 @@
   lineinfile:
     path: /etc/ssh/sshd_config
     regexp: '^#?PasswordAuthentication'
-    line: 'PasswordAuthentication no'
+    line: 'PasswordAuthentication {{ sshd_password_auth }}'
     state: present
   notify: restart sshd
 
@@ -24,7 +32,7 @@
   lineinfile:
     path: /etc/ssh/sshd_config
     regexp: '^#?PermitRootLogin'
-    line: 'PermitRootLogin no'
+    line: 'PermitRootLogin {{ sshd_permit_root_login }}'
     state: present
   notify: restart sshd
 
@@ -52,20 +60,12 @@
     state: present
   notify: restart sshd
 
-- name: Ensure sshd config is valid
-  command: sshd -t
-  changed_when: false
-
-- name: Force sshd reload to apply config
-  systemd:
-    name: ssh
-    state: reloaded
-
 - name: Harden PAM SSH configuration to respect max retries
   lineinfile:
     path: /etc/pam.d/sshd
     regexp: '^auth.*pam_unix\.so'
     line: 'auth       required     pam_unix.so nullok_secure deny=3 unlock_time=300'
+  when: harden_manage_pam_ssh_lockout | bool
   notify: restart sshd
 
 - name: Remove PAM tally2/tally if present (conflicts with deny=)
@@ -73,6 +73,7 @@
     path: /etc/pam.d/sshd
     regexp: '^auth.*pam_tally'
     state: absent
+  when: harden_manage_pam_ssh_lockout | bool
   notify: restart sshd
 
 - name: Install iptables-persistent for rate limiting
@@ -86,10 +87,10 @@
     table: filter
     chain: INPUT
     protocol: tcp
-    destination_port: "{{ sshd_port }}"
-    source: "{{ item }}"
+    destination_port: "{{ item.1 }}"
+    source: "{{ item.0 }}"
     jump: ACCEPT
-  loop: "{{ whitelisted_ips }}"
+  loop: "{{ whitelisted_ips | product(([sshd_port] + (sshd_additional_protected_ports | default([]))) | unique) | list }}"
   notify: save iptables
 
 - name: Rate limit SSH connections with iptables
@@ -97,11 +98,12 @@
     table: filter
     chain: INPUT
     protocol: tcp
-    destination_port: "{{ sshd_port }}"
+    destination_port: "{{ item }}"
     ctstate: NEW
     limit: 3/min
     limit_burst: 3
     jump: ACCEPT
+  loop: "{{ ([sshd_port] + (sshd_additional_protected_ports | default([]))) | unique }}"
   notify: save iptables
 
 - name: Set MaxStartups to prevent resource exhaustion
@@ -117,6 +119,14 @@
     regexp: '^#?LoginGraceTime'
     line: 'LoginGraceTime 30'
   notify: restart sshd
+
+- name: Ensure sshd systemd override directory exists
+  file:
+    path: /etc/systemd/system/ssh.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
 
 - name: Create systemd override for sshd with resource limits
   blockinfile:
@@ -137,6 +147,16 @@
 - name: Reload systemd to pick up override
   systemd:
     daemon_reload: true
+
+- name: Ensure IPv4 forwarding is enabled for Docker
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_forward
+    value: "1"
+    state: present
+    sysctl_set: true
+    reload: true
+  tags:
+    - ipv4-forward
 
 - name: Apply sysctl tweaks for SSH robustness
   ansible.posix.sysctl:
@@ -228,6 +248,7 @@
     block: |
       # Only allow specific users
       account required pam_listfile.so item=user sense=allow file=/etc/ssh/allowed_users onerr=fail
+  when: harden_manage_pam_allowed_users | bool
   notify: restart sshd
 
 - name: Create allowed users file for PAM
@@ -240,6 +261,11 @@
     owner: root
     group: root
     mode: "0600"
+  when: harden_manage_pam_allowed_users | bool
+
+- name: Validate final sshd configuration
+  command: sshd -t
+  changed_when: false
 
 - name: Configure fail2ban for SSH
   template:
@@ -249,6 +275,24 @@
     group: root
     mode: "0644"
   notify: reload fail2ban
+
+- name: Ensure Forgejo fail2ban log directory exists
+  file:
+    path: "{{ forgejo_fail2ban_logdir }}"
+    state: directory
+    owner: "{{ forgejo_fail2ban_uid }}"
+    group: "{{ forgejo_fail2ban_gid }}"
+    mode: "0755"
+  when: forgejo_fail2ban_enabled | bool
+
+- name: Ensure Forgejo fail2ban log file exists
+  file:
+    path: "{{ forgejo_fail2ban_logpath }}"
+    state: touch
+    owner: "{{ forgejo_fail2ban_uid }}"
+    group: "{{ forgejo_fail2ban_gid }}"
+    mode: "0644"
+  when: forgejo_fail2ban_enabled | bool
 
 - name: Fix fail2ban socket permissions
   file:
@@ -282,6 +326,22 @@
     group: root
     mode: "0644"
   notify: reload fail2ban
+
+- name: Deploy Forgejo fail2ban filter
+  template:
+    src: forgejo.conf.j2
+    dest: /etc/fail2ban/filter.d/forgejo.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: forgejo_fail2ban_enabled | bool
+  notify: reload fail2ban
+
+- name: Ensure fail2ban is enabled and started
+  systemd:
+    name: fail2ban
+    enabled: true
+    state: started
 
 - name: Install jail status script
   template:

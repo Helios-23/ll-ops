@@ -15,7 +15,7 @@ ignoreip = 127.0.0.1/8 ::1 {{ whitelisted_ips | join(' ') }}
 
 [sshd]
 enabled = true
-port = ssh
+port = {{ ([sshd_port] + (sshd_additional_protected_ports | default([]))) | unique | join(',') }}
 filter = sshd-custom
 logpath = /var/log/auth.log
 maxretry = 3
@@ -23,7 +23,7 @@ bantime = 43200
 
 [sshd-ddos]
 enabled = true
-port = ssh
+port = {{ ([sshd_port] + (sshd_additional_protected_ports | default([]))) | unique | join(',') }}
 filter = sshd-ddos
 logpath = /var/log/auth.log
 maxretry = 2
@@ -32,9 +32,20 @@ bantime = 86400
 # Custom aggressive jail for rapid attempts
 [sshd-aggressive]
 enabled = true
-port = ssh
+port = {{ ([sshd_port] + (sshd_additional_protected_ports | default([]))) | unique | join(',') }}
 filter = sshd-custom
 logpath = /var/log/auth.log
 maxretry = 2
 findtime = 300
 bantime = 86400
+
+{% if forgejo_fail2ban_enabled | bool %}
+[forgejo]
+enabled = true
+filter = forgejo
+logpath = {{ forgejo_fail2ban_logpath }}
+maxretry = {{ forgejo_fail2ban_maxretry }}
+findtime = {{ forgejo_fail2ban_findtime }}
+bantime = {{ forgejo_fail2ban_bantime }}
+action = iptables-allports[chain="FORWARD"]
+{% endif %}
