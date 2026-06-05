@@ -26,7 +26,7 @@ forgejo_ssh_port: 2222
 forgejo_postgres_password: "{{ vault_all.forgejo.postgres_password }}"
 # mail
 forgejo_mailer_enabled: true
-forgejo_mailer_from: "devops@epytype.org"
+forgejo_mailer_from: "{{ vault_all.forgejo.smtp_user }}"
 forgejo_mailer_protocol: "smtp+starttls"
 forgejo_mailer_smtp_port: 587
 forgejo_mailer_smtp_addr: "smtp.gmail.com"
