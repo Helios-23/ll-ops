@@ -12,6 +12,17 @@ forgejo_domain: "repo.epytype.org"
 forgejo_https_enabled: false
 certbot_email: "helios23@gmail.com"
 
+# MAIL
+forgejo_mailer_enabled: false
+forgejo_mailer_from: "forgejo@repo.epytype.org"
+forgejo_mailer_protocol: "smtps" # or "smtp+starttls" for STARTTLS/587
+forgejo_mailer_smtp_addr: ""
+forgejo_mailer_smtp_port: 465
+forgejo_mailer_user: ""
+forgejo_mailer_passwd: ""
+forgejo_mailer_enable_notify_mail: true
+forgejo_mailer_subject_prefix: "[Forgejo]"
+
 # Forgejo user management (optional)
 # forgejo_users:
 #   - username: jdoe

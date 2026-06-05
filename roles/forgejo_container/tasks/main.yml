@@ -33,7 +33,7 @@
   changed_when: >
     'Creating' in forgejo_compose_up.stdout or
     'Recreating' in forgejo_compose_up.stdout or
-    'Starting' in forgejo_compose_up.stdout"
+    'Starting' in forgejo_compose_up.stdout
 
 - name: Enable push-to-create for organizations
   include_tasks: push_create_org.yml

@@ -24,6 +24,17 @@ services:
       FORGEJO__database__NAME: {{ forgejo_postgres_db }}
       FORGEJO__database__USER: {{ forgejo_postgres_user }}
       FORGEJO__database__PASSWD: {{ forgejo_postgres_password }}
+{% if forgejo_mailer_enabled | bool %}
+      FORGEJO__mailer__ENABLED: "true"
+      FORGEJO__mailer__FROM: "{{ forgejo_mailer_from }}"
+      FORGEJO__mailer__PROTOCOL: "{{ forgejo_mailer_protocol }}"
+      FORGEJO__mailer__SMTP_ADDR: "{{ forgejo_mailer_smtp_addr }}"
+      FORGEJO__mailer__SMTP_PORT: "{{ forgejo_mailer_smtp_port }}"
+      FORGEJO__mailer__USER: "{{ forgejo_mailer_user }}"
+      FORGEJO__mailer__PASSWD: "{{ forgejo_mailer_passwd }}"
+      FORGEJO__service__ENABLE_NOTIFY_MAIL: "{{ forgejo_mailer_enable_notify_mail | ternary('true','false') }}"
+      FORGEJO__mailer__SUBJECT_PREFIX: "{{ forgejo_mailer_subject_prefix }}"
+{% endif %}
 {% if forgejo_https_enabled | bool %}
       FORGEJO__server__ROOT_URL: https://{{ forgejo_domain }}/
       FORGEJO__server__DOMAIN: {{ forgejo_domain }}
