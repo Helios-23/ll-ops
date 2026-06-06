@@ -194,10 +194,18 @@ Main role tag:
 Additional task tags:
 
 - `ipv4-forward`
+- `reverse_proxy_fail2ban`
+
+Feature booleans:
+
+- `fail2ban_feature_forgejo_enabled`
+- `fail2ban_feature_reverse_proxy_enabled`
 
 Notes:
 
 - `ipv4-forward` persists `net.ipv4.ip_forward=1`
+- `reverse_proxy_fail2ban` enables a Fail2ban jail against reverse-proxy access logs for repeated 401/403 responses when the boolean is true
+- Forgejo SSH log monitoring is enabled by `fail2ban_feature_forgejo_enabled`
 
 ### `roles/tailscale_admin`
 

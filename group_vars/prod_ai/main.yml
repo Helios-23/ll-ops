@@ -12,6 +12,8 @@ backend_name: "epytype"
 
 # auth logs
 ssh_auth_log: "/var/log/secure"
+# Enable to have Fail2ban watch reverse-proxy access logs for repeated 401/403 responses.
+fail2ban_feature_reverse_proxy_enabled: false
 
 # dirs
 media_dir: "/srv/media"

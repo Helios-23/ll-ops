@@ -267,6 +267,20 @@
   command: sshd -t
   changed_when: false
 
+- name: Prepare reverse proxy fail2ban feature
+  when: fail2ban_feature_reverse_proxy_enabled | bool
+  tags:
+    - reverse_proxy_fail2ban
+  block:
+    - name: Validate reverse proxy fail2ban inputs
+      assert:
+        that:
+          - reverse_proxy_fail2ban_logpath | length > 0
+          - reverse_proxy_fail2ban_statuses | length > 0
+        fail_msg: >-
+          reverse_proxy_fail2ban_logpath and reverse_proxy_fail2ban_statuses
+          must be set when fail2ban_feature_reverse_proxy_enabled is true.
+
 - name: Configure fail2ban for SSH
   template:
     src: jail.local.j2
@@ -276,6 +290,18 @@
     mode: "0644"
   notify: reload fail2ban
 
+- name: Deploy reverse proxy fail2ban filter
+  template:
+    src: nginx-auth-proxy.conf.j2
+    dest: /etc/fail2ban/filter.d/nginx-auth-proxy.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: fail2ban_feature_reverse_proxy_enabled | bool
+  notify: reload fail2ban
+  tags:
+    - reverse_proxy_fail2ban
+
 - name: Ensure Forgejo fail2ban log directory exists
   file:
     path: "{{ forgejo_fail2ban_logdir }}"
@@ -283,7 +309,7 @@
     owner: "{{ forgejo_fail2ban_uid }}"
     group: "{{ forgejo_fail2ban_gid }}"
     mode: "0755"
-  when: forgejo_fail2ban_enabled | bool
+  when: fail2ban_feature_forgejo_enabled | bool
 
 - name: Ensure Forgejo fail2ban log file exists
   file:
@@ -292,7 +318,7 @@
     owner: "{{ forgejo_fail2ban_uid }}"
     group: "{{ forgejo_fail2ban_gid }}"
     mode: "0644"
-  when: forgejo_fail2ban_enabled | bool
+  when: fail2ban_feature_forgejo_enabled | bool
 
 - name: Fix fail2ban socket permissions
   file:
@@ -334,7 +360,7 @@
     owner: root
     group: root
     mode: "0644"
-  when: forgejo_fail2ban_enabled | bool
+  when: fail2ban_feature_forgejo_enabled | bool
   notify: reload fail2ban
 
 - name: Ensure fail2ban is enabled and started

@@ -20,7 +20,9 @@ allowed_ssh_users:
 sshd_password_auth: "yes"
 sshd_additional_protected_ports:
   - 2222
-forgejo_fail2ban_enabled: true
+fail2ban_feature_forgejo_enabled: true
+# Enable to have Fail2ban watch reverse-proxy access logs for repeated 401/403 responses.
+fail2ban_feature_reverse_proxy_enabled: false
 forgejo_http_port: 3000
 forgejo_ssh_port: 2222
 forgejo_postgres_password: "{{ vault_all.forgejo.postgres_password }}"

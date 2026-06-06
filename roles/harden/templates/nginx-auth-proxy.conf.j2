@@ -1,0 +1,5 @@
+[Definition]
+
+failregex = ^<HOST> - .* "(?:GET|POST|HEAD|PUT|DELETE|OPTIONS|PATCH) .*" (?:{{ reverse_proxy_fail2ban_statuses | join('|') }}) .*
+
+ignoreregex =

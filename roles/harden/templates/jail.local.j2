@@ -39,7 +39,18 @@ maxretry = 2
 findtime = 300
 bantime = 86400
 
-{% if forgejo_fail2ban_enabled | bool %}
+{% if fail2ban_feature_reverse_proxy_enabled | bool %}
+[nginx-auth-proxy]
+enabled = true
+port = {{ reverse_proxy_fail2ban_ports }}
+filter = nginx-auth-proxy
+logpath = {{ reverse_proxy_fail2ban_logpath }}
+maxretry = {{ reverse_proxy_fail2ban_maxretry }}
+findtime = {{ reverse_proxy_fail2ban_findtime }}
+bantime = {{ reverse_proxy_fail2ban_bantime }}
+{% endif %}
+
+{% if fail2ban_feature_forgejo_enabled | bool %}
 [forgejo]
 enabled = true
 filter = forgejo

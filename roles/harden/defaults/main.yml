@@ -1,6 +1,6 @@
 # Hardening settings
 fail2ban_admin_email: "helios23@gmail.com"
-forgejo_fail2ban_enabled: false
+fail2ban_feature_forgejo_enabled: false
 forgejo_fail2ban_logpath: "{{ (forgejo_data_dir | default('/opt/forgejo/data')) ~ '/gitea/log/gitea.log' }}"
 forgejo_fail2ban_logdir: "{{ (forgejo_data_dir | default('/opt/forgejo/data')) ~ '/gitea/log' }}"
 forgejo_fail2ban_uid: 1000
@@ -8,6 +8,15 @@ forgejo_fail2ban_gid: 1000
 forgejo_fail2ban_maxretry: 10
 forgejo_fail2ban_findtime: 3600
 forgejo_fail2ban_bantime: 900
+fail2ban_feature_reverse_proxy_enabled: false
+reverse_proxy_fail2ban_logpath: "/var/log/nginx/access.log"
+reverse_proxy_fail2ban_ports: "http,https"
+reverse_proxy_fail2ban_statuses:
+  - 401
+  - 403
+reverse_proxy_fail2ban_maxretry: 10
+reverse_proxy_fail2ban_findtime: 600
+reverse_proxy_fail2ban_bantime: 3600
 
 # SSH hardening
 sshd_port: 22
