@@ -6,6 +6,10 @@ Infrastructure-as-code for epytype.org services. Ansible playbooks and Terraform
 
 For SSH setup, repository checkout, and migration workflow details, use `USER_GUIDE.md`.
 
+## Features
+
+For a compact index of playbooks, plays, roles, and major tags, use [FEATURES.md](FEATURES.md).
+
 ## Prerequisites
 The `kpxc/` directory must be pulled as a subdirectory of `ops/`:
 ```

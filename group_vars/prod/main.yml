@@ -24,6 +24,11 @@ forgejo_fail2ban_enabled: true
 forgejo_http_port: 3000
 forgejo_ssh_port: 2222
 forgejo_postgres_password: "{{ vault_all.forgejo.postgres_password }}"
+# Forgejo security features (opt-in)
+# Enable to have Forgejo trust only the configured reverse-proxy CIDRs for forwarded headers.
+forgejo_reverse_proxy_trust_feature_enabled: false
+# Enable to have nginx only allow Forgejo access from Tailscale client CIDRs.
+forgejo_tailscale_access_control_feature_enabled: false
 # mail
 forgejo_mailer_enabled: true
 forgejo_mailer_from: "{{ vault_all.forgejo.smtp_user }}"

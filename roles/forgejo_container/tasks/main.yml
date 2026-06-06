@@ -16,6 +16,40 @@
     port: "{{ forgejo_ssh_port }}"
     proto: tcp
 
+- name: Prepare Forgejo trusted reverse-proxy configuration
+  when: forgejo_reverse_proxy_trust_feature_enabled | bool
+  tags:
+    - forgejo_reverse_proxy_trust
+  block:
+    - name: Validate trusted reverse-proxy CIDRs
+      assert:
+        that:
+          - forgejo_reverse_proxy_trusted_proxies | length > 0
+        fail_msg: >-
+          forgejo_reverse_proxy_trusted_proxies must contain at least one CIDR
+          when forgejo_reverse_proxy_trust_feature_enabled is true.
+
+    - name: Activate Forgejo trusted reverse-proxy CIDRs
+      set_fact:
+        forgejo_effective_reverse_proxy_trusted_proxies: "{{ forgejo_reverse_proxy_trusted_proxies }}"
+
+- name: Prepare Forgejo Tailscale access control
+  when: forgejo_tailscale_access_control_feature_enabled | bool
+  tags:
+    - forgejo_tailscale_access_control
+  block:
+    - name: Validate Tailscale client CIDRs
+      assert:
+        that:
+          - forgejo_tailscale_allowed_client_cidrs | length > 0
+        fail_msg: >-
+          forgejo_tailscale_allowed_client_cidrs must contain at least one CIDR
+          when forgejo_tailscale_access_control_feature_enabled is true.
+
+    - name: Activate Forgejo Tailscale client allowlist
+      set_fact:
+        forgejo_effective_allowed_client_cidrs: "{{ forgejo_tailscale_allowed_client_cidrs }}"
+
 - name: Write Forgejo compose file
   template:
     src: docker-compose.yml.j2
@@ -24,6 +58,8 @@
     group: root
     mode: "0644"
   notify: Restart Forgejo
+  tags:
+    - forgejo_reverse_proxy_trust
 
 - name: Start Forgejo stack
   command: docker compose up -d
@@ -34,6 +70,8 @@
     'Creating' in forgejo_compose_up.stdout or
     'Recreating' in forgejo_compose_up.stdout or
     'Starting' in forgejo_compose_up.stdout
+  tags:
+    - forgejo_reverse_proxy_trust
 
 - name: Enable push-to-create for organizations
   include_tasks: push_create_org.yml
@@ -74,6 +112,8 @@
     group: root
     mode: "0644"
   notify: Reload nginx
+  tags:
+    - forgejo_tailscale_access_control
 
 - name: Enable nginx Forgejo site
   file:
@@ -81,10 +121,14 @@
     dest: /etc/nginx/sites-enabled/forgejo
     state: link
   notify: Reload nginx
+  tags:
+    - forgejo_tailscale_access_control
 
 - name: Test nginx configuration
   command: nginx -t
   changed_when: false
+  tags:
+    - forgejo_tailscale_access_control
 
 - name: Set up certbot auto-renewal cron job
   cron:

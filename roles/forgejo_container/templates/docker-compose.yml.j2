@@ -27,6 +27,9 @@ services:
       FORGEJO__log__MODE: "console,file"
       FORGEJO__log__ROOT_PATH: "/data/gitea/log"
       FORGEJO__log__LOGGER_SSH_MODE: "file"
+{% if forgejo_effective_reverse_proxy_trusted_proxies is defined and forgejo_effective_reverse_proxy_trusted_proxies | length > 0 %}
+      FORGEJO__security__REVERSE_PROXY_TRUSTED_PROXIES: "{{ forgejo_effective_reverse_proxy_trusted_proxies | join(',') }}"
+{% endif %}
 {% if forgejo_mailer_enabled | bool %}
       FORGEJO__mailer__ENABLED: "true"
       FORGEJO__mailer__FROM: "{{ forgejo_mailer_from }}"

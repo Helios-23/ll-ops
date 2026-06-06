@@ -11,6 +11,13 @@ forgejo_postgres_password: change-me
 forgejo_domain: "repo.epytype.org"
 forgejo_https_enabled: false
 certbot_email: "helios23@gmail.com"
+forgejo_reverse_proxy_trust_feature_enabled: false
+forgejo_reverse_proxy_trusted_proxies:
+  - "127.0.0.0/8"
+  - "::1/128"
+forgejo_tailscale_access_control_feature_enabled: false
+forgejo_tailscale_allowed_client_cidrs:
+  - "100.64.0.0/10"
 
 # MAIL
 forgejo_mailer_enabled: false

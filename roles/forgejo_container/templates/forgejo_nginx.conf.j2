@@ -7,6 +7,12 @@ server {
     }
 
     location / {
+{% if forgejo_effective_allowed_client_cidrs is defined and forgejo_effective_allowed_client_cidrs | length > 0 %}
+{% for cidr in forgejo_effective_allowed_client_cidrs %}
+        allow {{ cidr }};
+{% endfor %}
+        deny all;
+{% endif %}
         return 301 https://$host$request_uri;
     }
 }
@@ -25,6 +31,12 @@ server {
     client_max_body_size 256M;
 
     location / {
+{% if forgejo_effective_allowed_client_cidrs is defined and forgejo_effective_allowed_client_cidrs | length > 0 %}
+{% for cidr in forgejo_effective_allowed_client_cidrs %}
+        allow {{ cidr }};
+{% endfor %}
+        deny all;
+{% endif %}
         proxy_pass http://127.0.0.1:{{ forgejo_http_port }};
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -33,6 +45,12 @@ server {
     }
 
     location /api/v1/swagger {
+{% if forgejo_effective_allowed_client_cidrs is defined and forgejo_effective_allowed_client_cidrs | length > 0 %}
+{% for cidr in forgejo_effective_allowed_client_cidrs %}
+        allow {{ cidr }};
+{% endfor %}
+        deny all;
+{% endif %}
         proxy_pass http://127.0.0.1:{{ forgejo_http_port }};
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
