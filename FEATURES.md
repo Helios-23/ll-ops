@@ -1,113 +1,52 @@
 # Ansible Features
 
-This file is a compact index of the playbooks, plays, roles, and major tags in `ops/`.
+Compact index of the playbooks, roles, and tags in `ops/`.
 
-Use it as a command library when deciding which playbook/tag combination to run.
+Use this as the quick command map; the **Complete Tag Index** below is the authoritative tag list and is checked by `ops/bin/check_features_sync.py` when AI agents edit `ops/`.
 
-## Playbooks
+## Playbook Quick Map
+
+| Playbook | Scope | Flow | Main tags | Focus tags |
+| --- | --- | --- | --- | --- |
+| `setup_epytype.yml` | `repo0`, `gex0` | choose `repo_server` or `ai_server` → narrow to a role tag → narrow to a task tag | `repo_server`, `ai_server` | `forgejo`, `harden`, `ai_rig`, `ipv4-forward`, `forgejo_users`, `ollama`, `pull_models`, `webui` |
+| `admin.yml` | `all` with `-l/--limit` required | choose hosts → run `admin` or `update_reboot` → use Tailscale tags if needed | `admin` | `update_reboot`, `tailscale`, `tailscale_machine`, `tailscale_policy` |
+| `github-release.yml` | localhost | choose `epytype` or `lantern` → optionally override version vars → run from `ops/` | `epytype`, `lantern` | release variables only; no extra task tags documented here |
+| `terraform.yml` | localhost | run plan → apply automatically on drift → sync inventory from outputs | `terraform` | none |
+| `kymstr.yml` | selected hosts | choose hosts → run `kymstr` or an explicit opt-in task tag → many paths also require `never` | `kymstr` | `ssh-auth`, `ssh-key`, `gen-csr`, `encrypt`, `cert`, `never` |
+
+## Examples
 
 ### `setup_epytype.yml`
-
-Purpose:
-
-- configure `repo0` and `gex0`
-- apply baseline hardening
-- manage Docker, nginx, TLS, Forgejo, and AI services
-
-Plays:
-
-- `Configure repo server baseline and Forgejo`
-- `Configure AI server baseline and AI stack`
-
-Play tags:
-
-- `repo_server`
-- `ai_server`
-
-Hosts:
-
-- `repo0`
-- `gex0`
-
-Examples:
 
 ```bash
 ansible-playbook ops/setup_epytype.yml
 ansible-playbook ops/setup_epytype.yml --tags repo_server
-ansible-playbook ops/setup_epytype.yml --tags ai_server
-ansible-playbook ops/setup_epytype.yml --tags forgejo
-ansible-playbook ops/setup_epytype.yml --tags ai_rig
+ansible-playbook ops/setup_epytype.yml --tags repo_server,forgejo
+ansible-playbook ops/setup_epytype.yml --tags repo_server,forgejo_users
+ansible-playbook ops/setup_epytype.yml --tags ai_server,ai_rig
+ansible-playbook ops/setup_epytype.yml --tags ai_server,ollama
+ansible-playbook ops/setup_epytype.yml --tags ai_server,pull_models
 ```
 
 ### `admin.yml`
 
-Purpose:
-
-- run administrative tasks across selected hosts
-- optionally manage Tailscale policy/machine settings
-
-Play:
-
-- `Run administrative tasks`
-
-Hosts:
-
-- `all` with `-l/--limit` required
-
-Play tags:
-
-- `admin`
-
-Role tags:
-
-- `tailscale`
-
-Examples:
-
 ```bash
 ansible-playbook ops/admin.yml -i ops/inventory/epytype -l repo0
+ansible-playbook ops/admin.yml -i ops/inventory/epytype -l repo0 --tags update_reboot
 ansible-playbook ops/admin.yml -i ops/inventory/epytype -l repo0 --tags tailscale
+ansible-playbook ops/admin.yml -i ops/inventory/epytype -l repo0 --tags tailscale_machine
+ansible-playbook ops/admin.yml -i ops/inventory/epytype -l repo0 --tags tailscale_policy
 ```
 
 ### `github-release.yml`
 
-Purpose:
-
-- prepare and publish releases from localhost
-
-Plays:
-
-- `Prepare and publish an Epytype release`
-- `Prepare and publish a Lantern release`
-
-Play tags:
-
-- `epytype`
-- `lantern`
-
-Examples:
-
 ```bash
+ansible-playbook ops/github-release.yml
 ansible-playbook ops/github-release.yml --tags epytype
 ansible-playbook ops/github-release.yml --tags lantern
 ```
 
 ### `terraform.yml`
-
-Purpose:
-
-- initialize, plan, and apply Terraform from localhost
-- sync resulting server data into Ansible inventory
-
-Play:
-
-- `Manage Terraform infrastructure and sync Ansible inventory`
-
-Play tags:
-
-- `terraform`
-
-Example:
 
 ```bash
 ansible-playbook ops/terraform.yml --tags terraform
@@ -115,141 +54,53 @@ ansible-playbook ops/terraform.yml --tags terraform
 
 ### `kymstr.yml`
 
-Purpose:
-
-- run the `keymaster` role against selected hosts
-
-Play tags:
-
-- `kymstr`
-
-Example:
-
 ```bash
 ansible-playbook ops/kymstr.yml -i ops/inventory/epytype -l repo0
+ansible-playbook ops/kymstr.yml -i ops/inventory/epytype -l repo0 --tags ssh-auth
+ansible-playbook ops/kymstr.yml -i ops/inventory/epytype -l repo0 --tags gen-csr
+ansible-playbook ops/kymstr.yml -i ops/inventory/epytype -l repo0 --tags cert
 ```
 
-## Role Tag Index
+## Complete Tag Index
 
-### `roles/forgejo_container`
+### Play-level tags
 
-Main role tag:
+| Tags |
+| --- |
+| `admin`, `ai_server`, `epytype`, `kymstr`, `lantern`, `repo_server`, `terraform` |
 
-- `forgejo`
+### Role-level tags
 
-Additional role/task tags:
+| Tags |
+| --- |
+| `ai_rig`, `certbot_tls`, `docker_engine`, `forgejo`, `harden`, `nginx`, `tailscale`, `ubuntu_pro_fips` |
 
-- `forgejo_push_create_org`
-- `forgejo_users`
-- `forgejo_reverse_proxy_trust`
-- `forgejo_tailscale_access_control`
+### Task-level tags
 
-Feature booleans:
+| Tags |
+| --- |
+| `always`, `cert`, `check-csr`, `encrypt`, `forgejo_push_create_org`, `forgejo_reverse_proxy_trust`, `forgejo_tailscale_access_control`, `forgejo_users`, `gen-csr`, `gen-ssh`, `install`, `ipv4-forward`, `mysql`, `never`, `ollama`, `pull_models`, `reverse_proxy_fail2ban`, `ssh-auth`, `ssh-auth-review`, `ssh-gen`, `ssh-key`, `ssh-key-report`, `tailscale_machine`, `tailscale_policy`, `update_reboot`, `webui` |
 
-- `forgejo_reverse_proxy_trust_feature_enabled`
-- `forgejo_tailscale_access_control_feature_enabled`
+## Role Notes
 
-Notes:
+| Role | Main tags | Extra tags / notes |
+| --- | --- | --- |
+| `roles/forgejo_container` | `forgejo` | Extra tags: `forgejo_push_create_org`, `forgejo_users`, `forgejo_reverse_proxy_trust`, `forgejo_tailscale_access_control`, `never`. `forgejo_users` is opt-in because it is also tagged `never`. Feature booleans: `forgejo_reverse_proxy_trust_feature_enabled`, `forgejo_tailscale_access_control_feature_enabled`. |
+| `roles/harden` | `harden` | Extra tags: `ipv4-forward`, `reverse_proxy_fail2ban`. Feature booleans: `fail2ban_feature_forgejo_enabled`, `fail2ban_feature_reverse_proxy_enabled`. |
+| `roles/tailscale_admin` | `tailscale`, `tailscale_machine`, `tailscale_policy` | `tailscale_machine` covers host-side install and `tailscale up`; `tailscale_policy` pushes tailnet ACL/SSH policy. Feature booleans: `tailscale_machine_enabled`, `tailscale_policy_enabled`. |
+| `roles/ai_rig` | `ai_rig` | Extra tags: `ollama`, `pull_models`, `webui`. `pull_models` is narrower than `ollama` and useful for model refreshes after stack setup. |
+| `roles/admin` | none | Task tag: `update_reboot` only. The package update and reboot path runs only when `update_reboot` is selected. |
+| `roles/keymaster` | none | Task tags: `install`, `encrypt`, `gen-ssh`, `ssh-gen`, `gen-csr`, `check-csr`, `mysql`, `ssh-auth`, `ssh-auth-review`, `ssh-key-report`, `ssh-key`, `cert`, `never`. Many paths are intentionally guarded by `never`. |
+| `roles/certbot_tls` | `certbot_tls` | no extra documented task tags |
+| `roles/docker_engine` | `docker_engine` | no extra documented task tags |
+| `roles/nginx` | `nginx` | no extra documented task tags |
+| `roles/ubuntu_pro_fips` | `ubuntu_pro_fips` | no extra documented task tags |
 
-- `forgejo_reverse_proxy_trust` enables Forgejo trusted proxy CIDRs when the boolean is true
-- `forgejo_tailscale_access_control` enables nginx `allow`/`deny` rules for Tailscale CIDRs when the boolean is true
+## Agent Guard
 
-### `roles/harden`
+For AI-agent edits inside `ops/`:
 
-Main role tag:
-
-- `harden`
-
-Additional task tags:
-
-- `ipv4-forward`
-- `reverse_proxy_fail2ban`
-
-Feature booleans:
-
-- `fail2ban_feature_forgejo_enabled`
-- `fail2ban_feature_reverse_proxy_enabled`
-
-Notes:
-
-- `ipv4-forward` persists `net.ipv4.ip_forward=1`
-- `reverse_proxy_fail2ban` enables a Fail2ban jail against reverse-proxy access logs for repeated 401/403 responses when the boolean is true
-- Forgejo SSH log monitoring is enabled by `fail2ban_feature_forgejo_enabled`
-
-### `roles/tailscale_admin`
-
-Primary tags:
-
-- `tailscale`
-- `tailscale_machine`
-- `tailscale_policy`
-
-Feature booleans:
-
-- `tailscale_machine_enabled`
-- `tailscale_policy_enabled`
-
-Notes:
-
-- `tailscale_machine` covers host-side Tailscale installation and `tailscale up`
-- `tailscale_policy` pushes tailnet ACL/SSH policy via the API
-
-### `roles/ai_rig`
-
-Main role tag:
-
-- `ai_rig`
-
-Notes:
-
-- deployed through `setup_epytype.yml` with play tag `ai_server`
-
-### `roles/certbot_tls`
-
-Main role tag:
-
-- `certbot_tls`
-
-### `roles/docker_engine`
-
-Main role tag:
-
-- `docker_engine`
-
-### `roles/nginx`
-
-Main role tag:
-
-- `nginx`
-
-### `roles/ubuntu_pro_fips`
-
-Main role tag:
-
-- `ubuntu_pro_fips`
-
-## Common Command Patterns
-
-Repo server:
-
-```bash
-ansible-playbook ops/setup_epytype.yml --tags repo_server
-ansible-playbook ops/setup_epytype.yml --tags repo_server,forgejo
-ansible-playbook ops/setup_epytype.yml --tags repo_server,harden
-ansible-playbook ops/setup_epytype.yml --tags repo_server,ipv4-forward
-```
-
-AI server:
-
-```bash
-ansible-playbook ops/setup_epytype.yml --tags ai_server
-ansible-playbook ops/setup_epytype.yml --tags ai_server,ai_rig
-```
-
-Tailscale administration:
-
-```bash
-ansible-playbook ops/admin.yml -i ops/inventory/epytype -l repo0 --tags tailscale
-ansible-playbook ops/admin.yml -i ops/inventory/epytype -l repo0 --tags tailscale_policy
-ansible-playbook ops/admin.yml -i ops/inventory/epytype -l repo0 --tags tailscale_machine
-```
+- `ops/AGENTS.md` tells Zed agents to treat `ops/FEATURES.md` as part of the `ops` change surface
+- `ops/bin/check_features_sync.py` checks that the **Complete Tag Index** matches the tags present in `ops/*.yml` and `ops/roles/**/*.yml`
+- the same checker also verifies that all `ops` playbooks and role directories are explicitly listed in `FEATURES.md`
+- agents working in `ops/` should run the checker before finishing their turn

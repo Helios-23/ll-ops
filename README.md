@@ -8,7 +8,9 @@ For SSH setup, repository checkout, and migration workflow details, use `USER_GU
 
 ## Features
 
-For a compact index of playbooks, plays, roles, and major tags, use [FEATURES.md](FEATURES.md).
+For a compact index of playbooks, roles, and the complete documented Ansible tag set in `ops/`, use [FEATURES.md](FEATURES.md).
+
+`FEATURES.md` is guarded for AI-agent work in `ops/` by `ops/AGENTS.md` and `ops/bin/check_features_sync.py`, so tag drift, new playbooks, new roles, and undocumented ops feature changes are caught during agent edits instead of only after push.
 
 ## Prerequisites
 The `kpxc/` directory must be pulled as a subdirectory of `ops/`:
