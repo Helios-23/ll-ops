@@ -2,8 +2,7 @@
 
 ## Purpose
 
-This document scopes a consulting engagement to make the Epytype / White Crystal
-stack operational, secure, and commercially usable on **one machine first**.
+This document scopes a consulting engagement to make the Epytype / White Crystal stack operational, secure, and commercially usable on **one machine first**.
 
 The goal is not generic platform engineering. The goal is the shortest path to:
 

@@ -7,6 +7,7 @@
       - certbot
     state: present
     update_cache: true
+  register: nvidia_driver_install
 
 - name: Check if reboot is needed after driver install
   stat:
@@ -18,14 +19,14 @@
     reboot_timeout: 300
     connect_timeout: 300
     pre_reboot_delay: 5
-  when: reboot_required.stat.exists or force_reboot | bool
+  when: nvidia_driver_install.changed or reboot_required.stat.exists or force_reboot | bool
   become: true
 
 - name: Wait for system to come back online
   wait_for_connection:
     delay: 30
     timeout: 300
-  when: reboot_required.stat.exists or force_reboot | bool
+  when: nvidia_driver_install.changed or reboot_required.stat.exists or force_reboot | bool
 
 - name: Setup NVIDIA Container Toolkit repository
   shell: |

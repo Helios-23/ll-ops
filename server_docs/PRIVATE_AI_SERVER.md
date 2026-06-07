@@ -72,6 +72,7 @@
 - **Memory Safety:** 16GB swap (`/swapfile`) + VM tuning (`swappiness=10`, `overcommit_memory=1`)
 - **Network Path:** WebUI on `127.0.0.1:3000`, TLS endpoint `https://ai.epetype.org`, Ollama reachable through proxy
 - **Ops Safety:** GPU OOM watchdog, daily cleanup timer, certbot auto-renew
+- **Reboot Guard:** periodic NVIDIA userspace/driver mismatch check that writes the standard reboot-required marker only when configured interactive user processes are idle
 
 ---
 

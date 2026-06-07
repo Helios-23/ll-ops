@@ -15,6 +15,17 @@
         group: root
         mode: "0644"
 
+    - name: Check for legacy Ollama Docker-volume model store
+      stat:
+        path: "{{ ollama_legacy_volume_models_path }}/manifests"
+      register: ollama_legacy_models
+
+    - name: Import legacy Ollama models into persistent bind mount
+      command: rsync -a --ignore-existing --itemize-changes {{ ollama_legacy_volume_models_path }}/ {{ ollama_data_path }}/models/
+      register: ollama_legacy_import
+      when: ollama_legacy_models.stat.exists
+      changed_when: ollama_legacy_import.stdout | length > 0
+
     - name: Verify Ollama compose file exists
       stat:
         path: "{{ ollama_data_path }}/docker-compose.yml"

@@ -57,6 +57,7 @@ parallel_requests: 6  # Max concurrent requests
 # Docker storage paths
 ollama_data_path: "/opt/ollama"
 open_webui_data_path: "/opt/open-webui"
+ollama_legacy_volume_models_path: "/var/lib/docker/volumes/ollama/_data/models"
 
 # Port configurations
 ollama_port: 11434
@@ -88,3 +89,14 @@ certbot_email: "{{ vault.ai_certbot_email | default('helios23@gmail.com') }}"
 
 # Memory protection settings
 swap_size_mb: 16384  # Swap size in MB for CPU offload
+
+# NVIDIA reboot guard settings
+nvidia_reboot_guard_enabled: true
+nvidia_reboot_guard_watch_users:
+  - "j"
+  - "devops"
+  - "r"
+nvidia_reboot_guard_ignore_cmd_regex: '(^/usr/lib/systemd/systemd --user$|^\(sd-pam\)$|^/usr/bin/dbus-daemon --session .*|^sshd: .*@notty$)'
+nvidia_reboot_guard_marker_reason: "nvidia-userspace-driver-mismatch"
+nvidia_reboot_guard_timer_on_boot_sec: "10m"
+nvidia_reboot_guard_timer_on_unit_active_sec: "30m"

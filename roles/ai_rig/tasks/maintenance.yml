@@ -44,3 +44,54 @@
     state: started
     enabled: true
     daemon_reload: true
+
+- name: Install NVIDIA reboot guard script
+  template:
+    src: nvidia-reboot-guard.sh.j2
+    dest: /usr/local/bin/nvidia-reboot-guard.sh
+    owner: root
+    group: root
+    mode: "0755"
+  when: nvidia_reboot_guard_enabled | bool
+
+- name: Create NVIDIA reboot guard systemd service
+  copy:
+    dest: /etc/systemd/system/nvidia-reboot-guard.service
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Flag reboot when NVIDIA userspace and loaded driver diverge
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/bin/nvidia-reboot-guard.sh
+  when: nvidia_reboot_guard_enabled | bool
+
+- name: Create NVIDIA reboot guard systemd timer
+  copy:
+    dest: /etc/systemd/system/nvidia-reboot-guard.timer
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=Check NVIDIA userspace and loaded driver versions
+
+      [Timer]
+      OnBootSec={{ nvidia_reboot_guard_timer_on_boot_sec }}
+      OnUnitActiveSec={{ nvidia_reboot_guard_timer_on_unit_active_sec }}
+      Persistent=true
+
+      [Install]
+      WantedBy=timers.target
+  when: nvidia_reboot_guard_enabled | bool
+
+- name: Enable and start NVIDIA reboot guard timer
+  systemd:
+    name: nvidia-reboot-guard.timer
+    state: started
+    enabled: true
+    daemon_reload: true
+  when: nvidia_reboot_guard_enabled | bool
