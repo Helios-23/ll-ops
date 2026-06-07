@@ -6,68 +6,37 @@ Use it as a command library when deciding which playbook/tag combination to run.
 
 ## Playbooks
 
-### `repo-server.yml`
+### `setup_epytype.yml`
 
 Purpose:
 
-- configure `repo0`
+- configure `repo0` and `gex0`
 - apply baseline hardening
-- manage Docker, nginx, TLS, and Forgejo
+- manage Docker, nginx, TLS, Forgejo, and AI services
 
-Play:
+Plays:
 
 - `Configure repo server baseline and Forgejo`
+- `Configure AI server baseline and AI stack`
+
+Play tags:
+
+- `repo_server`
+- `ai_server`
 
 Hosts:
 
 - `repo0`
-
-Role tags:
-
-- `ubuntu_pro_fips`
-- `harden`
-- `docker_engine`
-- `nginx`
-- `certbot_tls`
-- `forgejo`
-
-Examples:
-
-```bash
-ansible-playbook ops/repo-server.yml -i ops/inventory/epytype -l repo0
-ansible-playbook ops/repo-server.yml -i ops/inventory/epytype -l repo0 --tags forgejo
-ansible-playbook ops/repo-server.yml -i ops/inventory/epytype -l repo0 --tags harden
-```
-
-### `ai-server.yml`
-
-Purpose:
-
-- configure `gex0`
-- apply baseline hardening
-- manage Docker, nginx, TLS, and AI services
-
-Play:
-
-- `Configure AI server baseline and AI stack`
-
-Hosts:
-
 - `gex0`
 
-Role tags:
-
-- `harden`
-- `docker_engine`
-- `nginx`
-- `certbot_tls`
-- `ai_rig`
-
 Examples:
 
 ```bash
-ansible-playbook ops/ai-server.yml -i ops/inventory/epytype -l gex0
-ansible-playbook ops/ai-server.yml -i ops/inventory/epytype -l gex0 --tags ai_rig
+ansible-playbook ops/setup_epytype.yml
+ansible-playbook ops/setup_epytype.yml --tags repo_server
+ansible-playbook ops/setup_epytype.yml --tags ai_server
+ansible-playbook ops/setup_epytype.yml --tags forgejo
+ansible-playbook ops/setup_epytype.yml --tags ai_rig
 ```
 
 ### `admin.yml`
@@ -233,7 +202,7 @@ Main role tag:
 
 Notes:
 
-- deployed through `ai-server.yml`
+- deployed through `setup_epytype.yml` with play tag `ai_server`
 
 ### `roles/certbot_tls`
 
@@ -264,17 +233,17 @@ Main role tag:
 Repo server:
 
 ```bash
-ansible-playbook ops/repo-server.yml -i ops/inventory/epytype -l repo0
-ansible-playbook ops/repo-server.yml -i ops/inventory/epytype -l repo0 --tags forgejo
-ansible-playbook ops/repo-server.yml -i ops/inventory/epytype -l repo0 --tags harden
-ansible-playbook ops/repo-server.yml -i ops/inventory/epytype -l repo0 --tags ipv4-forward
+ansible-playbook ops/setup_epytype.yml --tags repo_server
+ansible-playbook ops/setup_epytype.yml --tags repo_server,forgejo
+ansible-playbook ops/setup_epytype.yml --tags repo_server,harden
+ansible-playbook ops/setup_epytype.yml --tags repo_server,ipv4-forward
 ```
 
 AI server:
 
 ```bash
-ansible-playbook ops/ai-server.yml -i ops/inventory/epytype -l gex0
-ansible-playbook ops/ai-server.yml -i ops/inventory/epytype -l gex0 --tags ai_rig
+ansible-playbook ops/setup_epytype.yml --tags ai_server
+ansible-playbook ops/setup_epytype.yml --tags ai_server,ai_rig
 ```
 
 Tailscale administration:

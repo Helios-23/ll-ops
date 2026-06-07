@@ -9,7 +9,7 @@ source ./bin/loadenv.sh
 # Enter password: "ask your manager for password"
 
 # 2. Deploy AI server stack (uses wrapper for correct relative paths)
-apb ai-server.yml --ask-become-pass
+apb setup_epytype.yml --tags ai_server --ask-become-pass
 # Enter become password when prompted (from vault)
 
 # 3. Verify services are running

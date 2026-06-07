@@ -109,7 +109,7 @@ git clone https://repo.epytype.org/Epytype/epytype.git
 
 ### Updated Files
 
-**Playbook:** `/Users/H23/logicallight/Epytype/ops/repo-server.yml`
+**Playbook:** `/Users/H23/logicallight/Epytype/ops/setup_epytype.yml`
 - Added tags: `repo-server`, `forgejo`, `forgejo_push_create_org`, `forgejo_users`
 
 **Forgejo Role:** `/Users/H23/logicallight/Epytype/ops/roles/forgejo_container/`
@@ -126,13 +126,13 @@ git clone https://repo.epytype.org/Epytype/epytype.git
 cd /Users/H23/logicallight/Epytype/ops
 
 # Update Forgejo configuration only
-ansible-playbook repo-server.yml --tags forgejo -i inventory/epytype
+ansible-playbook setup_epytype.yml --tags repo_server,forgejo -i inventory/epytype
 
 # Enable push-to-create for organizations
-ansible-playbook repo-server.yml --tags forgejo_push_create_org -i inventory/epytype
+ansible-playbook setup_epytype.yml --tags repo_server,forgejo_push_create_org -i inventory/epytype
 
 # Manage Forgejo users (requires variables)
-ansible-playbook repo-server.yml --tags forgejo_users -i inventory/epytype
+ansible-playbook setup_epytype.yml --tags repo_server,forgejo_users -i inventory/epytype
 ```
 
 ---

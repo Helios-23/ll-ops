@@ -1,11 +1,7 @@
 - name: Configure repo server baseline and Forgejo
   hosts: repo0
-  remote_user: devops
-  become: true
-  gather_facts: true
-  vars:
-    ansible_become_password: "{{ vault_all.ansible_become_password }}"
-
+  tags:
+    - repo_server
   roles:
     - role: ubuntu_pro_fips
       tags: ubuntu_pro_fips
@@ -19,3 +15,19 @@
       tags: certbot_tls
     - role: forgejo_container
       tags: forgejo
+
+- name: Configure AI server baseline and AI stack
+  hosts: gex0
+  tags:
+    - ai_server
+  roles:
+    - role: harden
+      tags: harden
+    - role: docker_engine
+      tags: docker_engine
+    - role: nginx
+      tags: nginx
+    - role: certbot_tls
+      tags: certbot_tls
+    - role: ai_rig
+      tags: ai_rig
