@@ -1,21 +1,22 @@
 # Ops Docs
 
-Documentation anchor for the `ops/` repo.
+Documentation root for the `ops` repo.
 
 ## Core operator docs
 
 - [OPERATOR_RUNBOOK.md](OPERATOR_RUNBOOK.md): consolidated SOP and workflow map for the full `ops/` surface
-- [FEATURES.md](FEATURES.md): authoritative playbook, role, and tag index used by the sync guard
+- [FEATURES.md](FEATURES.md): authoritative playbook, role, and tag index
 - [SETUP_GUIDE.md](SETUP_GUIDE.md): workstation setup, checkout, and credential bootstrap
 
 ## Specialist docs
 
 - [AI_SERVER.md](AI_SERVER.md)
+- [EMAIL_CONFIG.md](EMAIL_CONFIG.md): Cloudflare Email Routing and Gmail-based custom `@epytype.org` address setup
 - [REPO0_LUKS_NBDE_PLAN.md](REPO0_LUKS_NBDE_PLAN.md)
 - [repo_migration/README.md](repo_migration/README.md)
 - [infra-consulting-spec-single-machine.md](infra-consulting-spec-single-machine.md)
 
-## Update rule
+## Update Rules
 
 When `ops/` automation changes, update:
 

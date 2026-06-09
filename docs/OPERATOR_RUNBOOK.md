@@ -7,6 +7,7 @@ Consolidated SOP for the `ops/` repo. Use this document as the top-level workflo
 - workstation bootstrap: [SETUP_GUIDE.md](SETUP_GUIDE.md)
 - automation inventory and tags: [FEATURES.md](FEATURES.md)
 - AI server operations, model inventory, and deployment testing: [AI_SERVER.md](AI_SERVER.md)
+- email address setup and routing: [EMAIL_CONFIG.md](EMAIL_CONFIG.md)
 - repo0 NBDE planning: [REPO0_LUKS_NBDE_PLAN.md](REPO0_LUKS_NBDE_PLAN.md)
 - Forgejo/GitHub repo migration tooling: [repo_migration/README.md](repo_migration/README.md)
 
