@@ -34,11 +34,26 @@
       changed_when: true
       when: item not in (installed_models.stdout | default(''))
 
+    - name: Remove AI models scheduled for removal
+      command: "docker exec ollama ollama rm {{ item }}"
+      loop: "{{ ai_models_remove | default([]) }}"
+      register: remove_results
+      changed_when: true
+      when: item in (installed_models.stdout | default(''))
+
     - name: Verify all models are installed
+      tags:
+        - show_models
       command: "docker exec ollama ollama list"
       register: model_verify
       changed_when: false
 
     - name: Show installed models for UI
+      tags:
+        - show_models
       debug:
-        msg: "Installed models: {{ model_verify.stdout_lines }}"
+        msg: |
+          Installed models:
+          {% for line in (model_verify.stdout_lines | default(installed_models.stdout_lines, true)) %}
+          {{ line }}
+          {% endfor %}

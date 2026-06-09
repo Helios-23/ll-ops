@@ -2,6 +2,7 @@
 # Only 1-2 large models can be resident at once
 ai_models:
   # Coding & Logic
+  - "qwen2.5-coder:14b"  # Mid-size coder variant
   - "qwen2.5-coder:32b"  # 32B coder, 32K context
   - "qwen3-coder:30b"  # 30B coder, Q4_K_M quantized
   - "deepseek-coder-v2:16b"  # 16B coding specialist
@@ -17,6 +18,7 @@ ai_models:
   - "qwen2.5:14b"  # 14B multilingual support
 
   # Reasoning / Chain-of-Thought
+  - "deepseek-r1:14b"  # 14B reasoning model
   - "deepseek-r1:8b"  # 8B reasoning specialist
   - "magistral:24b"  # 24B reasoning specialist
 
@@ -38,6 +40,10 @@ ai_models:
 
   # Embeddings (for RAG)
   - "nomic-embed-text:latest"  # High-quality embeddings
+
+ai_models_remove:
+  - "deepseek-v4-pro:cloud"
+  - "mistral-small3.1:24b"
 
 # Open WebUI settings
 open_webui_show_all_models: true  # Show all installed models in UI

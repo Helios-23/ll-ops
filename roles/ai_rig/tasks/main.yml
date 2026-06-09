@@ -85,7 +85,7 @@
 
 - name: Pull AI models
   include_tasks: models.yml
-  tags: ollama, pull_models
+  tags: ollama, pull_models, show_models
 
 - name: Setup WebUI
   include_tasks: webui.yml
