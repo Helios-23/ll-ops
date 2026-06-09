@@ -1,0 +1,212 @@
+- name: Require Ubuntu 22 when requested
+  assert:
+    that:
+      - ansible_distribution == "Ubuntu"
+      - ansible_distribution_version is version("22.04", ">=")
+      - ansible_distribution_version is version("24.04", "<")
+    fail_msg: "luks_nbde_client is currently scoped to Ubuntu 22.x hosts."
+  when: luks_nbde_require_ubuntu_jammy | bool
+
+- name: Validate required LUKS NBDE inputs
+  assert:
+    that:
+      - luks_nbde_luks_device | length > 0
+      - luks_nbde_clevis_pin | length > 0
+      - luks_nbde_clevis_config | length > 0
+    fail_msg: >-
+      Set luks_nbde_luks_device and provide a non-empty Clevis pin/config
+      before running this role.
+
+- name: Install Clevis and cryptsetup dependencies
+  apt:
+    name: "{{ luks_nbde_packages }}"
+    state: present
+    update_cache: true
+  notify: rebuild initramfs
+
+- name: Verify target device is a LUKS volume
+  command:
+    argv:
+      - cryptsetup
+      - isLuks
+      - "{{ luks_nbde_luks_device }}"
+  changed_when: false
+
+- name: Read LUKS metadata
+  command:
+    argv:
+      - cryptsetup
+      - luksDump
+      - "{{ luks_nbde_luks_device }}"
+  register: luks_nbde_luks_dump
+  changed_when: false
+
+- name: Detect whether a PBKDF2 key slot already exists
+  set_fact:
+    luks_nbde_has_pbkdf2_slot: >-
+      {{
+        (luks_nbde_luks_dump.stdout | lower) is search('pbkdf:\\s+pbkdf2')
+      }}
+
+- name: Ensure a FIPS-compatible PBKDF2 recovery slot can be added
+  assert:
+    that:
+      - luks_nbde_existing_unlock_secret | length > 0
+      - luks_nbde_recovery_passphrase | length > 0
+    fail_msg: >-
+      Adding a PBKDF2 recovery slot requires both
+      luks_nbde_existing_unlock_secret and luks_nbde_recovery_passphrase.
+  when:
+    - luks_nbde_require_fips_compatible_pbkdf2 | bool
+    - luks_nbde_manage_recovery_pbkdf2_slot | bool
+    - not luks_nbde_has_pbkdf2_slot
+
+- name: Create a FIPS-compatible PBKDF2 recovery slot when requested
+  block:
+    - name: Create temporary file for current unlock secret
+      tempfile:
+        state: file
+        suffix: .luks-current
+      register: luks_nbde_current_secret_file
+
+    - name: Create temporary file for recovery passphrase
+      tempfile:
+        state: file
+        suffix: .luks-recovery
+      register: luks_nbde_recovery_secret_file
+
+    - name: Write current unlock secret
+      copy:
+        dest: "{{ luks_nbde_current_secret_file.path }}"
+        content: "{{ luks_nbde_existing_unlock_secret }}"
+        owner: root
+        group: root
+        mode: "0600"
+      no_log: true
+
+    - name: Write recovery passphrase
+      copy:
+        dest: "{{ luks_nbde_recovery_secret_file.path }}"
+        content: "{{ luks_nbde_recovery_passphrase }}"
+        owner: root
+        group: root
+        mode: "0600"
+      no_log: true
+
+    - name: Add PBKDF2 recovery slot
+      command:
+        argv:
+          - cryptsetup
+          - --pbkdf=pbkdf2
+          - luksAddKey
+          - "{{ luks_nbde_luks_device }}"
+          - "{{ luks_nbde_recovery_secret_file.path }}"
+          - --key-file
+          - "{{ luks_nbde_current_secret_file.path }}"
+      no_log: true
+      changed_when: true
+  always:
+    - name: Remove temporary file for current unlock secret
+      file:
+        path: "{{ luks_nbde_current_secret_file.path }}"
+        state: absent
+      when: luks_nbde_current_secret_file is defined
+
+    - name: Remove temporary file for recovery passphrase
+      file:
+        path: "{{ luks_nbde_recovery_secret_file.path }}"
+        state: absent
+      when: luks_nbde_recovery_secret_file is defined
+  when:
+    - luks_nbde_require_fips_compatible_pbkdf2 | bool
+    - luks_nbde_manage_recovery_pbkdf2_slot | bool
+    - not luks_nbde_has_pbkdf2_slot
+
+- name: List current Clevis bindings
+  command:
+    argv:
+      - clevis
+      - luks
+      - list
+      - -d
+      - "{{ luks_nbde_luks_device }}"
+  register: luks_nbde_clevis_bindings
+  changed_when: false
+  failed_when: false
+
+- name: Detect whether the requested Clevis pin is already bound
+  set_fact:
+    luks_nbde_binding_present: >-
+      {{
+        luks_nbde_clevis_bindings.rc == 0 and
+        (luks_nbde_clevis_bindings.stdout | lower) is search('(^|\\n)\\d+:\\s+' ~ (luks_nbde_clevis_pin | lower) ~ '(\\s|$)')
+      }}
+
+- name: Ensure a LUKS secret is available for Clevis binding
+  assert:
+    that:
+      - (luks_nbde_existing_unlock_secret | length > 0) or (luks_nbde_recovery_passphrase | length > 0)
+    fail_msg: >-
+      Clevis binding needs an existing LUKS secret. Set
+      luks_nbde_existing_unlock_secret or luks_nbde_recovery_passphrase.
+  when: not luks_nbde_binding_present
+
+- name: Select secret for Clevis binding
+  set_fact:
+    luks_nbde_bind_secret: >-
+      {{
+        luks_nbde_existing_unlock_secret
+        if (luks_nbde_existing_unlock_secret | length > 0)
+        else luks_nbde_recovery_passphrase
+      }}
+  no_log: true
+  when: not luks_nbde_binding_present
+
+- name: Bind the LUKS device to Clevis
+  block:
+    - name: Create temporary file for Clevis bind secret
+      tempfile:
+        state: file
+        suffix: .luks-bind
+      register: luks_nbde_bind_secret_file
+
+    - name: Write Clevis bind secret
+      copy:
+        dest: "{{ luks_nbde_bind_secret_file.path }}"
+        content: "{{ luks_nbde_bind_secret }}"
+        owner: root
+        group: root
+        mode: "0600"
+      no_log: true
+
+    - name: Create Clevis binding
+      command:
+        argv:
+          - clevis
+          - luks
+          - bind
+          - -f
+          - -y
+          - -d
+          - "{{ luks_nbde_luks_device }}"
+          - -k
+          - "{{ luks_nbde_bind_secret_file.path }}"
+          - "{{ luks_nbde_clevis_pin }}"
+          - "{{ luks_nbde_clevis_config | to_json }}"
+      no_log: true
+      changed_when: true
+      notify: rebuild initramfs
+  always:
+    - name: Remove temporary file for Clevis bind secret
+      file:
+        path: "{{ luks_nbde_bind_secret_file.path }}"
+        state: absent
+      when: luks_nbde_bind_secret_file is defined
+  when: not luks_nbde_binding_present
+
+- name: Enable late-boot Clevis unlock path for non-root volumes when requested
+  systemd:
+    name: clevis-luks-askpass.path
+    enabled: true
+    state: started
+  when: luks_nbde_enable_late_boot_unlock | bool

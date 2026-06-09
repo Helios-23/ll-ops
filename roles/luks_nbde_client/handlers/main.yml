@@ -1,0 +1,2 @@
+- name: rebuild initramfs
+  command: update-initramfs -u -k all

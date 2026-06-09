@@ -1,0 +1,8 @@
+- name: Configure repo0 LUKS unattended unlock
+  hosts: repo0
+  gather_facts: true
+  tags:
+    - repo0_nbde
+  roles:
+    - role: luks_nbde_client
+      tags: luks_nbde
