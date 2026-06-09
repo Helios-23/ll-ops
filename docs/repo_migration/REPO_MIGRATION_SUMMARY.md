@@ -30,7 +30,7 @@ All repositories have been successfully migrated from GitHub to Forgejo hosted o
 
 ### 3. Migration Scripts Created
 
-Location: `/Users/H23/logicallight/Epytype/ops/repo_migration/`
+Location: `/Users/H23/logicallight/Epytype/ops/docs/repo_migration/`
 
 **Documentation:**
 - `README.md` - Main migration plan and steps
@@ -126,13 +126,13 @@ git clone https://repo.epytype.org/Epytype/epytype.git
 cd /Users/H23/logicallight/Epytype/ops
 
 # Update Forgejo configuration only
-ansible-playbook setup_epytype.yml --tags repo_server,forgejo -i inventory/epytype
+apb setup_epytype.yml -l repo0 -t forgejo
 
 # Enable push-to-create for organizations
-ansible-playbook setup_epytype.yml --tags repo_server,forgejo_push_create_org -i inventory/epytype
+apb setup_epytype.yml -l repo0 -t forgejo_push_create_org
 
 # Manage Forgejo users (requires variables)
-ansible-playbook setup_epytype.yml --tags repo_server,forgejo_users -i inventory/epytype
+apb setup_epytype.yml -l repo0 -t forgejo_users
 ```
 
 ---
@@ -170,7 +170,7 @@ forgejo_repo_access:
 
 ### 1. For Users
 
-Follow the setup guide at `ops/SETUP_GUIDE.md`:
+Follow the setup guide at `ops/docs/SETUP_GUIDE.md`:
 - Add SSH key to Forgejo at https://repo.epytype.org/user/settings/keys
 - Test SSH connection: `ssh -T git@repo.epytype.org`
 - Clone fresh copies of all repositories
@@ -210,7 +210,7 @@ ssh devops@195.201.226.77 'curl -s -H "Authorization: Bearer $HCLOUD_TOKEN" http
 ### Quick Migration (Already Completed)
 
 ```bash
-cd /Users/H23/logicallight/Epytype/ops/repo_migration/scripts
+cd /Users/H23/logicallight/Epytype/ops/docs/repo_migration/scripts
 source /Users/H23/logicallight/Epytype/ops/.env
 
 # List GitHub repositories
@@ -312,7 +312,7 @@ git clone git@repo.epytype.org:Epytype/spec.git
 
 ## Summary
 
-The migration from GitHub to Forgejo is complete. All 5 repositories have been successfully migrated to the Epytype organization on Forgejo. The push-to-create functionality is enabled, allowing future repositories to be automatically created when pushed. Ansible roles have been updated with proper tags and user management capabilities. Users should follow `ops/SETUP_GUIDE.md` to set up their access and clone fresh copies of the repositories.
+The migration from GitHub to Forgejo is complete. All 5 repositories have been successfully migrated to the Epytype organization on Forgejo. The push-to-create functionality is enabled, allowing future repositories to be automatically created when pushed. Ansible roles have been updated with proper tags and user management capabilities. Users should follow `ops/docs/SETUP_GUIDE.md` to set up their access and clone fresh copies of the repositories.
 
 **Migration Status: COMPLETE**  
 **Next Steps:** Archive GitHub repos, update documentation, notify team members.

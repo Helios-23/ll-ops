@@ -3,7 +3,7 @@
 ## Created Structure
 
 ```
-/Users/H23/logicallight/Epytype/ops/repo_migration/
+/Users/H23/logicallight/Epytype/ops/docs/repo_migration/
 ├── README.md              # Main documentation and migration plan
 ├── QUICKSTART.md         # Step-by-step quick start guide
 ├── .env.example          # Sample environment variables

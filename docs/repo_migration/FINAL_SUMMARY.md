@@ -29,7 +29,7 @@ echo "Forgejo Token: ${FORGEJO_ADMIN_TOKEN:+set}"
 
 ### Step 1: Review Repository List
 ```bash
-cd /Users/H23/logicallight/Epytype/ops/repo_migration/scripts
+cd /Users/H23/logicallight/Epytype/ops/docs/repo_migration/scripts
 cat github_repos.txt
 ```
 
@@ -126,7 +126,7 @@ Visit: https://repo.epytype.org/Epytype
 
 ```bash
 # Navigate to scripts
-cd /Users/H23/logicallight/Epytype/ops/repo_migration/scripts
+cd /Users/H23/logicallight/Epytype/ops/docs/repo_migration/scripts
 
 # Source environment
 source /Users/H23/logicallight/Epytype/ops/.env
@@ -154,7 +154,7 @@ source /Users/H23/logicallight/Epytype/ops/.env
 
 **Run when ready:**
 ```bash
-cd /Users/H23/logicallight/Epytype/ops/repo_migration/scripts
+cd /Users/H23/logicallight/Epytype/ops/docs/repo_migration/scripts
 source /Users/H23/logicallight/Epytype/ops/.env
 ./batch_migrate.sh github_repos.txt
 ```

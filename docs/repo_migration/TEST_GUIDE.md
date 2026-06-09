@@ -17,7 +17,7 @@ echo "Forgejo Token: ${FORGEJO_ADMIN_TOKEN:0:10}..."
 
 ### Option 1: Use the test script (Recommended)
 ```bash
-cd /Users/H23/logicallight/Epytype/ops/repo_migration/scripts
+cd /Users/H23/logicallight/Epytype/ops/docs/repo_migration/scripts
 source /Users/H23/logicallight/Epytype/ops/.env
 
 # Run the automated test
@@ -26,7 +26,7 @@ source /Users/H23/logicallight/Epytype/ops/.env
 
 ### Option 2: Manual step-by-step
 ```bash
-cd /Users/H23/logicallight/Epytype/ops/repo_migration/scripts
+cd /Users/H23/logicallight/Epytype/ops/docs/repo_migration/scripts
 source /Users/H23/logicallight/Epytype/ops/.env
 
 # Step 1: Mirror clone

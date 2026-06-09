@@ -4,7 +4,7 @@ Infrastructure-as-code for epytype.org services. Ansible playbooks and Terraform
 
 ## Setup Guide
 
-For SSH setup, repository checkout, and migration workflow details, use [SETUP_GUIDE.md](SETUP_GUIDE.md).
+For SSH setup, repository checkout, and migration workflow details, use [docs/SETUP_GUIDE.md](docs/SETUP_GUIDE.md).
 
 ## Prerequisites
 
@@ -22,4 +22,7 @@ This loads required credentials into your environment.
 
 ## Features
 
-For a compact index of playbooks, roles, the complete documented Ansible tag set in `ops/`, and release workflow commands such as `github-release.yml`, use [FEATURES.md](FEATURES.md).
+The operator documentation root lives in [docs/](docs/README.md).
+
+- use [docs/OPERATOR_RUNBOOK.md](docs/OPERATOR_RUNBOOK.md) for the consolidated operator SOP
+- use [docs/FEATURES.md](docs/FEATURES.md) for the authoritative playbook, role, and tag inventory
