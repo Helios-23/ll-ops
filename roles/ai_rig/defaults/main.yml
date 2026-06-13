@@ -2,63 +2,63 @@
 # Only 1-2 large models can be resident at once
 ai_models:
   # Coding & Logic
-  - "qwen2.5-coder:14b"  # Mid-size coder variant
-  - "qwen2.5-coder:32b"  # 32B coder, 32K context
-  - "qwen3-coder:30b"  # 30B coder, Q4_K_M quantized
-  - "deepseek-coder-v2:16b"  # 16B coding specialist
-  - "deepseek-r1:32b"  # 32B reasoning, Q4_K_M quantized
-  - "starcoder2:7b"  # Fast code completion, 16K context
-  - "phi4:latest"  # 14B reasoning model
+  - "qwen2.5-coder:14b" # Mid-size coder variant
+  - "qwen2.5-coder:32b" # 32B coder, 32K context
+  - "qwen3-coder:30b" # 30B coder, Q4_K_M quantized
+  - "deepseek-coder-v2:16b" # 16B coding specialist
+  - "deepseek-r1:32b" # 32B reasoning, Q4_K_M quantized
+  - "starcoder2:7b" # Fast code completion, 16K context
+  - "phi4:latest" # 14B reasoning model
 
   # General LLM & Writing
-  - "llama3.1:8b"  # Meta 8B instruct, 8K context
-  - "mistral-small3.2:24b"  # 24B, improved function calling
-  - "mistral-small3.1:24b"  # 24B, 128K context, multimodal
-  - "gemma4:e4b"  # 9.6GB, 128K context, multimodal
-  - "qwen2.5:14b"  # 14B multilingual support
+  - "llama3.1:8b" # Meta 8B instruct, 8K context
+  - "mistral-small3.2:24b" # 24B, improved function calling
+  - "mistral-small3.1:24b" # 24B, 128K context, multimodal
+  - "gemma4:e4b" # 9.6GB, 128K context, multimodal
+  - "qwen2.5:14b" # 14B multilingual support
 
   # Reasoning / Chain-of-Thought
-  - "deepseek-r1:14b"  # 14B reasoning model
-  - "deepseek-r1:8b"  # 8B reasoning specialist
-  - "magistral:24b"  # 24B reasoning specialist
+  - "deepseek-r1:14b" # 14B reasoning model
+  - "deepseek-r1:8b" # 8B reasoning specialist
+  - "magistral:24b" # 24B reasoning specialist
 
   # Multimodal / Vision
-  - "llava:7b"  # Vision-language, image understanding
-  - "bakllava:7b"  # Mistral 7B + vision
+  - "llava:7b" # Vision-language, image understanding
+  - "bakllava:7b" # Mistral 7B + vision
 
   # Small fast models
-  - "phi4-mini:3.8b"  # Tiny Phi-4, 128K context
-  - "gemma4:e2b"  # 7.2GB, 128K context, edge device ready
-  - "gemma:2b"  # Ultra-lightweight
+  - "phi4-mini:3.8b" # Tiny Phi-4, 128K context
+  - "gemma4:e2b" # 7.2GB, 128K context, edge device ready
+  - "gemma:2b" # Ultra-lightweight
 
   # Coding (small/fast)
-  - "starcoder2:3b"  # Tiny coder, 3B params
-  - "codegemma:2b"  # Small Google coder
+  - "starcoder2:3b" # Tiny coder, 3B params
+  - "codegemma:2b" # Small Google coder
 
   # Structured Output / Agents
-  - "hermes3:8b"  # 8B agentic capabilities
+  - "hermes3:8b" # 8B agentic capabilities
 
   # Embeddings (for RAG)
-  - "nomic-embed-text:latest"  # High-quality embeddings
+  - "nomic-embed-text:latest" # High-quality embeddings
 
 ai_models_remove:
   - "deepseek-v4-pro:cloud"
   - "mistral-small3.1:24b"
 
 # Open WebUI settings
-open_webui_show_all_models: true  # Show all installed models in UI
-open_webui_model_selection: "advanced"  # "simple" or "advanced"
+open_webui_show_all_models: true # Show all installed models in UI
+open_webui_model_selection: "advanced" # "simple" or "advanced"
 
 # GEX44 hardware specs
 nvidia_driver_version: "535"
 cpu_governor: "performance"
 cpu_threads: 14
-force_reboot: false  # Set to true for driver installs
+force_reboot: false # Set to true for driver installs
 
 # VRAM management (20GB GPU)
-max_vram_models: 1  # Max models resident in VRAM
-vram_keep_alive: "30m"  # Keep in VRAM (30 min inactivity)
-parallel_requests: 6  # Max concurrent requests
+max_vram_models: 1 # Max models resident in VRAM
+vram_keep_alive: "30m" # Keep in VRAM (30 min inactivity)
+parallel_requests: 6 # Max concurrent requests
 
 # Docker storage paths
 ollama_data_path: "/opt/ollama"
@@ -80,8 +80,11 @@ webui_admin_user: "{{ vault.webui.admin_user | default('admin@epytype.org') }}"
 webui_admin_pass: "{{ vault.webui.admin_pass | default('change-me') }}"
 webui_users: []
 
+# Google Drive settings
+google_drive_folder_id: "{{ vault.webui.google_drive_folder_id | default('') }}"
+
 # Ollama GPU settings
-ollama_num_gpu: 999  # Enable all GPU layers
+ollama_num_gpu: 999 # Enable all GPU layers
 
 # Domain and network settings
 ai_domain: "ai.epytype.org"
@@ -94,7 +97,7 @@ nginx_read_timeout: 600s
 certbot_email: "{{ vault.ai_certbot_email | default('helios23@gmail.com') }}"
 
 # Memory protection settings
-swap_size_mb: 16384  # Swap size in MB for CPU offload
+swap_size_mb: 16384 # Swap size in MB for CPU offload
 
 # NVIDIA reboot guard settings
 nvidia_reboot_guard_enabled: true

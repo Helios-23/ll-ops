@@ -24,6 +24,8 @@ services:
       WEBUI_ADMIN_NAME: "Admin"
       ENABLE_OLLAMA_API: "true"
       BYPASS_MODEL_ACCESS_CONTROL: "true"
+      GOOGLE_DRIVE_FOLDER_ID: "{{ google_drive_folder_id }}"
+      GOOGLE_DRIVE_SERVICE_ACCOUNT_KEY: "/app/backend/data/service-key.json"
     volumes:
       - {{ open_webui_data_path }}:/app/backend/data
 

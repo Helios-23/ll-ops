@@ -16,6 +16,15 @@
         mode: "0644"
       notify: restart open-webui
 
+    - name: Copy Open WebUI GDRIVE service key
+      template:
+        src: service-key.json.j2
+        dest: "{{ open_webui_data_path }}/service-key.json"
+        owner: root
+        group: root
+        mode: "0644"
+      notify: restart open-webui
+
     - name: Copy user whitelist file
       template:
         src: user-whitelist.txt.j2
