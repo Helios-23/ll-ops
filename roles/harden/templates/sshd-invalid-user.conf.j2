@@ -3,5 +3,7 @@
 [Definition]
 
 failregex = ^.*Invalid user (?:{{ fail2ban_sshd_invalid_user_names | map('regex_escape') | join('|') }}) from <HOST>.*$
+            ^.*Failed password for invalid user \S+ from <HOST>.*$
+            ^.*User (?:{{ fail2ban_sshd_invalid_user_names | map('regex_escape') | join('|') }}) from <HOST> not allowed because not listed in AllowUsers.*$
 
 ignoreregex =

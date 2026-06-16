@@ -10,7 +10,7 @@ Use this as the quick command map; the **Complete Tag Index** below is the autho
 
 | Playbook | Scope | Flow | Main tags | Focus tags |
 | --- | --- | --- | --- | --- |
-| `setup_epytype.yml` | `repo0`, `gex0` | choose `repo_server` or `ai_server` -> narrow to a role tag -> narrow to a task tag | `repo_server`, `ai_server` | `forgejo`, `harden`, `ai_rig`, `ipv4-forward`, `forgejo_users`, `ollama`, `pull_models`, `show_models`, `webui` |
+| `setup_epytype.yml` | `repo0`, `gex0` | choose `repo_server` or `ai_server` -> narrow to a role tag -> narrow to a task tag | `repo_server`, `ai_server` | `forgejo`, `forgejo_pull`, `harden`, `ai_rig`, `lantern`, `ipv4-forward`, `forgejo_users`, `ollama`, `pull_models`, `show_models`, `webui` |
 | `repo0_nbde.yml` | `repo0` | provide vaulted LUKS/Clevis vars -> run preflight on an already encrypted host -> bind Clevis and rebuild initramfs | `repo0_nbde` | `luks_nbde` |
 | `admin.yml` | `all` with `-l/--limit` required | choose hosts -> run `admin` or `update_reboot` -> use Tailscale tags if needed | `admin` | `update_reboot`, `tailscale`, `tailscale_machine`, `tailscale_policy` |
 | `github-release.yml` | localhost | choose `epytype` or `lantern` -> optionally override version vars -> run from `ops/` | `epytype`, `lantern` | release variables only; no extra Ansible task tags |
@@ -24,8 +24,10 @@ Use this as the quick command map; the **Complete Tag Index** below is the autho
 ```bash
 apb setup_epytype.yml
 apb setup_epytype.yml -l repo0 -t forgejo
+apb setup_epytype.yml -l repo0 -t forgejo_pull
 apb setup_epytype.yml -l repo0 -t forgejo_users
 apb setup_epytype.yml -l gex0 -t ai_rig
+apb setup_epytype.yml -l gex0 -t lantern
 apb setup_epytype.yml -l gex0 -t ollama
 apb setup_epytype.yml -l gex0 -t pull_models
 apb setup_epytype.yml -l gex0 -t show_models
@@ -113,7 +115,7 @@ apb kymstr.yml -l repo0 -t cert
 
 | Tags |
 | --- |
-| `ai_rig`, `certbot_tls`, `docker_engine`, `forgejo`, `harden`, `luks_nbde`, `nginx`, `tailscale`, `ubuntu_pro_fips` |
+| `ai_rig`, `certbot_tls`, `docker_engine`, `forgejo`, `forgejo_pull`, `harden`, `lantern`, `luks_nbde`, `nginx`, `tailscale`, `ubuntu_pro_fips` |
 
 ### Task-level tags
 
@@ -127,9 +129,11 @@ apb kymstr.yml -l repo0 -t cert
 | --- | --- | --- |
 | `roles/luks_nbde_client` | `luks_nbde` | client-side only; intended for hosts already installed on LUKS. Use with `repo0_nbde.yml` after provisioning or offline migration. |
 | `roles/forgejo_container` | `forgejo` | Extra tags: `forgejo_push_create_org`, `forgejo_users`, `forgejo_reverse_proxy_trust`, `forgejo_tailscale_access_control`, `never`. `forgejo_users` is opt-in because it is also tagged `never`. Feature booleans: `forgejo_reverse_proxy_trust_feature_enabled`, `forgejo_tailscale_access_control_feature_enabled`. |
+| `roles/forgejo_pull` | `forgejo_pull` | Installs the repo0 `devops` Forgejo SSH keypairs, SSH config, known_hosts entry, and git URL rewrite so local builds can pull via SSH. |
 | `roles/harden` | `harden` | Extra tags: `fail2ban`, `fail2ban_sshd_invalid_user`, `ipv4-forward`, `reverse_proxy_fail2ban`. Feature booleans: `fail2ban_feature_forgejo_enabled`, `fail2ban_feature_reverse_proxy_enabled`, `fail2ban_feature_sshd_invalid_user_enabled`. |
 | `roles/tailscale_admin` | `tailscale`, `tailscale_machine`, `tailscale_policy` | `tailscale_machine` covers host-side install and `tailscale up`; `tailscale_policy` pushes tailnet ACL/SSH policy. Feature booleans: `tailscale_machine_enabled`, `tailscale_policy_enabled`. |
 | `roles/ai_rig` | `ai_rig` | Extra tags: `ollama`, `pull_models`, `show_models`, `webui`. `pull_models` is narrower than `ollama` and useful for model refreshes after stack setup. `show_models` prints the current Ollama roster in a terminal-friendly multiline list. |
+| `roles/lantern` | `lantern` | Lantern reverse proxy and TLS rollout for `lantern.epytype.org`; manages the nginx vhost, certbot issuance, and renewal cron on `gex0`. |
 | `roles/admin` | none | Task tag: `update_reboot` only. The package update and reboot path runs only when `update_reboot` is selected. |
 | `roles/epytype_release` | none | release helper role used by `github-release.yml`; see task areas above for versioning, check gate, and push controls. |
 | `roles/keymaster` | none | task areas are documented above. Many paths are intentionally guarded by `never` and should be run with host limits and explicit tag selection. |

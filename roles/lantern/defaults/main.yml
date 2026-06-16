@@ -1,0 +1,6 @@
+lantern_domain: "lantern.epytype.org"
+lantern_service_host: "127.0.0.1"
+lantern_service_port: 7323
+lantern_access_log: "/var/log/nginx/lantern.access.log"
+lantern_error_log: "/var/log/nginx/lantern.error.log"
+lantern_certbot_email: "{{ vault.lantern_certbot_email | default('helios23@gmail.com') }}"

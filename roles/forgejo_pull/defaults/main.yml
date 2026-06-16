@@ -1,0 +1,15 @@
+forgejo_pull_user: devops
+forgejo_pull_group: devops
+forgejo_pull_home: "/home/{{ forgejo_pull_user }}"
+forgejo_pull_ssh_dir: "{{ forgejo_pull_home }}/.ssh"
+forgejo_pull_private_key_src: "/Users/H23/.ssh/devops.epytype.org"
+forgejo_pull_public_key_src: "/Users/H23/.ssh/devops.epytype.org.pub"
+forgejo_pull_private_key_dest: "{{ forgejo_pull_ssh_dir }}/devops.epytype.org"
+forgejo_pull_public_key_dest: "{{ forgejo_pull_ssh_dir }}/devops.epytype.org.pub"
+forgejo_pull_fips_private_key_src: "/Users/H23/.ssh/devops.epytype.org.fips_rsa"
+forgejo_pull_fips_public_key_src: "/Users/H23/.ssh/devops.epytype.org.fips_rsa.pub"
+forgejo_pull_fips_private_key_dest: "{{ forgejo_pull_ssh_dir }}/devops.epytype.org.fips_rsa"
+forgejo_pull_fips_public_key_dest: "{{ forgejo_pull_ssh_dir }}/devops.epytype.org.fips_rsa.pub"
+forgejo_pull_known_host: "repo.epytype.org"
+forgejo_pull_known_hosts_dest: "{{ forgejo_pull_ssh_dir }}/known_hosts"
+forgejo_pull_ssh_config_dest: "{{ forgejo_pull_ssh_dir }}/config"

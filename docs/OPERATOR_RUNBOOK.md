@@ -76,8 +76,10 @@ Narrow to role/task areas for incremental work:
 
 ```bash
 apb setup_epytype.yml -l repo0 -t forgejo
+apb setup_epytype.yml -l repo0 -t forgejo_pull
 apb setup_epytype.yml -l repo0 -t forgejo_users
 apb setup_epytype.yml -l gex0 -t ai_rig
+apb setup_epytype.yml -l gex0 -t lantern
 apb setup_epytype.yml -l gex0 -t pull_models
 ```
 
@@ -86,6 +88,14 @@ Verification:
 - package and service setup completes without changed tasks on a second run when steady-state is expected
 - public endpoints and reverse proxy routes respond as expected
 - any role-specific tags used are cross-checked against [FEATURES.md](FEATURES.md)
+
+Repo0 Forgejo pull access:
+
+```bash
+apb setup_epytype.yml -l repo0 -t forgejo_pull
+```
+
+This role installs the local `devops.epytype.org` SSH keypair onto repo0, pins SSH to use it for `repo.epytype.org`, adds the Forgejo host key, and adds a git URL rewrite for HTTPS-to-SSH fallback during local builds.
 
 ### 4. Run administrative maintenance
 
@@ -170,7 +180,25 @@ Use the specialist docs for runtime expectations and testing:
 
 - [AI_SERVER.md](AI_SERVER.md)
 
-### 8. Prepare and publish releases
+### 8. Operate the Lantern site
+
+Lantern shares `gex0` with the AI stack. Its public entrypoint is `https://lantern.epytype.org`, and the proxy role keeps its nginx config and logs separate from the AI vhost.
+
+Common command:
+
+```bash
+apb setup_epytype.yml -l gex0 -t lantern
+```
+
+The Lantern runtime defaults to `127.0.0.1:7323`, so nginx proxies there unless the service is reconfigured.
+
+Verification:
+
+- `curl -I https://lantern.epytype.org`
+- confirm `/etc/nginx/sites-available/lantern` and `/etc/nginx/sites-enabled/lantern` exist
+- confirm `/var/log/nginx/lantern.access.log` and `/var/log/nginx/lantern.error.log` are being written
+
+### 9. Prepare and publish releases
 
 `github-release.yml` is the entry point for `roles/epytype_release`.
 
@@ -213,7 +241,7 @@ Verification:
 
 Recovery note: when release prep has already changed files locally, examine the diff before rerunning. Do not use dirty-tree overrides casually.
 
-### 9. Run repository migration tooling
+### 10. Run repository migration tooling
 
 Migration utilities live under `repo_migration/`. Start with:
 
