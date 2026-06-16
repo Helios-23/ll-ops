@@ -56,6 +56,7 @@ services:
       FORGEJO__repository__ENABLE_PUSH_CREATE__org: "true"
     volumes:
       - {{ forgejo_data_dir }}:/data
+      - {{ forgejo_bash_autocomplete_stub_src }}:/etc/profile.d/gitea_bash_autocomplete.sh:ro
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     ports:
@@ -64,4 +65,4 @@ services:
 {% else %}
       - "{{ forgejo_http_port }}:3000"
 {% endif %}
-      - "{{ forgejo_ssh_port }}:22"
+      - "{{ forgejo_ssh_port }}:{{ forgejo_ssh_port }}"

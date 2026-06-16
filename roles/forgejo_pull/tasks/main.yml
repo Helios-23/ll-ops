@@ -39,18 +39,28 @@
     mode: "0644"
 
 - name: Scan Forgejo host key
-  command: "ssh-keyscan -H {{ forgejo_pull_known_host }}"
+  command: "ssh-keyscan -T 5 -t rsa -p {{ forgejo_pull_ssh_port }} {{ forgejo_pull_known_host_ip }}"
   register: forgejo_pull_host_keyscan
   changed_when: false
   failed_when: false
 
-- name: Add Forgejo host key to known_hosts
-  known_hosts:
-    path: "{{ forgejo_pull_known_hosts_dest }}"
-    name: "{{ forgejo_pull_known_host }}"
-    key: "{{ forgejo_pull_host_keyscan.stdout }}"
-    hash_host: false
-  when: forgejo_pull_host_keyscan.stdout | length > 0
+- name: Normalize Forgejo known_hosts entry
+  set_fact:
+    forgejo_pull_known_hosts_content: >-
+      {% set scan = forgejo_pull_host_keyscan.stdout_lines | first | default('') %}
+      {% if scan %}
+      {% set parts = scan.split() %}
+      {{ forgejo_pull_host_key_alias }} {{ parts[1] }} {{ parts[2] }}
+      {% endif %}
+
+- name: Write Forgejo known_hosts entry
+  copy:
+    dest: "{{ forgejo_pull_known_hosts_dest }}"
+    owner: "{{ forgejo_pull_user }}"
+    group: "{{ forgejo_pull_group }}"
+    mode: "0644"
+    content: "{{ forgejo_pull_known_hosts_content }}\n"
+  when: forgejo_pull_known_hosts_content | default('') | length > 0
 
 - name: Write SSH config for Forgejo pulls
   copy:
@@ -61,8 +71,18 @@
     content: |
       Host {{ forgejo_pull_known_host }}
         IdentitiesOnly yes
+        HostName {{ forgejo_pull_known_host_ip }}
+        Port {{ forgejo_pull_ssh_port }}
+        HostKeyAlias {{ forgejo_pull_host_key_alias }}
+        HostKeyAlgorithms rsa-sha2-256
+        PubkeyAcceptedAlgorithms rsa-sha2-256
+        KexAlgorithms diffie-hellman-group14-sha256
+        Ciphers aes128-ctr
+        ProxyCommand none
+        ProxyJump none
         IdentityFile {{ forgejo_pull_private_key_dest }}
         IdentityFile {{ forgejo_pull_fips_private_key_dest }}
+        CheckHostIP no
         StrictHostKeyChecking yes
         User git
 

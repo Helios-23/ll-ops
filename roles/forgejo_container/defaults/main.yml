@@ -11,6 +11,7 @@ forgejo_postgres_password: change-me
 forgejo_domain: "repo.epytype.org"
 forgejo_https_enabled: false
 certbot_email: "helios23@gmail.com"
+forgejo_bash_autocomplete_stub_src: "{{ forgejo_root_dir }}/gitea_bash_autocomplete.sh"
 forgejo_reverse_proxy_trust_feature_enabled: false
 forgejo_reverse_proxy_trusted_proxies:
   - "127.0.0.0/8"

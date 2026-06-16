@@ -61,6 +61,17 @@
   tags:
     - forgejo_reverse_proxy_trust
 
+- name: Hack to fix broken script
+  copy:
+    dest: "{{ forgejo_bash_autocomplete_stub_src }}"
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # Shell-neutral stub to avoid login-shell failures in Forgejo SSH sessions.
+      # Intentionally does nothing.
+      return 0 2>/dev/null || exit 0
+
 - name: Start Forgejo stack
   command: docker compose up -d
   args:

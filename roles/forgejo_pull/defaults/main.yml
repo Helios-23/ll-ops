@@ -11,5 +11,9 @@ forgejo_pull_fips_public_key_src: "/Users/H23/.ssh/devops.epytype.org.fips_rsa.p
 forgejo_pull_fips_private_key_dest: "{{ forgejo_pull_ssh_dir }}/devops.epytype.org.fips_rsa"
 forgejo_pull_fips_public_key_dest: "{{ forgejo_pull_ssh_dir }}/devops.epytype.org.fips_rsa.pub"
 forgejo_pull_known_host: "repo.epytype.org"
+forgejo_pull_known_host_name: "repo.epytype.org"
+forgejo_pull_host_key_alias: "repo.epytype.org"
+forgejo_pull_known_host_ip: "127.0.0.1"
+forgejo_pull_ssh_port: 2222
 forgejo_pull_known_hosts_dest: "{{ forgejo_pull_ssh_dir }}/known_hosts"
 forgejo_pull_ssh_config_dest: "{{ forgejo_pull_ssh_dir }}/config"

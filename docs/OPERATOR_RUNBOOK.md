@@ -97,6 +97,8 @@ apb setup_epytype.yml -l repo0 -t forgejo_pull
 
 This role installs the local `devops.epytype.org` SSH keypair onto repo0, pins SSH to use it for `repo.epytype.org`, adds the Forgejo host key, and adds a git URL rewrite for HTTPS-to-SSH fallback during local builds.
 
+Note: the SSH config points to `127.0.0.1:2222` on repo0, uses `HostKeyAlias repo.epytype.org`, and pins the reduced RSA/KEX/cipher set that works with the repo host’s FIPS SSH path. That avoids the Cloudflare-proxied public hostname while keeping known-hosts stable across redeploys.
+
 ### 4. Run administrative maintenance
 
 Full admin role against a limited host set:
