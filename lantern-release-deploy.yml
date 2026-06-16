@@ -9,7 +9,7 @@
     lantern_release_repo_dir: "{{ playbook_dir }}/../lantern"
     lantern_release_output_dir: "{{ lantern_release_repo_dir }}/dist/release/deb"
     lantern_release_epytype_binary_dir: "{{ playbook_dir }}/../epytype/dist/binaries"
-  tasks:
+  pre_tasks:
     - name: Check Lantern repository exists
       delegate_to: localhost
       become: false
@@ -58,7 +58,6 @@
       changed_when: "'Already up to date.' not in (lantern_release_epytype_repo_pull.stdout | default(''))"
       run_once: true
 
-  pre_tasks:
     - name: Build Lantern Debian package
       delegate_to: localhost
       become: false
