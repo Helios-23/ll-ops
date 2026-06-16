@@ -21,9 +21,7 @@
     - name: Fail when Lantern repository is missing
       fail:
         msg: "Lantern git repository not found at {{ lantern_release_repo_dir }}"
-      when:
-        - inventory_hostname == groups['gex0'][0]
-        - not lantern_release_repo_git_dir.stat.exists
+      when: not lantern_release_repo_git_dir.stat.exists
       run_once: true
 
     - name: Check Epytype repository exists
@@ -37,9 +35,7 @@
     - name: Fail when Epytype repository is missing
       fail:
         msg: "Epytype git repository not found at {{ playbook_dir }}/../epytype"
-      when:
-        - inventory_hostname == groups['gex0'][0]
-        - not lantern_release_epytype_repo_git_dir.stat.exists
+      when: not lantern_release_epytype_repo_git_dir.stat.exists
       run_once: true
 
     - name: Update Lantern repository on controller
@@ -97,9 +93,7 @@
     - name: Fail when Lantern Debian package was not created
       fail:
         msg: "Lantern Debian package was not created at {{ lantern_release_deb_path }}"
-      when:
-        - inventory_hostname == groups['gex0'][0]
-        - not lantern_release_deb_stat.stat.exists
+      when: not lantern_release_deb_stat.stat.exists
       run_once: true
 
   roles:
