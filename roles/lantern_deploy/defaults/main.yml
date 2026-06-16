@@ -1,0 +1,6 @@
+lantern_deploy_package_src: ""
+lantern_deploy_package_dest_dir: /tmp
+lantern_deploy_package_dest: "{{ lantern_deploy_package_dest_dir }}/{{ lantern_deploy_package_src | basename }}"
+lantern_deploy_services:
+  - lantern.service
+  - lantern-ha.service

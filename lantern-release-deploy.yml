@@ -1,0 +1,54 @@
+- name: Build Lantern Debian package on the repo server
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tags:
+    - lantern_release_build
+  vars:
+    lantern_release_repo_dir: "{{ playbook_dir }}/../lantern"
+    lantern_release_output_dir: "{{ lantern_release_repo_dir }}/dist/release/deb"
+    lantern_release_epytype_binary_dir: "{{ playbook_dir }}/../epytype/dist/binaries"
+  tasks:
+    - name: Check Lantern repository exists
+      stat:
+        path: "{{ lantern_release_repo_dir }}/.git"
+      register: lantern_release_repo_git_dir
+
+    - name: Fail when Lantern repository is missing
+      fail:
+        msg: "Lantern git repository not found at {{ lantern_release_repo_dir }}"
+      when: not lantern_release_repo_git_dir.stat.exists
+
+    - name: Build Lantern Debian package
+      command: scripts/package_deb.sh "{{ lantern_release_output_dir }}"
+      args:
+        chdir: "{{ lantern_release_repo_dir }}"
+      environment:
+        EPYTYPE_BINARY_DIR: "{{ lantern_release_epytype_binary_dir }}"
+      register: lantern_release_package_build
+      changed_when: true
+
+    - name: Store Lantern Debian package path
+      set_fact:
+        lantern_release_deb_path: "{{ lantern_release_package_build.stdout_lines | last }}"
+
+    - name: Validate Lantern Debian package path
+      stat:
+        path: "{{ lantern_release_deb_path }}"
+      register: lantern_release_deb_stat
+
+    - name: Fail when Lantern Debian package was not created
+      fail:
+        msg: "Lantern Debian package was not created at {{ lantern_release_deb_path }}"
+      when: not lantern_release_deb_stat.stat.exists
+
+- name: Deploy Lantern Debian package to gex0
+  hosts: gex0
+  become: true
+  tags:
+    - lantern_release_deploy
+  vars:
+    lantern_deploy_package_src: "{{ hostvars['localhost']['lantern_release_deb_path'] }}"
+  roles:
+    - role: lantern_deploy

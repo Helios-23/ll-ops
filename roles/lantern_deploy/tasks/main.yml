@@ -1,0 +1,35 @@
+- name: Validate Lantern package source on controller
+  delegate_to: localhost
+  stat:
+    path: "{{ lantern_deploy_package_src }}"
+  register: lantern_deploy_package_src_stat
+
+- name: Fail when Lantern package is missing on controller
+  fail:
+    msg: "Lantern package not found at {{ lantern_deploy_package_src }}"
+  when: not lantern_deploy_package_src_stat.stat.exists
+
+- name: Copy Lantern package to target host
+  copy:
+    src: "{{ lantern_deploy_package_src }}"
+    dest: "{{ lantern_deploy_package_dest }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Install Lantern package
+  apt:
+    deb: "{{ lantern_deploy_package_dest }}"
+    state: present
+
+- name: Ensure Lantern services are enabled and started
+  systemd:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  loop: "{{ lantern_deploy_services }}"
+
+- name: Remove staged Lantern package from target host
+  file:
+    path: "{{ lantern_deploy_package_dest }}"
+    state: absent

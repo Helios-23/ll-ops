@@ -200,6 +200,23 @@ Verification:
 - confirm `/etc/nginx/sites-available/lantern` and `/etc/nginx/sites-enabled/lantern` exist
 - confirm `/var/log/nginx/lantern.access.log` and `/var/log/nginx/lantern.error.log` are being written
 
+### 8b. Build and deploy the Lantern `.deb`
+
+Run this from `ops/` on the repo server after the Lantern and Epytype binaries are available in sibling checkouts:
+
+```bash
+apb lantern-release-deploy.yml -l gex0
+```
+
+What it does:
+
+- builds `lantern/dist/release/deb/lantern_<version>_<arch>.deb` from the local Lantern checkout
+- copies the package to `gex0`
+- installs the package with `apt`
+- enables and starts `lantern.service` and `lantern-ha.service`
+
+The build step expects `../epytype/dist/binaries` to contain the matching `epytype` and `epm` release binaries.
+
 ### 9. Prepare and publish releases
 
 `github-release.yml` is the entry point for `roles/epytype_release`.
