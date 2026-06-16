@@ -106,6 +106,9 @@
   stat:
     path: /etc/letsencrypt/live/{{ ai_domain }}/fullchain.pem
   register: ai_certbot_cert
+  tags:
+    - ai_certbot
+    - ai_nginx
 
 - name: Stop nginx before certbot (free port 80 for standalone mode)
   systemd:
@@ -113,6 +116,8 @@
     state: stopped
   ignore_errors: true
   when: not ai_certbot_cert.stat.exists
+  tags:
+    - ai_certbot
 
 - name: Obtain AI TLS certificate with certbot (standalone mode)
   command: >
@@ -127,29 +132,37 @@
   changed_when: >
     'obtained' in (ai_certbot_result.stdout | lower) or
     'new certificate' in (ai_certbot_result.stdout | lower)
+  tags:
+    - ai_certbot
 
 - name: Start nginx after certbot
   systemd:
     name: nginx
     state: started
   when: not ai_certbot_cert.stat.exists
+  tags:
+    - ai_certbot
 
-- name: Deploy nginx reverse proxy config for AI domain with TLS
-  template:
-    src: ai_proxy_conf.j2
-    dest: /etc/nginx/sites-available/ai.epytype.org.conf
-    owner: root
-    group: root
-    mode: "0644"
-  notify: Reload nginx
+- name: AI nginx vhost
+  tags:
+    - ai_nginx
+  block:
+    - name: Deploy nginx reverse proxy config for AI domain with TLS
+      template:
+        src: ai_proxy_conf.j2
+        dest: /etc/nginx/sites-available/ai.epytype.org.conf
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Reload nginx
 
-- name: Enable nginx AI proxy site
-  file:
-    src: /etc/nginx/sites-available/ai.epytype.org.conf
-    dest: /etc/nginx/sites-enabled/ai.epytype.org.conf
-    state: link
-  notify: Reload nginx
+    - name: Enable nginx AI proxy site
+      file:
+        src: /etc/nginx/sites-available/ai.epytype.org.conf
+        dest: /etc/nginx/sites-enabled/ai.epytype.org.conf
+        state: link
+      notify: Reload nginx
 
-- name: Test nginx configuration
-  command: nginx -t
-  changed_when: false
+    - name: Test nginx configuration
+      command: nginx -t
+      changed_when: false
