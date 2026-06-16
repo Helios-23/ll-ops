@@ -25,6 +25,39 @@
         - not lantern_release_repo_git_dir.stat.exists
       run_once: true
 
+    - name: Check Epytype repository exists
+      delegate_to: localhost
+      stat:
+        path: "{{ playbook_dir }}/../epytype/.git"
+      register: lantern_release_epytype_repo_git_dir
+      run_once: true
+
+    - name: Fail when Epytype repository is missing
+      fail:
+        msg: "Epytype git repository not found at {{ playbook_dir }}/../epytype"
+      when:
+        - inventory_hostname == groups['gex0'][0]
+        - not lantern_release_epytype_repo_git_dir.stat.exists
+      run_once: true
+
+    - name: Update Lantern repository on controller
+      delegate_to: localhost
+      command: git pull --ff-only
+      args:
+        chdir: "{{ lantern_release_repo_dir }}"
+      register: lantern_release_repo_pull
+      changed_when: "'Already up to date.' not in (lantern_release_repo_pull.stdout | default(''))"
+      run_once: true
+
+    - name: Update Epytype repository on controller
+      delegate_to: localhost
+      command: git pull --ff-only
+      args:
+        chdir: "{{ playbook_dir }}/../epytype"
+      register: lantern_release_epytype_repo_pull
+      changed_when: "'Already up to date.' not in (lantern_release_epytype_repo_pull.stdout | default(''))"
+      run_once: true
+
     - name: Build Lantern Debian package
       delegate_to: localhost
       command: scripts/package_deb.sh "{{ lantern_release_output_dir }}"
