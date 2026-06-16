@@ -9,7 +9,7 @@ maxretry = 3
 banaction = iptables-multiport
 # Email action (optional)
 destemail = {{ fail2ban_admin_email | default('root@localhost') }}
-sender = fail2ban@{{ ansible_hostname }}
+sender = fail2ban@{{ inventory_hostname }}
 # Whitelisted IPs - bypass fail2ban
 ignoreip = 127.0.0.1/8 ::1 {{ whitelisted_ips | join(' ') }}
 

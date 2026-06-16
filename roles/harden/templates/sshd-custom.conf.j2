@@ -15,6 +15,7 @@ failregex = ^%(__prefix_line)s(?:error: PAM: )?Authentication failure(?: for inv
             ^%(__prefix_line)sReceived disconnect from <HOST>: 11: Bye Bye \[preauth\]$
             ^%(__prefix_line)sConnection closed by <HOST> \[preauth\]$
             ^%(__prefix_line)sConnection reset by <HOST> \[preauth\]$
+            ^%(__prefix_line)sssh_dispatch_run_fatal: Connection from <HOST> port \d+: invalid argument \[preauth\]$
             ^%(__prefix_line)sDid not receive identification string from <HOST>$
             ^%(__prefix_line)sBad protocol version identification .* from <HOST>$
 
