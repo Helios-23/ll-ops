@@ -8,6 +8,7 @@
 
 - name: Build Lantern Debian package on controller when missing
   delegate_to: localhost
+  become: false
   command: scripts/package_deb.sh "{{ lantern_release_output_dir }}"
   args:
     chdir: "{{ lantern_release_repo_dir }}"

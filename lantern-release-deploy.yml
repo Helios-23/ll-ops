@@ -12,6 +12,7 @@
   tasks:
     - name: Check Lantern repository exists
       delegate_to: localhost
+      become: false
       stat:
         path: "{{ lantern_release_repo_dir }}/.git"
       register: lantern_release_repo_git_dir
@@ -27,6 +28,7 @@
 
     - name: Check Epytype repository exists
       delegate_to: localhost
+      become: false
       stat:
         path: "{{ playbook_dir }}/../epytype/.git"
       register: lantern_release_epytype_repo_git_dir
@@ -42,6 +44,7 @@
 
     - name: Update Lantern repository on controller
       delegate_to: localhost
+      become: false
       command: git pull --ff-only
       args:
         chdir: "{{ lantern_release_repo_dir }}"
@@ -51,6 +54,7 @@
 
     - name: Update Epytype repository on controller
       delegate_to: localhost
+      become: false
       command: git pull --ff-only
       args:
         chdir: "{{ playbook_dir }}/../epytype"
@@ -60,6 +64,7 @@
 
     - name: Build Lantern Debian package
       delegate_to: localhost
+      become: false
       command: scripts/package_deb.sh "{{ lantern_release_output_dir }}"
       args:
         chdir: "{{ lantern_release_repo_dir }}"
@@ -83,6 +88,7 @@
 
     - name: Validate Lantern Debian package path
       delegate_to: localhost
+      become: false
       stat:
         path: "{{ lantern_release_deb_path }}"
       register: lantern_release_deb_stat
