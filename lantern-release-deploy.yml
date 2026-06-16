@@ -58,6 +58,7 @@
       changed_when: "'Already up to date.' not in (lantern_release_epytype_repo_pull.stdout | default(''))"
       run_once: true
 
+  pre_tasks:
     - name: Build Lantern Debian package
       delegate_to: localhost
       become: false
