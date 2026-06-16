@@ -50,6 +50,17 @@ findtime = {{ reverse_proxy_fail2ban_findtime }}
 bantime = {{ reverse_proxy_fail2ban_bantime }}
 {% endif %}
 
+{% if fail2ban_feature_sshd_invalid_user_enabled | bool %}
+[sshd-invalid-user]
+enabled = true
+port = {{ ([sshd_port] + (sshd_additional_protected_ports | default([]))) | unique | join(',') }}
+filter = sshd-invalid-user
+logpath = {{ fail2ban_sshd_invalid_user_logpath }}
+maxretry = {{ fail2ban_sshd_invalid_user_maxretry }}
+findtime = {{ fail2ban_sshd_invalid_user_findtime }}
+bantime = {{ fail2ban_sshd_invalid_user_bantime }}
+{% endif %}
+
 {% if fail2ban_feature_forgejo_enabled | bool %}
 [forgejo]
 enabled = true

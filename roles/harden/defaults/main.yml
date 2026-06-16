@@ -8,6 +8,17 @@ forgejo_fail2ban_gid: 1000
 forgejo_fail2ban_maxretry: 10
 forgejo_fail2ban_findtime: 3600
 forgejo_fail2ban_bantime: 900
+fail2ban_feature_sshd_invalid_user_enabled: false
+fail2ban_sshd_invalid_user_names:
+  - root
+  - user
+  - admin
+  - unknown
+  - developer
+fail2ban_sshd_invalid_user_logpath: "/var/log/auth.log"
+fail2ban_sshd_invalid_user_maxretry: 1
+fail2ban_sshd_invalid_user_findtime: 600
+fail2ban_sshd_invalid_user_bantime: 43200
 fail2ban_feature_reverse_proxy_enabled: false
 reverse_proxy_fail2ban_logpath: "/var/log/nginx/access.log"
 reverse_proxy_fail2ban_ports: "http,https"

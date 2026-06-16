@@ -119,7 +119,7 @@ apb kymstr.yml -l repo0 -t cert
 
 | Tags |
 | --- |
-| `always`, `cert`, `check-csr`, `encrypt`, `fail2ban`, `forgejo_push_create_org`, `forgejo_reverse_proxy_trust`, `forgejo_tailscale_access_control`, `forgejo_users`, `gen-csr`, `gen-ssh`, `install`, `ipv4-forward`, `mysql`, `never`, `ollama`, `pull_models`, `reverse_proxy_fail2ban`, `show_models`, `ssh-auth`, `ssh-auth-review`, `ssh-gen`, `ssh-key`, `ssh-key-report`, `tailscale_machine`, `tailscale_policy`, `update_reboot`, `webui` |
+| `always`, `cert`, `check-csr`, `encrypt`, `fail2ban`, `fail2ban_sshd_invalid_user`, `forgejo_push_create_org`, `forgejo_reverse_proxy_trust`, `forgejo_tailscale_access_control`, `forgejo_users`, `gen-csr`, `gen-ssh`, `install`, `ipv4-forward`, `mysql`, `never`, `ollama`, `pull_models`, `reverse_proxy_fail2ban`, `show_models`, `ssh-auth`, `ssh-auth-review`, `ssh-gen`, `ssh-key`, `ssh-key-report`, `tailscale_machine`, `tailscale_policy`, `update_reboot`, `webui` |
 
 ## Role Notes
 
@@ -127,7 +127,7 @@ apb kymstr.yml -l repo0 -t cert
 | --- | --- | --- |
 | `roles/luks_nbde_client` | `luks_nbde` | client-side only; intended for hosts already installed on LUKS. Use with `repo0_nbde.yml` after provisioning or offline migration. |
 | `roles/forgejo_container` | `forgejo` | Extra tags: `forgejo_push_create_org`, `forgejo_users`, `forgejo_reverse_proxy_trust`, `forgejo_tailscale_access_control`, `never`. `forgejo_users` is opt-in because it is also tagged `never`. Feature booleans: `forgejo_reverse_proxy_trust_feature_enabled`, `forgejo_tailscale_access_control_feature_enabled`. |
-| `roles/harden` | `harden` | Extra tags: `fail2ban`, `ipv4-forward`, `reverse_proxy_fail2ban`. Feature booleans: `fail2ban_feature_forgejo_enabled`, `fail2ban_feature_reverse_proxy_enabled`. |
+| `roles/harden` | `harden` | Extra tags: `fail2ban`, `fail2ban_sshd_invalid_user`, `ipv4-forward`, `reverse_proxy_fail2ban`. Feature booleans: `fail2ban_feature_forgejo_enabled`, `fail2ban_feature_reverse_proxy_enabled`, `fail2ban_feature_sshd_invalid_user_enabled`. |
 | `roles/tailscale_admin` | `tailscale`, `tailscale_machine`, `tailscale_policy` | `tailscale_machine` covers host-side install and `tailscale up`; `tailscale_policy` pushes tailnet ACL/SSH policy. Feature booleans: `tailscale_machine_enabled`, `tailscale_policy_enabled`. |
 | `roles/ai_rig` | `ai_rig` | Extra tags: `ollama`, `pull_models`, `show_models`, `webui`. `pull_models` is narrower than `ollama` and useful for model refreshes after stack setup. `show_models` prints the current Ollama roster in a terminal-friendly multiline list. |
 | `roles/admin` | none | Task tag: `update_reboot` only. The package update and reboot path runs only when `update_reboot` is selected. |

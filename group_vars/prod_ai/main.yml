@@ -12,6 +12,8 @@ backend_name: "epytype"
 
 # auth logs
 ssh_auth_log: "/var/log/secure"
+# Enable to ban sshd invalid-user probes for specific usernames after a single match.
+fail2ban_feature_sshd_invalid_user_enabled: true
 # Enable to have Fail2ban watch reverse-proxy access logs for repeated 401/403 responses.
 fail2ban_feature_reverse_proxy_enabled: false
 

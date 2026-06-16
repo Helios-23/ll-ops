@@ -21,6 +21,8 @@ sshd_password_auth: "yes"
 sshd_additional_protected_ports:
   - 2222
 fail2ban_feature_forgejo_enabled: true
+# Enable to ban sshd invalid-user probes for specific usernames after a single match.
+fail2ban_feature_sshd_invalid_user_enabled: true
 # Enable to have Fail2ban watch reverse-proxy access logs for repeated 401/403 responses.
 fail2ban_feature_reverse_proxy_enabled: false
 forgejo_http_port: 3000

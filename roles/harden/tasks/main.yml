@@ -283,6 +283,22 @@
           reverse_proxy_fail2ban_logpath and reverse_proxy_fail2ban_statuses
           must be set when fail2ban_feature_reverse_proxy_enabled is true.
 
+- name: Prepare sshd invalid-user fail2ban feature
+  when: fail2ban_feature_sshd_invalid_user_enabled | bool
+  tags:
+    - fail2ban
+    - fail2ban_sshd_invalid_user
+  block:
+    - name: Validate sshd invalid-user fail2ban inputs
+      assert:
+        that:
+          - fail2ban_sshd_invalid_user_names | length > 0
+          - fail2ban_sshd_invalid_user_logpath | length > 0
+        fail_msg: >-
+          fail2ban_sshd_invalid_user_names and
+          fail2ban_sshd_invalid_user_logpath must be set when
+          fail2ban_feature_sshd_invalid_user_enabled is true.
+
 - name: Configure fail2ban for SSH
   template:
     src: jail.local.j2
@@ -306,6 +322,19 @@
   tags:
     - fail2ban
     - reverse_proxy_fail2ban
+
+- name: Deploy sshd invalid-user fail2ban filter
+  template:
+    src: sshd-invalid-user.conf.j2
+    dest: /etc/fail2ban/filter.d/sshd-invalid-user.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: fail2ban_feature_sshd_invalid_user_enabled | bool
+  notify: reload fail2ban
+  tags:
+    - fail2ban
+    - fail2ban_sshd_invalid_user
 
 - name: Ensure Forgejo fail2ban log directory exists
   file:

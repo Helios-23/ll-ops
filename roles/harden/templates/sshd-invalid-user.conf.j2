@@ -1,0 +1,7 @@
+# Fail2ban filter for sshd invalid-user probes against high-value usernames
+
+[Definition]
+
+failregex = ^.*Invalid user (?:{{ fail2ban_sshd_invalid_user_names | map('regex_escape') | join('|') }}) from <HOST>.*$
+
+ignoreregex =
