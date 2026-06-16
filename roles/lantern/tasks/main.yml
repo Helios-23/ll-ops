@@ -21,7 +21,7 @@
 - name: Deploy nginx reverse proxy config for Lantern with TLS
   template:
     src: lantern_nginx.conf.j2
-    dest: /etc/nginx/sites-available/lantern
+    dest: /etc/nginx/sites-available/lantern.epytype.org.conf
     owner: root
     group: root
     mode: "0644"
@@ -29,8 +29,8 @@
 
 - name: Enable nginx Lantern site
   file:
-    src: /etc/nginx/sites-available/lantern
-    dest: /etc/nginx/sites-enabled/lantern
+    src: /etc/nginx/sites-available/lantern.epytype.org.conf
+    dest: /etc/nginx/sites-enabled/lantern.epytype.org.conf
     state: link
   notify: Reload nginx
 

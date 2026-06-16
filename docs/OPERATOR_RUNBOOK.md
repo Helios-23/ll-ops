@@ -184,7 +184,7 @@ Use the specialist docs for runtime expectations and testing:
 
 ### 8. Operate the Lantern site
 
-Lantern shares `gex0` with the AI stack. Its public entrypoint is `https://lantern.epytype.org`, and the proxy role keeps its nginx config and logs separate from the AI vhost.
+Lantern shares `gex0` with the AI stack. Its public entrypoint is `https://lantern.epytype.org`, and the proxy roles keep the Lantern and AI nginx vhosts separate while both remain enabled.
 
 Common command:
 
@@ -197,7 +197,8 @@ The Lantern runtime defaults to `127.0.0.1:7323`, so nginx proxies there unless 
 Verification:
 
 - `curl -I https://lantern.epytype.org`
-- confirm `/etc/nginx/sites-available/lantern` and `/etc/nginx/sites-enabled/lantern` exist
+- confirm `/etc/nginx/sites-available/lantern.epytype.org.conf` and `/etc/nginx/sites-enabled/lantern.epytype.org.conf` exist
+- confirm `/etc/nginx/sites-available/ai.epytype.org.conf` and `/etc/nginx/sites-enabled/ai.epytype.org.conf` exist
 - confirm `/var/log/nginx/lantern.access.log` and `/var/log/nginx/lantern.error.log` are being written
 
 ### 8b. Build and deploy the Lantern `.deb`

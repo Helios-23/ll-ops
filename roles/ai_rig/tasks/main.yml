@@ -137,7 +137,7 @@
 - name: Deploy nginx reverse proxy config for AI domain with TLS
   template:
     src: ai_proxy_conf.j2
-    dest: /etc/nginx/sites-available/ai-proxy.conf
+    dest: /etc/nginx/sites-available/ai.epytype.org.conf
     owner: root
     group: root
     mode: "0644"
@@ -145,8 +145,8 @@
 
 - name: Enable nginx AI proxy site
   file:
-    src: /etc/nginx/sites-available/ai-proxy.conf
-    dest: /etc/nginx/sites-enabled/ai-proxy.conf
+    src: /etc/nginx/sites-available/ai.epytype.org.conf
+    dest: /etc/nginx/sites-enabled/ai.epytype.org.conf
     state: link
   notify: Reload nginx
 
