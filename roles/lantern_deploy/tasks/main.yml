@@ -1,13 +1,15 @@
-- name: Validate Lantern package source on controller
-  delegate_to: localhost
-  stat:
-    path: "{{ lantern_deploy_package_src }}"
-  register: lantern_deploy_package_src_stat
+- name: Resolve Lantern package source from build output
+  set_fact:
+    lantern_deploy_package_src: >-
+      {{
+        hostvars['localhost']['lantern_deploy_package_src']
+        | default(lantern_deploy_package_src | default(''))
+      }}
 
 - name: Fail when Lantern package is missing on controller
   fail:
     msg: "Lantern package not found at {{ lantern_deploy_package_src }}"
-  when: not lantern_deploy_package_src_stat.stat.exists
+  when: lantern_deploy_package_src | length == 0
 
 - name: Copy Lantern package to target host
   copy:

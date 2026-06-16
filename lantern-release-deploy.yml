@@ -42,6 +42,8 @@
       run_once: true
 
     - name: Expose Lantern Debian package path to deploy tasks
+      delegate_to: localhost
+      delegate_facts: true
       set_fact:
         lantern_deploy_package_src: "{{ lantern_release_deb_path }}"
       run_once: true
