@@ -1,6 +1,6 @@
 - name: Ensure Lantern app release artifact root exists on controller
   delegate_to: localhost
-  become: false
+  become: true
   file:
     path: "{{ lantern_app_deploy_controller_release_root }}"
     state: directory
@@ -125,7 +125,7 @@
 
 - name: Build Lantern app bundle archive on controller when bundle changed
   delegate_to: localhost
-  become: false
+  become: true
   shell: >-
     umask 022 &&
     tar -C "{{ lantern_app_deploy_repo_dir }}/apps" -czf "{{ lantern_app_deploy_archive_path }}" "{{ lantern_app_id }}" &&
@@ -138,7 +138,7 @@
 
 - name: Use freshly built Lantern app archive on controller
   delegate_to: localhost
-  become: false
+  become: true
   set_fact:
     lantern_app_deploy_latest_archive_path: "{{ lantern_app_deploy_archive_path }}"
   when:
