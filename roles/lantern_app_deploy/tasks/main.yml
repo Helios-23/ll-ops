@@ -19,7 +19,6 @@
 
 - name: Build Lantern app bundle archive on controller
   delegate_to: localhost
-  become: false
   command:
     argv:
       - tar
