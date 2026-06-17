@@ -10,6 +10,7 @@
     lantern_release_output_dir: "{{ lantern_release_repo_dir }}/dist/release/deb"
     lantern_release_binary_stage_dir: "{{ lantern_release_repo_dir }}/dist/cross-platform/binaries"
     lantern_release_epytype_binary_dir: "{{ playbook_dir }}/../epytype/dist/binaries"
+    lantern_release_native_target_id: linux-x86_64-gnu
   pre_tasks:
     - name: Check Lantern repository exists
       delegate_to: localhost
@@ -62,7 +63,7 @@
     - name: Stage fresh Lantern binaries on controller
       delegate_to: localhost
       become: false
-      command: scripts/stage_lantern_binaries.sh "{{ lantern_release_binary_stage_dir }}"
+      command: scripts/stage_lantern_binaries.sh "{{ lantern_release_binary_stage_dir }}" "{{ lantern_release_native_target_id }}"
       args:
         chdir: "{{ lantern_release_repo_dir }}"
       register: lantern_release_binary_stage
@@ -83,6 +84,7 @@
       environment:
         EPYTYPE_BINARY_DIR: "{{ lantern_release_epytype_binary_dir }}"
         LANTERN_BINARY_DIR: "{{ lantern_release_binary_dir }}"
+        LANTERN_NATIVE_TARGET_ID: "{{ lantern_release_native_target_id }}"
       register: lantern_release_package_build
       changed_when: true
       run_once: true
