@@ -52,6 +52,14 @@
       }}
   run_once: true
 
+- name: Ensure latest Lantern app archive is readable on controller
+  delegate_to: localhost
+  become: false
+  file:
+    path: "{{ lantern_app_deploy_latest_archive_path }}"
+    mode: "0644"
+  run_once: true
+
 - name: Ensure Lantern service group exists on target host
   group:
     name: "{{ lantern_app_deploy_group }}"
