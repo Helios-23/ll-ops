@@ -15,9 +15,9 @@
     mode: "0644"
 
 - name: Install Lantern package
-  command: apt-get install --reinstall -y "{{ lantern_deploy_package_dest }}"
+  apt:
+    deb: "{{ lantern_deploy_package_dest }}"
   register: lantern_deploy_install
-  changed_when: true
 
 - name: Restart Lantern services after package install
   systemd:
