@@ -218,6 +218,29 @@ What it does:
 
 The build step expects `../epytype/dist/binaries` to contain the matching `epytype` and `epm` release binaries.
 
+### 8c. Deploy a Lantern app bundle
+
+Use this when you want to sync one Lantern app bundle from `lantern/apps/` into the shared runtime apps tree on `gex0`:
+
+```bash
+apb lantern-app-deploy.yml -l gex0 -e lantern_app_id=ucal
+```
+
+What it does:
+
+- refreshes the Lantern repo on the controller with `git clone` or `git pull`
+- creates `/opt/release/lantern/app/<app_id>-<date>.tar.gz` on the controller
+- copies that archive to `gex0`
+- extracts it into `/srv/lantern/apps/<app_id>` with `lantern:lantern` ownership
+
+Supported app ids today:
+
+- `atlas_studio`
+- `graph_studio`
+- `ucal`
+
+The archive is built on the controller under `/opt/release/lantern/app`.
+
 ### 9. Prepare and publish releases
 
 `github-release.yml` is the entry point for `roles/epytype_release`.

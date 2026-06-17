@@ -1,0 +1,86 @@
+- name: Ensure Lantern app release artifact root exists on controller
+  delegate_to: localhost
+  become: false
+  file:
+    path: "{{ lantern_app_deploy_controller_release_root }}"
+    state: directory
+    mode: "{{ lantern_app_deploy_directory_mode }}"
+  run_once: true
+
+- name: Sync Lantern repo on controller
+  delegate_to: localhost
+  become: false
+  git:
+    repo: "{{ lantern_app_deploy_repo_url }}"
+    dest: "{{ lantern_app_deploy_repo_dir }}"
+    version: "{{ lantern_app_deploy_repo_version }}"
+    update: true
+    force: true
+  run_once: true
+
+- name: Build Lantern app bundle archive on controller
+  delegate_to: localhost
+  become: false
+  command:
+    argv:
+      - tar
+      - -C
+      - "{{ lantern_app_deploy_repo_dir }}/apps"
+      - -czf
+      - "{{ lantern_app_deploy_archive_path }}"
+      - "{{ lantern_app_id }}"
+  changed_when: true
+  run_once: true
+
+- name: Ensure Lantern service group exists on target host
+  group:
+    name: "{{ lantern_app_deploy_group }}"
+    system: true
+
+- name: Ensure Lantern service user exists on target host
+  user:
+    name: "{{ lantern_app_deploy_owner }}"
+    group: "{{ lantern_app_deploy_group }}"
+    system: true
+    home: /srv/lantern
+    create_home: false
+
+- name: Ensure Lantern app deployment root exists
+  file:
+    path: "{{ lantern_app_deploy_remote_root }}"
+    state: directory
+    owner: "{{ lantern_app_deploy_owner }}"
+    group: "{{ lantern_app_deploy_group }}"
+    mode: "{{ lantern_app_deploy_directory_mode }}"
+
+- name: Copy Lantern app archive to target host
+  copy:
+    src: "{{ lantern_app_deploy_archive_path }}"
+    dest: "{{ lantern_app_deploy_remote_archive_path }}"
+    owner: "{{ lantern_app_deploy_owner }}"
+    group: "{{ lantern_app_deploy_group }}"
+    mode: "0644"
+
+- name: Extract Lantern app bundle on target host
+  unarchive:
+    src: "{{ lantern_app_deploy_remote_archive_path }}"
+    dest: "{{ lantern_app_deploy_remote_root }}"
+    remote_src: true
+    owner: "{{ lantern_app_deploy_owner }}"
+    group: "{{ lantern_app_deploy_group }}"
+    extra_opts:
+      - --no-same-owner
+
+- name: Ensure deployed Lantern app permissions are owned by lantern
+  when: lantern_app_deploy_owner != "root"
+  file:
+    path: "{{ lantern_app_deploy_remote_app_dir }}"
+    state: directory
+    owner: "{{ lantern_app_deploy_owner }}"
+    group: "{{ lantern_app_deploy_group }}"
+    recurse: true
+
+- name: Remove staged Lantern app archive from target host
+  file:
+    path: "{{ lantern_app_deploy_remote_archive_path }}"
+    state: absent

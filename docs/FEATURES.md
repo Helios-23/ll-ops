@@ -11,6 +11,7 @@ Use this as the quick command map; the **Complete Tag Index** below is the autho
 | Playbook | Scope | Flow | Main tags | Focus tags |
 | --- | --- | --- | --- | --- |
 | `setup_epytype.yml` | `repo0`, `gex0` | choose `repo_server` or `ai_server` -> narrow to a role tag -> narrow to a task tag | `repo_server`, `ai_server` | `forgejo`, `forgejo_pull`, `harden`, `ai_rig`, `lantern`, `ipv4-forward`, `forgejo_users`, `ollama`, `pull_models`, `show_models`, `webui`, `ai_nginx`, `ai_certbot` |
+| `lantern-app-deploy.yml` | `gex0` | sync the Lantern repo on the controller, archive `lantern/apps/<app_id>` under `/opt/release/lantern/app`, then deploy it into `/srv/lantern/apps/<app_id>` | `lantern_app_deploy` | `lantern_app_deploy` |
 | `lantern-release-deploy.yml` | `localhost`, `gex0` | build Lantern `.deb` locally, then deploy it to `gex0` | `lantern_release_build`, `lantern_release_deploy` | `lantern_release_build`, `lantern_release_deploy` |
 | `repo0_nbde.yml` | `repo0` | provide vaulted LUKS/Clevis vars -> run preflight on an already encrypted host -> bind Clevis and rebuild initramfs | `repo0_nbde` | `luks_nbde` |
 | `admin.yml` | `all` with `-l/--limit` required | choose hosts -> run `admin` or `update_reboot` -> use Tailscale tags if needed | `admin` | `update_reboot`, `tailscale`, `tailscale_machine`, `tailscale_policy` |
@@ -110,19 +111,19 @@ apb kymstr.yml -l repo0 -t cert
 
 | Tags |
 | --- |
-| `admin`, `ai_server`, `epytype`, `kymstr`, `lantern`, `repo0_nbde`, `repo_server`, `terraform` |
+| `admin`, `ai_server`, `epytype`, `kymstr`, `lantern`, `lantern_app_deploy`, `repo0_nbde`, `repo_server`, `terraform` |
 
 ### Role-level tags
 
 | Tags |
 | --- |
-| `ai_rig`, `ai_certbot`, `ai_nginx`, `certbot_tls`, `docker_engine`, `forgejo`, `forgejo_pull`, `harden`, `lantern`, `luks_nbde`, `nginx`, `tailscale`, `ubuntu_pro_fips` |
+| `ai_rig`, `ai_certbot`, `ai_nginx`, `certbot_tls`, `docker_engine`, `forgejo`, `forgejo_pull`, `harden`, `lantern`, `lantern_app_deploy`, `luks_nbde`, `nginx`, `tailscale`, `ubuntu_pro_fips` |
 
 ### Task-level tags
 
 | Tags |
 | --- |
-| `always`, `ai_certbot`, `ai_nginx`, `cert`, `check-csr`, `encrypt`, `fail2ban`, `fail2ban_sshd_invalid_user`, `forgejo_push_create_org`, `forgejo_reverse_proxy_trust`, `forgejo_tailscale_access_control`, `forgejo_users`, `gen-csr`, `gen-ssh`, `install`, `ipv4-forward`, `lantern_release_build`, `lantern_release_deploy`, `mysql`, `never`, `ollama`, `pull_models`, `reverse_proxy_fail2ban`, `show_models`, `ssh-auth`, `ssh-auth-review`, `ssh-gen`, `ssh-key`, `ssh-key-report`, `tailscale_machine`, `tailscale_policy`, `update_reboot`, `webui` |
+| `always`, `ai_certbot`, `ai_nginx`, `cert`, `check-csr`, `encrypt`, `fail2ban`, `fail2ban_sshd_invalid_user`, `forgejo_push_create_org`, `forgejo_reverse_proxy_trust`, `forgejo_tailscale_access_control`, `forgejo_users`, `gen-csr`, `gen-ssh`, `install`, `ipv4-forward`, `lantern_app_deploy`, `lantern_release_build`, `lantern_release_deploy`, `mysql`, `never`, `ollama`, `pull_models`, `reverse_proxy_fail2ban`, `show_models`, `ssh-auth`, `ssh-auth-review`, `ssh-gen`, `ssh-key`, `ssh-key-report`, `tailscale_machine`, `tailscale_policy`, `update_reboot`, `webui` |
 
 ## Role Notes
 
@@ -135,6 +136,7 @@ apb kymstr.yml -l repo0 -t cert
 | `roles/tailscale_admin` | `tailscale`, `tailscale_machine`, `tailscale_policy` | `tailscale_machine` covers host-side install and `tailscale up`; `tailscale_policy` pushes tailnet ACL/SSH policy. Feature booleans: `tailscale_machine_enabled`, `tailscale_policy_enabled`. |
 | `roles/ai_rig` | `ai_rig` | Extra tags: `ai_certbot`, `ai_nginx`, `ollama`, `pull_models`, `show_models`, `webui`. `ai_nginx` is the narrow path for the AI vhost only. `ai_certbot` is the TLS issuance/renewal path. `pull_models` is narrower than `ollama` and useful for model refreshes after stack setup. `show_models` prints the current Ollama roster in a terminal-friendly multiline list. |
 | `roles/lantern` | `lantern` | Lantern reverse proxy and TLS rollout for `lantern.epytype.org`; manages the nginx vhost, certbot issuance, and renewal cron on `gex0`. |
+| `roles/lantern_app_deploy` | `lantern_app_deploy` | Syncs the Lantern repo on the controller, archives a selected app bundle, and extracts it into `/srv/lantern/apps/<app_id>` on `gex0` with `lantern:lantern` ownership. |
 | `roles/lantern_deploy` | `lantern_deploy` | Installs a built Lantern `.deb` on `gex0` and starts `lantern.service` and `lantern-ha.service`. |
 | `roles/admin` | none | Task tag: `update_reboot` only. The package update and reboot path runs only when `update_reboot` is selected. |
 | `roles/epytype_release` | none | release helper role used by `github-release.yml`; see task areas above for versioning, check gate, and push controls. |
