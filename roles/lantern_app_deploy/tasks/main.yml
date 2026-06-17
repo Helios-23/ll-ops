@@ -38,7 +38,7 @@
 - name: Calculate Lantern app bundle fingerprint on controller
   delegate_to: localhost
   become: false
-  shell: >-
+  shell: |
     python3 - "{{ lantern_app_deploy_source_dir }}" <<'PY'
     import hashlib
     import os
