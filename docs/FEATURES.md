@@ -11,7 +11,7 @@ Use this as the quick command map; the **Complete Tag Index** below is the autho
 | Playbook | Scope | Flow | Main tags | Focus tags |
 | --- | --- | --- | --- | --- |
 | `setup_epytype.yml` | `repo0`, `gex0` | choose `repo_server` or `ai_server` -> narrow to a role tag -> narrow to a task tag | `repo_server`, `ai_server` | `forgejo`, `forgejo_pull`, `harden`, `ai_rig`, `lantern`, `ipv4-forward`, `forgejo_users`, `ollama`, `pull_models`, `show_models`, `webui`, `ai_nginx`, `ai_certbot` |
-| `lantern-app-deploy.yml` | `gex0` | sync the Lantern repo on the controller, archive `lantern/apps/<app_id>` under `/opt/release/lantern/app`, then deploy it into `/srv/lantern/apps/<app_id>` | `lantern_app_deploy` | `lantern_app_deploy` |
+| `lantern-app-deploy.yml` | `gex0` | sync the Lantern repo on the controller, archive `lantern/apps/<app_id>` under `/opt/release/lantern/app` with minute precision, then deploy the newest matching archive into `/srv/lantern/apps/<app_id>` | `lantern_app_deploy` | `lantern_app_deploy` |
 | `lantern-release-deploy.yml` | `localhost`, `gex0` | build Lantern `.deb` locally, then deploy it to `gex0` | `lantern_release_build`, `lantern_release_deploy` | `lantern_release_build`, `lantern_release_deploy` |
 | `repo0_nbde.yml` | `repo0` | provide vaulted LUKS/Clevis vars -> run preflight on an already encrypted host -> bind Clevis and rebuild initramfs | `repo0_nbde` | `luks_nbde` |
 | `admin.yml` | `all` with `-l/--limit` required | choose hosts -> run `admin` or `update_reboot` -> use Tailscale tags if needed | `admin` | `update_reboot`, `tailscale`, `tailscale_machine`, `tailscale_policy` |

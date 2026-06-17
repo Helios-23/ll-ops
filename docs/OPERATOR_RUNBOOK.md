@@ -229,8 +229,8 @@ apb lantern-app-deploy.yml -l gex0 -e lantern_app_id=ucal
 What it does:
 
 - refreshes the Lantern repo on the controller with `git clone` or `git pull`
-- creates `/opt/release/lantern/app/<app_id>-<date>.tar.gz` on the controller
-- copies that archive to `gex0`
+- creates `/opt/release/lantern/app/<app_id>-<YYYYMMDD-HHMM>.tar.gz` on the controller
+- selects the newest matching archive in `/opt/release/lantern/app` and copies that archive to `gex0`
 - extracts it into `/srv/lantern/apps/<app_id>` with `lantern:lantern` ownership
 
 Supported app ids today:
@@ -239,7 +239,7 @@ Supported app ids today:
 - `graph_studio`
 - `ucal`
 
-The archive is built on the controller under `/opt/release/lantern/app`.
+The archive is built on the controller under `/opt/release/lantern/app`, and deployment uses the newest matching archive in that directory.
 
 ### 9. Prepare and publish releases
 

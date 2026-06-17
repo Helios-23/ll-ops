@@ -30,6 +30,28 @@
   changed_when: true
   run_once: true
 
+- name: Find Lantern app archives on controller
+  delegate_to: localhost
+  become: false
+  find:
+    paths: "{{ lantern_app_deploy_controller_release_root }}"
+    patterns: "{{ lantern_app_deploy_archive_glob }}"
+    file_type: file
+  register: lantern_app_deploy_archive_find
+  run_once: true
+
+- name: Select newest Lantern app archive on controller
+  delegate_to: localhost
+  become: false
+  set_fact:
+    lantern_app_deploy_latest_archive_path: >-
+      {{
+        (lantern_app_deploy_archive_find.files
+        | sort(attribute='mtime', reverse=true)
+        | first).path
+      }}
+  run_once: true
+
 - name: Ensure Lantern service group exists on target host
   group:
     name: "{{ lantern_app_deploy_group }}"
@@ -53,7 +75,7 @@
 
 - name: Copy Lantern app archive to target host
   copy:
-    src: "{{ lantern_app_deploy_archive_path }}"
+    src: "{{ lantern_app_deploy_latest_archive_path }}"
     dest: "{{ lantern_app_deploy_remote_archive_path }}"
     owner: "{{ lantern_app_deploy_owner }}"
     group: "{{ lantern_app_deploy_group }}"
