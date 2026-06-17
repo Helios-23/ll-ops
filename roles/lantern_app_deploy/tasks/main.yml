@@ -1,6 +1,5 @@
 - name: Ensure Lantern app release artifact root exists on controller
   delegate_to: localhost
-  become: false
   file:
     path: "{{ lantern_app_deploy_controller_release_root }}"
     state: directory
