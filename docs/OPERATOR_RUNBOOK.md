@@ -213,6 +213,7 @@ What it does:
 
 - builds `lantern/dist/release/deb/lantern_<version>_<arch>.deb` from the local Lantern checkout
 - stages fresh Lantern binaries in `lantern/dist/cross-platform/binaries` before packaging
+- includes only `atlas_studio` and `graph_studio` in the package payload
 - copies the package to `gex0`
 - installs the package with `apt`
 - enables and starts `lantern.service` and `lantern-ha.service`
