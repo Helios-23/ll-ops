@@ -19,14 +19,11 @@
 
 - name: Build Lantern app bundle archive on controller
   delegate_to: localhost
-  command:
-    argv:
-      - tar
-      - -C
-      - "{{ lantern_app_deploy_repo_dir }}/apps"
-      - -czf
-      - "{{ lantern_app_deploy_archive_path }}"
-      - "{{ lantern_app_id }}"
+  shell: >-
+    umask 022 &&
+    tar -C "{{ lantern_app_deploy_repo_dir }}/apps" -czf "{{ lantern_app_deploy_archive_path }}" "{{ lantern_app_id }}"
+  args:
+    executable: /bin/sh
   changed_when: true
   run_once: true
 
@@ -50,14 +47,6 @@
         | sort(attribute='mtime', reverse=true)
         | first).path
       }}
-  run_once: true
-
-- name: Ensure latest Lantern app archive is readable on controller
-  delegate_to: localhost
-  become: false
-  file:
-    path: "{{ lantern_app_deploy_latest_archive_path }}"
-    mode: "0644"
   run_once: true
 
 - name: Ensure Lantern service group exists on target host
