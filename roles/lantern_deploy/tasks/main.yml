@@ -19,11 +19,11 @@
   register: lantern_deploy_install
   changed_when: true
 
-- name: Ensure Lantern services are enabled and started
+- name: Restart Lantern services after package install
   systemd:
     name: "{{ item }}"
     enabled: true
-    state: started
+    state: restarted
   loop: "{{ lantern_deploy_services }}"
 
 - name: Remove staged Lantern package from target host
