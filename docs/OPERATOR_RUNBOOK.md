@@ -212,6 +212,7 @@ apb lantern-release-deploy.yml -l gex0
 What it does:
 
 - builds `lantern/dist/release/deb/lantern_<version>_<arch>.deb` from the local Lantern checkout
+- stages fresh Lantern binaries in `lantern/dist/cross-platform/binaries` before packaging
 - copies the package to `gex0`
 - installs the package with `apt`
 - enables and starts `lantern.service` and `lantern-ha.service`

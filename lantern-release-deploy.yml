@@ -8,6 +8,7 @@
   vars:
     lantern_release_repo_dir: "{{ playbook_dir }}/../lantern"
     lantern_release_output_dir: "{{ lantern_release_repo_dir }}/dist/release/deb"
+    lantern_release_binary_stage_dir: "{{ lantern_release_repo_dir }}/dist/cross-platform/binaries"
     lantern_release_epytype_binary_dir: "{{ playbook_dir }}/../epytype/dist/binaries"
   pre_tasks:
     - name: Check Lantern repository exists
@@ -58,6 +59,21 @@
       changed_when: "'Already up to date.' not in (lantern_release_epytype_repo_pull.stdout | default(''))"
       run_once: true
 
+    - name: Stage fresh Lantern binaries on controller
+      delegate_to: localhost
+      become: false
+      command: scripts/stage_lantern_binaries.sh "{{ lantern_release_binary_stage_dir }}"
+      args:
+        chdir: "{{ lantern_release_repo_dir }}"
+      register: lantern_release_binary_stage
+      changed_when: true
+      run_once: true
+
+    - name: Store Lantern binary stage directory
+      set_fact:
+        lantern_release_binary_dir: "{{ lantern_release_binary_stage_dir }}"
+      run_once: true
+
     - name: Build Lantern Debian package
       delegate_to: localhost
       become: false
@@ -66,6 +82,7 @@
         chdir: "{{ lantern_release_repo_dir }}"
       environment:
         EPYTYPE_BINARY_DIR: "{{ lantern_release_epytype_binary_dir }}"
+        LANTERN_BINARY_DIR: "{{ lantern_release_binary_dir }}"
       register: lantern_release_package_build
       changed_when: true
       run_once: true
