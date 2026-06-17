@@ -18,15 +18,85 @@
     force: true
   run_once: true
 
-- name: Build Lantern app bundle archive on controller
+- name: Read existing Lantern app bundle fingerprint on controller
+  delegate_to: localhost
+  become: false
+  stat:
+    path: "{{ lantern_app_deploy_bundle_fingerprint_path }}"
+  register: lantern_app_deploy_bundle_fingerprint_stat
+  run_once: true
+
+- name: Load existing Lantern app bundle fingerprint on controller
+  delegate_to: localhost
+  become: false
+  slurp:
+    src: "{{ lantern_app_deploy_bundle_fingerprint_path }}"
+  register: lantern_app_deploy_bundle_fingerprint_slurp
+  when: lantern_app_deploy_bundle_fingerprint_stat.stat.exists
+  run_once: true
+
+- name: Calculate Lantern app bundle fingerprint on controller
   delegate_to: localhost
   become: false
   shell: >-
-    umask 022 &&
-    tar -C "{{ lantern_app_deploy_repo_dir }}/apps" -czf "{{ lantern_app_deploy_archive_path }}" "{{ lantern_app_id }}"
+    python3 - "{{ lantern_app_deploy_source_dir }}" <<'PY'
+    import hashlib
+    import os
+    import sys
+
+    root = sys.argv[1]
+    digest = hashlib.sha256()
+
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames.sort()
+        filenames.sort()
+        for name in filenames:
+            path = os.path.join(dirpath, name)
+            rel = os.path.relpath(path, root)
+            digest.update(rel.encode("utf-8"))
+            digest.update(b"\0")
+            with open(path, "rb") as handle:
+                for chunk in iter(lambda: handle.read(65536), b""):
+                    digest.update(chunk)
+
+    print(digest.hexdigest())
+    PY
   args:
     executable: /bin/sh
-  changed_when: true
+  register: lantern_app_deploy_bundle_fingerprint_result
+  changed_when: false
+  run_once: true
+
+- name: Decide whether Lantern app bundle archive should be rebuilt on controller
+  delegate_to: localhost
+  become: false
+  set_fact:
+    lantern_app_deploy_bundle_fingerprint: "{{ lantern_app_deploy_bundle_fingerprint_result.stdout | trim }}"
+    lantern_app_deploy_previous_bundle_fingerprint: >-
+      {{
+        (
+          lantern_app_deploy_bundle_fingerprint_slurp.content
+          | default('')
+          | b64decode
+          | trim
+        )
+        if lantern_app_deploy_bundle_fingerprint_stat.stat.exists
+        else ''
+      }}
+    lantern_app_deploy_bundle_changed: >-
+      {{
+        (
+          not lantern_app_deploy_bundle_fingerprint_stat.stat.exists
+        )
+        or (
+          (
+            lantern_app_deploy_bundle_fingerprint_slurp.content
+            | default('')
+            | b64decode
+            | trim
+          ) != (lantern_app_deploy_bundle_fingerprint_result.stdout | trim)
+        )
+      }}
   run_once: true
 
 - name: Find Lantern app archives on controller
@@ -48,7 +118,31 @@
         (lantern_app_deploy_archive_find.files
         | sort(attribute='mtime', reverse=true)
         | first).path
+        if lantern_app_deploy_archive_find.matched | int > 0
+        else ''
       }}
+  run_once: true
+
+- name: Build Lantern app bundle archive on controller when bundle changed
+  delegate_to: localhost
+  become: false
+  shell: >-
+    umask 022 &&
+    tar -C "{{ lantern_app_deploy_repo_dir }}/apps" -czf "{{ lantern_app_deploy_archive_path }}" "{{ lantern_app_id }}" &&
+    printf '%s\n' "{{ lantern_app_deploy_bundle_fingerprint }}" > "{{ lantern_app_deploy_bundle_fingerprint_path }}"
+  args:
+    executable: /bin/sh
+  when:
+    - lantern_app_deploy_bundle_changed or lantern_app_deploy_latest_archive_path == ""
+  run_once: true
+
+- name: Use freshly built Lantern app archive on controller
+  delegate_to: localhost
+  become: false
+  set_fact:
+    lantern_app_deploy_latest_archive_path: "{{ lantern_app_deploy_archive_path }}"
+  when:
+    - lantern_app_deploy_bundle_changed or lantern_app_deploy_latest_archive_path == ""
   run_once: true
 
 - name: Ensure Lantern service group exists on target host
