@@ -11,7 +11,7 @@ lantern_app_deploy_archive_revision: >-
     lookup('pipe', 'git -C ' ~ lantern_app_deploy_repo_dir ~ ' rev-parse --short=8 HEAD')
   }}
 lantern_app_deploy_archive_path: >-
-  {{ lantern_app_deploy_controller_release_root }}/{{ lantern_app_id }}-{{ lantern_app_deploy_archive_stamp }}-git{{ lantern_app_deploy_archive_revision }}.{{ lantern_app_deploy_archive_ext }}
+  {{ lantern_app_deploy_controller_release_root }}/{{ lantern_app_id }}-{{ lantern_app_deploy_archive_stamp }}-git{{ lantern_app_deploy_archive_revision }}-{{ lantern_app_deploy_bundle_fingerprint_short }}.{{ lantern_app_deploy_archive_ext }}
 lantern_app_deploy_archive_glob: "{{ lantern_app_id }}-*.{{ lantern_app_deploy_archive_ext }}"
 lantern_app_deploy_latest_archive_path: ""
 lantern_app_deploy_bundle_fingerprint_path: >-
