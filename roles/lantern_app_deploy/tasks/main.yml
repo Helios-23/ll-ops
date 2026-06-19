@@ -203,7 +203,8 @@
     lantern_app_deploy_local_archive_basename: "{{ lantern_app_deploy_latest_archive_path | basename }}"
     lantern_app_deploy_deploy_archive: >-
       {{
-        lantern_app_deploy_local_archive_basename != lantern_app_deploy_remote_deployed_archive_basename
+        lantern_app_deploy_bundle_changed
+        or lantern_app_deploy_local_archive_basename != lantern_app_deploy_remote_deployed_archive_basename
       }}
 
 - name: Ensure Lantern service group exists on target host
