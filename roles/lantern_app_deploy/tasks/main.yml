@@ -17,6 +17,27 @@
     force: true
   run_once: true
 
+- name: Read Lantern app git revision on controller
+  delegate_to: localhost
+  become: false
+  command: git rev-parse --short=8 HEAD
+  args:
+    chdir: "{{ lantern_app_deploy_repo_dir }}"
+  register: lantern_app_deploy_archive_revision_result
+  changed_when: false
+  run_once: true
+
+- name: Set Lantern app archive naming facts on controller
+  delegate_to: localhost
+  become: false
+  set_fact:
+    lantern_app_deploy_archive_revision: "{{ lantern_app_deploy_archive_revision_result.stdout | trim }}"
+    lantern_app_deploy_archive_path: >-
+      {{ lantern_app_deploy_controller_release_root }}/{{ lantern_app_id }}-{{ lantern_app_deploy_archive_stamp }}-{{ lantern_app_deploy_archive_revision_result.stdout | trim }}-{{ lantern_app_deploy_bundle_fingerprint_short }}.{{ lantern_app_deploy_archive_ext }}
+    lantern_app_deploy_remote_archive_path: >-
+      /tmp/{{ lantern_app_id }}-{{ lantern_app_deploy_archive_stamp }}-{{ lantern_app_deploy_archive_revision_result.stdout | trim }}-{{ lantern_app_deploy_bundle_fingerprint_short }}.{{ lantern_app_deploy_archive_ext }}
+  run_once: true
+
 - name: Read existing Lantern app bundle fingerprint on controller
   delegate_to: localhost
   become: false
