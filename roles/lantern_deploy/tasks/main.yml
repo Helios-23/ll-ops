@@ -15,8 +15,12 @@
     mode: "0644"
 
 - name: Install Lantern package
-  apt:
-    deb: "{{ lantern_deploy_package_dest }}"
+  shell: >
+    set -e &&
+    dpkg -i "{{ lantern_deploy_package_dest }}" &&
+    apt-get -f install -y
+  args:
+    executable: /bin/sh
   register: lantern_deploy_install
 
 - name: Restart Lantern services after package install
@@ -25,3 +29,21 @@
     enabled: true
     state: restarted
   loop: "{{ lantern_deploy_services }}"
+
+- name: Find stale Lantern packages on target host
+  find:
+    paths: "{{ lantern_deploy_package_dest_dir }}"
+    patterns: "lantern_*.deb"
+    file_type: file
+  register: lantern_deploy_stale_packages
+
+- name: Remove stale Lantern packages on target host
+  file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: >-
+    {{
+      lantern_deploy_stale_packages.files
+      | rejectattr('path', 'equalto', lantern_deploy_package_dest)
+      | list
+    }}

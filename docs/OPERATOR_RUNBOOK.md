@@ -244,6 +244,10 @@ Supported app ids today:
 
 The archive is built on the controller under `/opt/release/lantern/app` only when the bundle changes, and deployment only proceeds when that controller archive is newer than the cached archive on `gex0`.
 
+The Lantern `.deb` deploy path uses `dpkg -i` followed by `apt-get -f install -y` so a freshly built package is applied even when the package version has not changed. After install, the target keeps the current staged `.deb` and removes older `lantern_*.deb` files from the staging directory so the host does not accumulate stale packages.
+
+The package version now includes the Lantern git commit suffix as `+git<8-char-sha>` so each release build has an explicit source revision marker.
+
 ### 9. Prepare and publish releases
 
 `github-release.yml` is the entry point for `roles/epytype_release`.
