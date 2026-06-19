@@ -235,6 +235,8 @@ What it does:
 - creates `/opt/release/lantern/app/<app_id>-<YYYYMMDD-HHMM>-<8-char-sha>-<bundle-fingerprint-short>.tar.gz` on the controller
 - rebuilds that archive only when the app bundle contents change
 - keeps the last deployed app archive marker on `gex0` and copies/extracts whenever the bundle changes or the controller archive basename differs from that marker
+- stores deployed archives under `/srv/lantern/apps/<app_id>/.archives/` for rollback
+- updates `/srv/lantern/apps/<app_id>/.deployed-archive` only after extraction succeeds
 - extracts newer archives into `/srv/lantern/apps/<app_id>` with `lantern:lantern` ownership
 
 Supported app ids today:
@@ -243,7 +245,7 @@ Supported app ids today:
 - `graph_studio`
 - `ucal`
 
-The archive is built on the controller under `/opt/release/lantern/app` only when the bundle changes, and deployment proceeds whenever the bundle changes or that controller archive basename differs from the deployed archive marker on `gex0`.
+The archive is built on the controller under `/opt/release/lantern/app` only when the bundle changes, and deployment proceeds whenever the bundle changes or that controller archive basename differs from the deployed archive marker on `gex0`. The target keeps the deployed archive copy under `/srv/lantern/apps/<app_id>/.archives/` and only updates the deployed marker after extraction succeeds.
 
 The Lantern `.deb` deploy path uses `dpkg -i` followed by `apt-get -f install -y` so a freshly built package is applied even when the package version has not changed. After install, the target keeps the current staged `.deb` and removes older `lantern_*.deb` files from the staging directory so the host does not accumulate stale packages.
 

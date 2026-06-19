@@ -18,15 +18,14 @@ lantern_app_deploy_previous_bundle_fingerprint: ""
 lantern_app_deploy_bundle_changed: false
 lantern_app_deploy_remote_root: /srv/lantern/apps
 lantern_app_deploy_remote_app_dir: "{{ lantern_app_deploy_remote_root }}/{{ lantern_app_id }}"
+lantern_app_deploy_remote_archive_store_dir: "{{ lantern_app_deploy_remote_app_dir }}/.archives"
+lantern_app_deploy_remote_deployed_archive_path: "{{ lantern_app_deploy_remote_app_dir }}/.deployed-archive"
 lantern_app_deploy_remote_archive_path: ""
 lantern_app_deploy_remote_archive_glob: "{{ lantern_app_id }}-*.{{ lantern_app_deploy_archive_ext }}"
 lantern_app_deploy_local_archive_size: 0
 lantern_app_deploy_local_archive_mtime: 0
-lantern_app_deploy_remote_archive_size: 0
-lantern_app_deploy_remote_archive_mtime: 0
 lantern_app_deploy_local_archive_basename: ""
 lantern_app_deploy_remote_archive_basename: ""
-lantern_app_deploy_remote_latest_archive_path: ""
 lantern_app_deploy_deploy_archive: false
 lantern_app_deploy_owner: lantern
 lantern_app_deploy_group: lantern

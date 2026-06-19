@@ -171,14 +171,14 @@
   register: lantern_app_deploy_local_archive_stat
   run_once: true
 
-- name: Stat Lantern app deployed archive marker on target host
+- name: Read Lantern app deployed archive marker on target host
   stat:
-    path: "{{ lantern_app_deploy_remote_app_dir }}/.deployed-archive"
+    path: "{{ lantern_app_deploy_remote_deployed_archive_path }}"
   register: lantern_app_deploy_remote_deployed_archive_stat
 
 - name: Load Lantern app deployed archive marker on target host
   slurp:
-    src: "{{ lantern_app_deploy_remote_app_dir }}/.deployed-archive"
+    src: "{{ lantern_app_deploy_remote_deployed_archive_path }}"
   register: lantern_app_deploy_remote_deployed_archive_slurp
   when: lantern_app_deploy_remote_deployed_archive_stat.stat.exists
 
@@ -228,6 +228,15 @@
     group: "{{ lantern_app_deploy_group }}"
     mode: "{{ lantern_app_deploy_directory_mode }}"
 
+- name: Ensure Lantern app archive store exists on target host
+  file:
+    path: "{{ lantern_app_deploy_remote_archive_store_dir }}"
+    state: directory
+    owner: "{{ lantern_app_deploy_owner }}"
+    group: "{{ lantern_app_deploy_group }}"
+    mode: "{{ lantern_app_deploy_directory_mode }}"
+  when: lantern_app_deploy_deploy_archive
+
 - name: Copy Lantern app archive to target host
   copy:
     src: "{{ lantern_app_deploy_latest_archive_path }}"
@@ -253,10 +262,20 @@
       - --no-same-owner
   when: lantern_app_deploy_deploy_archive
 
+- name: Store deployed Lantern app archive on target host
+  copy:
+    src: "{{ lantern_app_deploy_remote_archive_path }}"
+    dest: "{{ lantern_app_deploy_remote_archive_store_dir }}/{{ lantern_app_deploy_local_archive_basename }}"
+    remote_src: true
+    owner: "{{ lantern_app_deploy_owner }}"
+    group: "{{ lantern_app_deploy_group }}"
+    mode: "0644"
+  when: lantern_app_deploy_deploy_archive
+
 - name: Record deployed Lantern app archive basename on target host
   copy:
-    dest: "{{ lantern_app_deploy_remote_root }}/{{ lantern_app_id }}.deployed-archive"
-    content: "{{ lantern_app_deploy_remote_archive_path | basename }}\n"
+    dest: "{{ lantern_app_deploy_remote_deployed_archive_path }}"
+    content: "{{ lantern_app_deploy_local_archive_basename }}\n"
     owner: "{{ lantern_app_deploy_owner }}"
     group: "{{ lantern_app_deploy_group }}"
     mode: "0644"
