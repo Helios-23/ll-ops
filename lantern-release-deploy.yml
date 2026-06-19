@@ -1,1 +1,123 @@
-- import_playbook: release.yaml
+- name: Build Lantern Debian package for compatibility wrapper
+  hosts: gex0
+  become: false
+  gather_facts: false
+  tags:
+    - lantern_release_build
+    - lantern_release_deploy
+  vars:
+    lantern_release_repo_dir: "{{ playbook_dir }}/../lantern"
+    lantern_release_output_dir: "{{ lantern_release_repo_dir }}/dist/release/deb"
+    lantern_release_binary_stage_dir: "{{ lantern_release_repo_dir }}/dist/cross-platform/binaries"
+    lantern_release_epytype_binary_dir: "{{ playbook_dir }}/../epytype/dist/binaries"
+    lantern_release_native_target_id: linux-x86_64-gnu
+  pre_tasks:
+    - name: Check Lantern repository exists
+      delegate_to: localhost
+      become: false
+      stat:
+        path: "{{ lantern_release_repo_dir }}/.git"
+      register: lantern_release_repo_git_dir
+      run_once: true
+
+    - name: Fail when Lantern repository is missing
+      fail:
+        msg: "Lantern git repository not found at {{ lantern_release_repo_dir }}"
+      when: not lantern_release_repo_git_dir.stat.exists
+      run_once: true
+
+    - name: Check Epytype repository exists
+      delegate_to: localhost
+      become: false
+      stat:
+        path: "{{ playbook_dir }}/../epytype/.git"
+      register: lantern_release_epytype_repo_git_dir
+      run_once: true
+
+    - name: Fail when Epytype repository is missing
+      fail:
+        msg: "Epytype git repository not found at {{ playbook_dir }}/../epytype"
+      when: not lantern_release_epytype_repo_git_dir.stat.exists
+      run_once: true
+
+    - name: Update Lantern repository on controller
+      delegate_to: localhost
+      become: false
+      command: git pull --ff-only
+      args:
+        chdir: "{{ lantern_release_repo_dir }}"
+      register: lantern_release_repo_pull
+      changed_when: "'Already up to date.' not in (lantern_release_repo_pull.stdout | default(''))"
+      run_once: true
+
+    - name: Update Epytype repository on controller
+      delegate_to: localhost
+      become: false
+      command: git pull --ff-only
+      args:
+        chdir: "{{ playbook_dir }}/../epytype"
+      register: lantern_release_epytype_repo_pull
+      changed_when: "'Already up to date.' not in (lantern_release_epytype_repo_pull.stdout | default(''))"
+      run_once: true
+
+    - name: Stage fresh Lantern binaries on controller
+      delegate_to: localhost
+      become: false
+      command: scripts/stage_lantern_binaries.sh "{{ lantern_release_binary_stage_dir }}" "{{ lantern_release_native_target_id }}"
+      args:
+        chdir: "{{ lantern_release_repo_dir }}"
+      register: lantern_release_binary_stage
+      changed_when: true
+      run_once: true
+
+    - name: Store Lantern binary stage directory
+      delegate_to: localhost
+      delegate_facts: true
+      set_fact:
+        lantern_release_binary_dir: "{{ lantern_release_binary_stage_dir }}"
+      run_once: true
+
+    - name: Build Lantern Debian package
+      delegate_to: localhost
+      become: false
+      command: scripts/package_deb.sh "{{ lantern_release_output_dir }}"
+      args:
+        chdir: "{{ lantern_release_repo_dir }}"
+      environment:
+        EPYTYPE_BINARY_DIR: "{{ lantern_release_epytype_binary_dir }}"
+        LANTERN_BINARY_DIR: "{{ lantern_release_binary_dir }}"
+        LANTERN_NATIVE_TARGET_ID: "{{ lantern_release_native_target_id }}"
+      register: lantern_release_package_build
+      changed_when: true
+      run_once: true
+
+    - name: Store Lantern Debian package path
+      delegate_to: localhost
+      delegate_facts: true
+      set_fact:
+        lantern_release_deb_path: "{{ lantern_release_package_build.stdout_lines | last }}"
+      run_once: true
+
+    - name: Expose Lantern Debian package path to deploy tasks
+      delegate_to: localhost
+      delegate_facts: true
+      set_fact:
+        lantern_deploy_package_src: "{{ lantern_release_deb_path }}"
+      run_once: true
+
+    - name: Validate Lantern Debian package path
+      delegate_to: localhost
+      become: false
+      stat:
+        path: "{{ lantern_release_deb_path }}"
+      register: lantern_release_deb_stat
+      run_once: true
+
+    - name: Fail when Lantern Debian package was not created
+      fail:
+        msg: "Lantern Debian package was not created at {{ lantern_release_deb_path }}"
+      when: not lantern_release_deb_stat.stat.exists
+      run_once: true
+
+  roles:
+    - role: lantern_deploy
