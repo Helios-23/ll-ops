@@ -246,7 +246,7 @@ The archive is built on the controller under `/opt/release/lantern/app` only whe
 
 The Lantern `.deb` deploy path uses `dpkg -i` followed by `apt-get -f install -y` so a freshly built package is applied even when the package version has not changed. After install, the target keeps the current staged `.deb` and removes older `lantern_*.deb` files from the staging directory so the host does not accumulate stale packages.
 
-The package version now includes the Lantern git commit suffix as `+git<8-char-sha>` so each release build has an explicit source revision marker.
+The package version now includes the Lantern git commit suffix as `+git<8-char-sha>`, and appends a short dirty-tree fingerprint when the Lantern checkout has uncommitted changes, so each release build has an explicit source revision marker even before commit time.
 
 ### 9. Prepare and publish releases
 

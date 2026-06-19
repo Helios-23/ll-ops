@@ -85,7 +85,6 @@
         EPYTYPE_BINARY_DIR: "{{ lantern_release_epytype_binary_dir }}"
         LANTERN_BINARY_DIR: "{{ lantern_release_binary_dir }}"
         LANTERN_NATIVE_TARGET_ID: "{{ lantern_release_native_target_id }}"
-        LANTERN_RELEASE_BUILD_SUFFIX: "+git{{ lookup('pipe', 'git -C ' ~ lantern_release_repo_dir ~ ' rev-parse --short=8 HEAD') }}"
       register: lantern_release_package_build
       changed_when: true
       run_once: true
