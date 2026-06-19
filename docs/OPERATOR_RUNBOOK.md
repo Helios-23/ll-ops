@@ -201,12 +201,12 @@ Verification:
 - confirm `/etc/nginx/sites-available/ai.epytype.org.conf` and `/etc/nginx/sites-enabled/ai.epytype.org.conf` exist
 - confirm `/var/log/nginx/lantern.access.log` and `/var/log/nginx/lantern.error.log` are being written
 
-### 8b. Build and deploy the Lantern `.deb`
+### 8b. Build the Lantern `.deb`
 
 Run this from `ops/` on the repo server after the Lantern and Epytype binaries are available in sibling checkouts:
 
 ```bash
-apb lantern-release-deploy.yml -l gex0
+apb release.yaml -t lantern_release
 ```
 
 What it does:
@@ -214,18 +214,31 @@ What it does:
 - builds `lantern/dist/release/deb/lantern_<version>_<arch>.deb` from the local Lantern checkout
 - stages fresh Lantern binaries in `lantern/dist/cross-platform/binaries` before packaging
 - includes only `atlas_studio` and `graph_studio` in the package payload
-- copies the package to `gex0`
-- installs the package with `apt`
-- enables and starts `lantern.service` and `lantern-ha.service`
+- leaves the built package in the release output directory and prints its path
+
+### 8c. Deploy the Lantern runtime package
+
+Use this after building a `.deb` if you want to install it on `gex0`:
+
+```bash
+apb deploy.yml -t lantern_runtime -l gex0
+```
+
+What it does:
+
+- resolves the newest `lantern_*.deb` from `lantern/dist/release/deb` on the controller when no package path is passed
+- copies the `.deb` to `gex0`
+- installs it with `dpkg` and repairs dependencies with `apt`
+- restarts `lantern.service` and `lantern-ha.service`
 
 The build step expects `../epytype/dist/binaries` to contain the matching `epytype` and `epm` release binaries.
 
-### 8c. Deploy a Lantern app bundle
+### 8d. Deploy a Lantern app bundle
 
 Use this when you want to sync one Lantern app bundle from `lantern/apps/` into the shared runtime apps tree on `gex0`:
 
 ```bash
-apb lantern-app-deploy.yml -l gex0 -e lantern_app_id=ucal
+apb deploy.yml -t lantern_app -l gex0 -e lantern_app_id=ucal
 ```
 
 What it does:

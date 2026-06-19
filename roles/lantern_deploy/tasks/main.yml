@@ -6,6 +6,39 @@
         | default(lantern_deploy_package_src | default(''))
       }}
 
+- name: Find latest Lantern package on controller when source is unspecified
+  delegate_to: localhost
+  become: false
+  find:
+    paths: "{{ lantern_release_output_dir }}"
+    patterns: "{{ lantern_release_output_glob }}"
+    file_type: file
+  register: lantern_deploy_package_find
+  when: lantern_deploy_package_src == ""
+  run_once: true
+
+- name: Select latest Lantern package on controller when source is unspecified
+  delegate_to: localhost
+  become: false
+  set_fact:
+    lantern_deploy_package_src: >-
+      {{
+        (lantern_deploy_package_find.files
+        | sort(attribute='mtime', reverse=true)
+        | first).path
+        if lantern_deploy_package_find.matched | int > 0
+        else ''
+      }}
+  when: lantern_deploy_package_src == ""
+  run_once: true
+
+- name: Fail when Lantern package source cannot be resolved
+  fail:
+    msg: >-
+      Lantern package source could not be resolved. Build it with
+      release.yaml or pass lantern_deploy_package_src explicitly.
+  when: lantern_deploy_package_src == ""
+
 - name: Copy Lantern package to target host
   copy:
     src: "{{ lantern_deploy_package_src }}"

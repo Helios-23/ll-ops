@@ -11,8 +11,8 @@ Use this as the quick command map; the **Complete Tag Index** below is the autho
 | Playbook | Scope | Flow | Main tags | Focus tags |
 | --- | --- | --- | --- | --- |
 | `setup_epytype.yml` | `repo0`, `gex0` | choose `repo_server` or `ai_server` -> narrow to a role tag -> narrow to a task tag | `repo_server`, `ai_server` | `forgejo`, `forgejo_pull`, `harden`, `ai_rig`, `lantern`, `ipv4-forward`, `forgejo_users`, `ollama`, `pull_models`, `show_models`, `webui`, `ai_nginx`, `ai_certbot` |
-| `lantern-app-deploy.yml` | `gex0` | sync the Lantern repo on the controller, read the controller git SHA after sync, archive `lantern/apps/<app_id>` under `/opt/release/lantern/app` only when the bundle changes, name the archive with the build timestamp plus the 8-char git SHA and the bundle fingerprint short hash, then deploy the archive to `gex0` whenever the bundle changes or the controller archive basename differs from the deployed archive marker on the target; the target stores the deployed archive under `/srv/lantern/apps/<app_id>/.archives/` and only updates `.deployed-archive` after extraction succeeds | `lantern_app_deploy` | `lantern_app_deploy` |
-| `lantern-release-deploy.yml` | `localhost`, `gex0` | stage fresh Lantern binaries on the controller, build the `.deb` with a `+git<sha>` version suffix and dirty-tree marker when needed, then deploy it to `gex0`; package payload includes only `atlas_studio` and `graph_studio` | `lantern_release_build`, `lantern_release_deploy` | `lantern_release_build`, `lantern_release_deploy` |
+| `deploy.yml` | `gex0` | choose `lantern_runtime` to install a staged Lantern `.deb` and restart the Lantern services on `gex0`, or choose `lantern_app` to sync and extract a Lantern app bundle into `/srv/lantern/apps/<app_id>` | `lantern_runtime`, `lantern_app` | `lantern_runtime`, `lantern_app` |
+| `release.yaml` | `localhost` | stage fresh Lantern binaries on the controller, build the `.deb` with a `+git<sha>` version suffix and dirty-tree marker when needed, and leave the package in the release output directory; package payload includes only `atlas_studio` and `graph_studio` | `lantern_release` | `lantern_release` |
 | `repo0_nbde.yml` | `repo0` | provide vaulted LUKS/Clevis vars -> run preflight on an already encrypted host -> bind Clevis and rebuild initramfs | `repo0_nbde` | `luks_nbde` |
 | `admin.yml` | `all` with `-l/--limit` required | choose hosts -> run `admin` or `update_reboot` -> use Tailscale tags if needed | `admin` | `update_reboot`, `tailscale`, `tailscale_machine`, `tailscale_policy` |
 | `github-release.yml` | localhost | choose `epytype` or `lantern` -> optionally override version vars -> run from `ops/` | `epytype`, `lantern` | release variables only; no extra Ansible task tags |
@@ -111,19 +111,19 @@ apb kymstr.yml -l repo0 -t cert
 
 | Tags |
 | --- |
-| `admin`, `ai_server`, `epytype`, `kymstr`, `lantern`, `lantern_app_deploy`, `repo0_nbde`, `repo_server`, `terraform` |
+| `admin`, `ai_server`, `epytype`, `kymstr`, `lantern`, `lantern_app_deploy`, `lantern_app`, `lantern_release`, `lantern_runtime`, `repo0_nbde`, `repo_server`, `terraform` |
 
 ### Role-level tags
 
 | Tags |
 | --- |
-| `ai_rig`, `ai_certbot`, `ai_nginx`, `certbot_tls`, `docker_engine`, `forgejo`, `forgejo_pull`, `harden`, `lantern`, `lantern_app_deploy`, `luks_nbde`, `nginx`, `tailscale`, `ubuntu_pro_fips` |
+| `ai_rig`, `ai_certbot`, `ai_nginx`, `certbot_tls`, `docker_engine`, `forgejo`, `forgejo_pull`, `harden`, `lantern`, `lantern_app`, `lantern_app_deploy`, `lantern_release`, `lantern_runtime`, `luks_nbde`, `nginx`, `tailscale`, `ubuntu_pro_fips` |
 
 ### Task-level tags
 
 | Tags |
 | --- |
-| `always`, `ai_certbot`, `ai_nginx`, `cert`, `check-csr`, `encrypt`, `fail2ban`, `fail2ban_sshd_invalid_user`, `forgejo_push_create_org`, `forgejo_reverse_proxy_trust`, `forgejo_tailscale_access_control`, `forgejo_users`, `gen-csr`, `gen-ssh`, `install`, `ipv4-forward`, `lantern_app_deploy`, `lantern_release_build`, `lantern_release_deploy`, `mysql`, `never`, `ollama`, `pull_models`, `reverse_proxy_fail2ban`, `show_models`, `ssh-auth`, `ssh-auth-review`, `ssh-gen`, `ssh-key`, `ssh-key-report`, `tailscale_machine`, `tailscale_policy`, `update_reboot`, `webui` |
+| `always`, `ai_certbot`, `ai_nginx`, `cert`, `check-csr`, `encrypt`, `fail2ban`, `fail2ban_sshd_invalid_user`, `forgejo_push_create_org`, `forgejo_reverse_proxy_trust`, `forgejo_tailscale_access_control`, `forgejo_users`, `gen-csr`, `gen-ssh`, `install`, `ipv4-forward`, `lantern_app`, `lantern_app_deploy`, `lantern_release`, `lantern_runtime`, `mysql`, `never`, `ollama`, `pull_models`, `reverse_proxy_fail2ban`, `show_models`, `ssh-auth`, `ssh-auth-review`, `ssh-gen`, `ssh-key`, `ssh-key-report`, `tailscale_machine`, `tailscale_policy`, `update_reboot`, `webui` |
 
 ## Role Notes
 
