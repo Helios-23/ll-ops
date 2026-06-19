@@ -150,54 +150,36 @@
   register: lantern_app_deploy_local_archive_stat
   run_once: true
 
-- name: Discover Lantern app archives on target host
-  find:
-    paths: /tmp
-    patterns: "{{ lantern_app_deploy_remote_archive_glob }}"
-    file_type: file
-  register: lantern_app_deploy_remote_archive_find
-
-- name: Select newest Lantern app archive on target host
-  set_fact:
-    lantern_app_deploy_remote_latest_archive_path: >-
-      {{
-        (lantern_app_deploy_remote_archive_find.files
-        | sort(attribute='mtime', reverse=true)
-        | first).path
-        if lantern_app_deploy_remote_archive_find.matched | int > 0
-        else ''
-      }}
-
-- name: Stat newest Lantern app archive on target host
+- name: Stat Lantern app deployed archive marker on target host
   stat:
-    path: "{{ lantern_app_deploy_remote_latest_archive_path }}"
-  register: lantern_app_deploy_remote_archive_stat
-  when: lantern_app_deploy_remote_latest_archive_path != ""
+    path: "{{ lantern_app_deploy_remote_app_dir }}/.deployed-archive"
+  register: lantern_app_deploy_remote_deployed_archive_stat
+
+- name: Load Lantern app deployed archive marker on target host
+  slurp:
+    src: "{{ lantern_app_deploy_remote_app_dir }}/.deployed-archive"
+  register: lantern_app_deploy_remote_deployed_archive_slurp
+  when: lantern_app_deploy_remote_deployed_archive_stat.stat.exists
 
 - name: Decide whether Lantern app archive should be deployed
   set_fact:
     lantern_app_deploy_local_archive_mtime: "{{ lantern_app_deploy_local_archive_stat.stat.mtime | default(0) | int }}"
     lantern_app_deploy_local_archive_size: "{{ lantern_app_deploy_local_archive_stat.stat.size | default(0) | int }}"
     lantern_app_deploy_local_archive_basename: "{{ lantern_app_deploy_latest_archive_path | basename }}"
-    lantern_app_deploy_remote_archive_mtime: >-
+    lantern_app_deploy_remote_deployed_archive_basename: >-
       {{
-        lantern_app_deploy_remote_archive_stat.stat.mtime | default(0) | int
-        if lantern_app_deploy_remote_latest_archive_path != ""
-        else 0
+        (
+          lantern_app_deploy_remote_deployed_archive_slurp.content
+          | default('')
+          | b64decode
+          | trim
+        )
+        if lantern_app_deploy_remote_deployed_archive_stat.stat.exists
+        else ''
       }}
-    lantern_app_deploy_remote_archive_size: >-
-      {{
-        lantern_app_deploy_remote_archive_stat.stat.size | default(0) | int
-        if lantern_app_deploy_remote_latest_archive_path != ""
-        else 0
-      }}
-    lantern_app_deploy_remote_archive_basename: "{{ lantern_app_deploy_remote_latest_archive_path | basename }}"
     lantern_app_deploy_deploy_archive: >-
       {{
-        lantern_app_deploy_remote_latest_archive_path == ""
-        or lantern_app_deploy_local_archive_basename != lantern_app_deploy_remote_archive_basename
-        or lantern_app_deploy_local_archive_mtime | int > lantern_app_deploy_remote_archive_mtime | int
-        or lantern_app_deploy_local_archive_size | int != lantern_app_deploy_remote_archive_size | int
+        lantern_app_deploy_local_archive_basename != lantern_app_deploy_remote_deployed_archive_basename
       }}
 
 - name: Ensure Lantern service group exists on target host
@@ -236,7 +218,7 @@
       {{
         lantern_app_deploy_remote_archive_path
         if lantern_app_deploy_deploy_archive
-        else lantern_app_deploy_remote_latest_archive_path
+        else lantern_app_deploy_latest_archive_path
       }}
     dest: "{{ lantern_app_deploy_remote_root }}"
     remote_src: true

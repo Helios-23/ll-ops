@@ -233,7 +233,7 @@ What it does:
 - refreshes the Lantern repo on the controller with `git clone` or `git pull`
 - creates `/opt/release/lantern/app/<app_id>-<YYYYMMDD-HHMM>-git<8-char-sha>-<bundle-fingerprint>.tar.gz` on the controller
 - rebuilds that archive only when the app bundle contents change
-- keeps the last deployed app archive on `gex0` and only copies/extracts when the controller archive basename differs from the cached target archive
+- keeps the last deployed app archive marker on `gex0` and only copies/extracts when the controller archive basename differs from that marker
 - extracts newer archives into `/srv/lantern/apps/<app_id>` with `lantern:lantern` ownership
 
 Supported app ids today:
@@ -242,7 +242,7 @@ Supported app ids today:
 - `graph_studio`
 - `ucal`
 
-The archive is built on the controller under `/opt/release/lantern/app` only when the bundle changes, and deployment only proceeds when that controller archive basename differs from the cached archive on `gex0`.
+The archive is built on the controller under `/opt/release/lantern/app` only when the bundle changes, and deployment only proceeds when that controller archive basename differs from the deployed archive marker on `gex0`.
 
 The Lantern `.deb` deploy path uses `dpkg -i` followed by `apt-get -f install -y` so a freshly built package is applied even when the package version has not changed. After install, the target keeps the current staged `.deb` and removes older `lantern_*.deb` files from the staging directory so the host does not accumulate stale packages.
 
