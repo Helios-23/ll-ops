@@ -231,7 +231,7 @@ apb lantern-app-deploy.yml -l gex0 -e lantern_app_id=ucal
 What it does:
 
 - refreshes the Lantern repo on the controller with `git clone` or `git pull`
-- creates `/opt/release/lantern/app/<app_id>-<YYYYMMDD-HHMM>-git<8-char-sha>-<bundle-fingerprint-short>.tar.gz` on the controller
+- creates `/opt/release/lantern/app/<app_id>-<YYYYMMDD-HHMM>-<8-char-sha>-<bundle-fingerprint-short>.tar.gz` on the controller
 - rebuilds that archive only when the app bundle contents change
 - keeps the last deployed app archive marker on `gex0` and only copies/extracts when the controller archive basename differs from that marker
 - extracts newer archives into `/srv/lantern/apps/<app_id>` with `lantern:lantern` ownership
