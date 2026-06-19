@@ -228,6 +228,14 @@
     group: "{{ lantern_app_deploy_group }}"
     mode: "{{ lantern_app_deploy_directory_mode }}"
 
+- name: Ensure Lantern log directory exists on target host
+  file:
+    path: /var/log/lantern
+    state: directory
+    owner: lantern
+    group: lantern
+    mode: "0755"
+
 - name: Ensure Lantern app archive store exists on target host
   file:
     path: "{{ lantern_app_deploy_remote_archive_store_dir }}"
