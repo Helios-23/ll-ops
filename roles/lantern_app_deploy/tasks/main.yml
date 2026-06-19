@@ -161,11 +161,8 @@
   register: lantern_app_deploy_remote_deployed_archive_slurp
   when: lantern_app_deploy_remote_deployed_archive_stat.stat.exists
 
-- name: Decide whether Lantern app archive should be deployed
+- name: Read Lantern app deployed archive marker on target host
   set_fact:
-    lantern_app_deploy_local_archive_mtime: "{{ lantern_app_deploy_local_archive_stat.stat.mtime | default(0) | int }}"
-    lantern_app_deploy_local_archive_size: "{{ lantern_app_deploy_local_archive_stat.stat.size | default(0) | int }}"
-    lantern_app_deploy_local_archive_basename: "{{ lantern_app_deploy_latest_archive_path | basename }}"
     lantern_app_deploy_remote_deployed_archive_basename: >-
       {{
         (
@@ -177,6 +174,12 @@
         if lantern_app_deploy_remote_deployed_archive_stat.stat.exists
         else ''
       }}
+
+- name: Decide whether Lantern app archive should be deployed
+  set_fact:
+    lantern_app_deploy_local_archive_mtime: "{{ lantern_app_deploy_local_archive_stat.stat.mtime | default(0) | int }}"
+    lantern_app_deploy_local_archive_size: "{{ lantern_app_deploy_local_archive_stat.stat.size | default(0) | int }}"
+    lantern_app_deploy_local_archive_basename: "{{ lantern_app_deploy_latest_archive_path | basename }}"
     lantern_app_deploy_deploy_archive: >-
       {{
         lantern_app_deploy_local_archive_basename != lantern_app_deploy_remote_deployed_archive_basename
