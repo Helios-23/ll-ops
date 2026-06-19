@@ -71,6 +71,7 @@
   become: false
   set_fact:
     lantern_app_deploy_bundle_fingerprint: "{{ lantern_app_deploy_bundle_fingerprint_result.stdout | trim }}"
+    lantern_app_deploy_bundle_fingerprint_short: "{{ lantern_app_deploy_bundle_fingerprint_result.stdout | trim | regex_replace('^(.{8}).*$', '\\1') }}"
     lantern_app_deploy_previous_bundle_fingerprint: >-
       {{
         (
@@ -177,6 +178,7 @@
   set_fact:
     lantern_app_deploy_local_archive_mtime: "{{ lantern_app_deploy_local_archive_stat.stat.mtime | default(0) | int }}"
     lantern_app_deploy_local_archive_size: "{{ lantern_app_deploy_local_archive_stat.stat.size | default(0) | int }}"
+    lantern_app_deploy_local_archive_basename: "{{ lantern_app_deploy_latest_archive_path | basename }}"
     lantern_app_deploy_remote_archive_mtime: >-
       {{
         lantern_app_deploy_remote_archive_stat.stat.mtime | default(0) | int
@@ -189,9 +191,11 @@
         if lantern_app_deploy_remote_latest_archive_path != ""
         else 0
       }}
+    lantern_app_deploy_remote_archive_basename: "{{ lantern_app_deploy_remote_latest_archive_path | basename }}"
     lantern_app_deploy_deploy_archive: >-
       {{
         lantern_app_deploy_remote_latest_archive_path == ""
+        or lantern_app_deploy_local_archive_basename != lantern_app_deploy_remote_archive_basename
         or lantern_app_deploy_local_archive_mtime | int > lantern_app_deploy_remote_archive_mtime | int
         or lantern_app_deploy_local_archive_size | int != lantern_app_deploy_remote_archive_size | int
       }}
@@ -240,6 +244,15 @@
     group: "{{ lantern_app_deploy_group }}"
     extra_opts:
       - --no-same-owner
+  when: lantern_app_deploy_deploy_archive
+
+- name: Record deployed Lantern app archive basename on target host
+  copy:
+    dest: "{{ lantern_app_deploy_remote_root }}/{{ lantern_app_id }}.deployed-archive"
+    content: "{{ lantern_app_deploy_remote_archive_path | basename }}\n"
+    owner: "{{ lantern_app_deploy_owner }}"
+    group: "{{ lantern_app_deploy_group }}"
+    mode: "0644"
   when: lantern_app_deploy_deploy_archive
 
 - name: Ensure deployed Lantern app permissions are owned by lantern

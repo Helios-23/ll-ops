@@ -6,23 +6,30 @@ lantern_app_deploy_source_dir: "{{ lantern_app_deploy_repo_dir }}/apps/{{ lanter
 lantern_app_deploy_controller_release_root: /opt/release/lantern/app
 lantern_app_deploy_archive_ext: tar.gz
 lantern_app_deploy_archive_stamp: "{{ lookup('pipe', 'date +%Y%m%d-%H%M') }}"
+lantern_app_deploy_archive_revision: >-
+  {{
+    lookup('pipe', 'git -C ' ~ lantern_app_deploy_repo_dir ~ ' rev-parse --short=8 HEAD')
+  }}
 lantern_app_deploy_archive_path: >-
-  {{ lantern_app_deploy_controller_release_root }}/{{ lantern_app_id }}-{{ lantern_app_deploy_archive_stamp }}.{{ lantern_app_deploy_archive_ext }}
+  {{ lantern_app_deploy_controller_release_root }}/{{ lantern_app_id }}-{{ lantern_app_deploy_archive_stamp }}-git{{ lantern_app_deploy_archive_revision }}.{{ lantern_app_deploy_archive_ext }}
 lantern_app_deploy_archive_glob: "{{ lantern_app_id }}-*.{{ lantern_app_deploy_archive_ext }}"
 lantern_app_deploy_latest_archive_path: ""
 lantern_app_deploy_bundle_fingerprint_path: >-
   {{ lantern_app_deploy_controller_release_root }}/{{ lantern_app_id }}.bundle.sha256
 lantern_app_deploy_bundle_fingerprint: ""
+lantern_app_deploy_bundle_fingerprint_short: ""
 lantern_app_deploy_previous_bundle_fingerprint: ""
 lantern_app_deploy_bundle_changed: false
 lantern_app_deploy_remote_root: /srv/lantern/apps
 lantern_app_deploy_remote_app_dir: "{{ lantern_app_deploy_remote_root }}/{{ lantern_app_id }}"
-lantern_app_deploy_remote_archive_path: "/tmp/{{ lantern_app_id }}-{{ lantern_app_deploy_archive_stamp }}.{{ lantern_app_deploy_archive_ext }}"
+lantern_app_deploy_remote_archive_path: "/tmp/{{ lantern_app_id }}-{{ lantern_app_deploy_archive_stamp }}-git{{ lantern_app_deploy_archive_revision }}-{{ lantern_app_deploy_bundle_fingerprint_short }}.{{ lantern_app_deploy_archive_ext }}"
 lantern_app_deploy_remote_archive_glob: "{{ lantern_app_id }}-*.{{ lantern_app_deploy_archive_ext }}"
 lantern_app_deploy_local_archive_size: 0
 lantern_app_deploy_local_archive_mtime: 0
 lantern_app_deploy_remote_archive_size: 0
 lantern_app_deploy_remote_archive_mtime: 0
+lantern_app_deploy_local_archive_basename: ""
+lantern_app_deploy_remote_archive_basename: ""
 lantern_app_deploy_remote_latest_archive_path: ""
 lantern_app_deploy_deploy_archive: false
 lantern_app_deploy_owner: lantern
