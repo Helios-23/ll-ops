@@ -142,6 +142,60 @@
     - lantern_app_deploy_bundle_changed or lantern_app_deploy_latest_archive_path == ""
   run_once: true
 
+- name: Stat Lantern app archive on controller
+  delegate_to: localhost
+  stat:
+    path: "{{ lantern_app_deploy_latest_archive_path }}"
+  register: lantern_app_deploy_local_archive_stat
+  run_once: true
+
+- name: Discover Lantern app archives on target host
+  find:
+    paths: /tmp
+    patterns: "{{ lantern_app_deploy_remote_archive_glob }}"
+    file_type: file
+  register: lantern_app_deploy_remote_archive_find
+
+- name: Select newest Lantern app archive on target host
+  set_fact:
+    lantern_app_deploy_remote_latest_archive_path: >-
+      {{
+        (lantern_app_deploy_remote_archive_find.files
+        | sort(attribute='mtime', reverse=true)
+        | first).path
+        if lantern_app_deploy_remote_archive_find.matched | int > 0
+        else ''
+      }}
+
+- name: Stat newest Lantern app archive on target host
+  stat:
+    path: "{{ lantern_app_deploy_remote_latest_archive_path }}"
+  register: lantern_app_deploy_remote_archive_stat
+  when: lantern_app_deploy_remote_latest_archive_path != ""
+
+- name: Decide whether Lantern app archive should be deployed
+  set_fact:
+    lantern_app_deploy_local_archive_mtime: "{{ lantern_app_deploy_local_archive_stat.stat.mtime | default(0) | int }}"
+    lantern_app_deploy_local_archive_size: "{{ lantern_app_deploy_local_archive_stat.stat.size | default(0) | int }}"
+    lantern_app_deploy_remote_archive_mtime: >-
+      {{
+        lantern_app_deploy_remote_archive_stat.stat.mtime | default(0) | int
+        if lantern_app_deploy_remote_latest_archive_path != ""
+        else 0
+      }}
+    lantern_app_deploy_remote_archive_size: >-
+      {{
+        lantern_app_deploy_remote_archive_stat.stat.size | default(0) | int
+        if lantern_app_deploy_remote_latest_archive_path != ""
+        else 0
+      }}
+    lantern_app_deploy_deploy_archive: >-
+      {{
+        lantern_app_deploy_remote_latest_archive_path == ""
+        or lantern_app_deploy_local_archive_mtime | int > lantern_app_deploy_remote_archive_mtime | int
+        or lantern_app_deploy_local_archive_size | int != lantern_app_deploy_remote_archive_size | int
+      }}
+
 - name: Ensure Lantern service group exists on target host
   group:
     name: "{{ lantern_app_deploy_group }}"
@@ -170,16 +224,23 @@
     owner: "{{ lantern_app_deploy_owner }}"
     group: "{{ lantern_app_deploy_group }}"
     mode: "0644"
+  when: lantern_app_deploy_deploy_archive
 
 - name: Extract Lantern app bundle on target host
   unarchive:
-    src: "{{ lantern_app_deploy_remote_archive_path }}"
+    src: >-
+      {{
+        lantern_app_deploy_remote_archive_path
+        if lantern_app_deploy_deploy_archive
+        else lantern_app_deploy_remote_latest_archive_path
+      }}
     dest: "{{ lantern_app_deploy_remote_root }}"
     remote_src: true
     owner: "{{ lantern_app_deploy_owner }}"
     group: "{{ lantern_app_deploy_group }}"
     extra_opts:
       - --no-same-owner
+  when: lantern_app_deploy_deploy_archive
 
 - name: Ensure deployed Lantern app permissions are owned by lantern
   when: lantern_app_deploy_owner != "root"
@@ -189,8 +250,3 @@
     owner: "{{ lantern_app_deploy_owner }}"
     group: "{{ lantern_app_deploy_group }}"
     recurse: true
-
-- name: Remove staged Lantern app archive from target host
-  file:
-    path: "{{ lantern_app_deploy_remote_archive_path }}"
-    state: absent

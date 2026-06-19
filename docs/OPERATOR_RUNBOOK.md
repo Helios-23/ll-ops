@@ -233,8 +233,8 @@ What it does:
 - refreshes the Lantern repo on the controller with `git clone` or `git pull`
 - creates `/opt/release/lantern/app/<app_id>-<YYYYMMDD-HHMM>.tar.gz` on the controller
 - rebuilds that archive only when the app bundle contents change
-- selects the newest matching archive in `/opt/release/lantern/app` and copies that archive to `gex0`
-- extracts it into `/srv/lantern/apps/<app_id>` with `lantern:lantern` ownership
+- keeps the last deployed app archive on `gex0` and only copies/extracts a newer controller archive
+- extracts newer archives into `/srv/lantern/apps/<app_id>` with `lantern:lantern` ownership
 
 Supported app ids today:
 
@@ -242,7 +242,7 @@ Supported app ids today:
 - `graph_studio`
 - `ucal`
 
-The archive is built on the controller under `/opt/release/lantern/app` only when the bundle changes, and deployment uses the newest matching archive in that directory.
+The archive is built on the controller under `/opt/release/lantern/app` only when the bundle changes, and deployment only proceeds when that controller archive is newer than the cached archive on `gex0`.
 
 ### 9. Prepare and publish releases
 

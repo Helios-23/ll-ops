@@ -25,8 +25,3 @@
     enabled: true
     state: restarted
   loop: "{{ lantern_deploy_services }}"
-
-- name: Remove staged Lantern package from target host
-  file:
-    path: "{{ lantern_deploy_package_dest }}"
-    state: absent
