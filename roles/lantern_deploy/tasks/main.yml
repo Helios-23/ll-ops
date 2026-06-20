@@ -56,14 +56,6 @@
     executable: /bin/sh
   register: lantern_deploy_install
 
-- name: Ensure Lantern log directory exists on target host
-  file:
-    path: /var/log/lantern
-    state: directory
-    owner: lantern
-    group: lantern
-    mode: "0755"
-
 - name: Restart Lantern services after package install
   systemd:
     name: "{{ item }}"

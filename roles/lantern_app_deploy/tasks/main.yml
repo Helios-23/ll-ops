@@ -17,27 +17,6 @@
     force: true
   run_once: true
 
-- name: Read Lantern app git revision on controller
-  delegate_to: localhost
-  become: false
-  command: git rev-parse --short=8 HEAD
-  args:
-    chdir: "{{ lantern_app_deploy_repo_dir }}"
-  register: lantern_app_deploy_archive_revision_result
-  changed_when: false
-  run_once: true
-
-- name: Set Lantern app archive naming facts on controller
-  delegate_to: localhost
-  become: false
-  set_fact:
-    lantern_app_deploy_archive_revision: "{{ lantern_app_deploy_archive_revision_result.stdout | trim }}"
-    lantern_app_deploy_archive_path: >-
-      {{ lantern_app_deploy_controller_release_root }}/{{ lantern_app_id }}-{{ lantern_app_deploy_archive_stamp }}-{{ lantern_app_deploy_archive_revision_result.stdout | trim }}-{{ lantern_app_deploy_bundle_fingerprint_short }}.{{ lantern_app_deploy_archive_ext }}
-    lantern_app_deploy_remote_archive_path: >-
-      /tmp/{{ lantern_app_id }}-{{ lantern_app_deploy_archive_stamp }}-{{ lantern_app_deploy_archive_revision_result.stdout | trim }}-{{ lantern_app_deploy_bundle_fingerprint_short }}.{{ lantern_app_deploy_archive_ext }}
-  run_once: true
-
 - name: Read existing Lantern app bundle fingerprint on controller
   delegate_to: localhost
   become: false
@@ -92,7 +71,6 @@
   become: false
   set_fact:
     lantern_app_deploy_bundle_fingerprint: "{{ lantern_app_deploy_bundle_fingerprint_result.stdout | trim }}"
-    lantern_app_deploy_bundle_fingerprint_short: "{{ lantern_app_deploy_bundle_fingerprint_result.stdout | trim | regex_replace('^(.{8}).*$', '\\1') }}"
     lantern_app_deploy_previous_bundle_fingerprint: >-
       {{
         (
@@ -164,87 +142,6 @@
     - lantern_app_deploy_bundle_changed or lantern_app_deploy_latest_archive_path == ""
   run_once: true
 
-- name: Stat Lantern app archive on controller
-  delegate_to: localhost
-  stat:
-    path: "{{ lantern_app_deploy_latest_archive_path }}"
-  register: lantern_app_deploy_local_archive_stat
-  run_once: true
-
-- name: Read Lantern app deployed archive marker on target host
-  stat:
-    path: "{{ lantern_app_deploy_remote_deployed_archive_path }}"
-  register: lantern_app_deploy_remote_deployed_archive_stat
-
-- name: Load Lantern app deployed archive marker on target host
-  slurp:
-    src: "{{ lantern_app_deploy_remote_deployed_archive_path }}"
-  register: lantern_app_deploy_remote_deployed_archive_slurp
-  when: lantern_app_deploy_remote_deployed_archive_stat.stat.exists
-
-- name: Read Lantern app deployed archive marker on target host
-  set_fact:
-    lantern_app_deploy_remote_deployed_archive_basename: >-
-      {{
-        (
-          lantern_app_deploy_remote_deployed_archive_slurp.content
-          | default('')
-          | b64decode
-          | trim
-        )
-        if lantern_app_deploy_remote_deployed_archive_stat.stat.exists
-        else ''
-      }}
-
-- name: Decide whether Lantern app archive should be deployed
-  set_fact:
-    lantern_app_deploy_local_archive_mtime: "{{ lantern_app_deploy_local_archive_stat.stat.mtime | default(0) | int }}"
-    lantern_app_deploy_local_archive_size: "{{ lantern_app_deploy_local_archive_stat.stat.size | default(0) | int }}"
-    lantern_app_deploy_local_archive_basename: "{{ lantern_app_deploy_latest_archive_path | basename }}"
-    lantern_app_deploy_deploy_archive: >-
-      {{
-        lantern_app_deploy_bundle_changed
-        or lantern_app_deploy_local_archive_basename != lantern_app_deploy_remote_deployed_archive_basename
-      }}
-
-- name: Ensure Lantern service group exists on target host
-  group:
-    name: "{{ lantern_app_deploy_group }}"
-    system: true
-
-- name: Ensure Lantern service user exists on target host
-  user:
-    name: "{{ lantern_app_deploy_owner }}"
-    group: "{{ lantern_app_deploy_group }}"
-    system: true
-    home: /srv/lantern
-    create_home: false
-
-- name: Ensure Lantern app deployment root exists
-  file:
-    path: "{{ lantern_app_deploy_remote_root }}"
-    state: directory
-    owner: "{{ lantern_app_deploy_owner }}"
-    group: "{{ lantern_app_deploy_group }}"
-    mode: "{{ lantern_app_deploy_directory_mode }}"
-
-- name: Ensure Lantern log directory exists on target host
-  file:
-    path: /var/log/lantern
-    state: directory
-    owner: lantern
-    group: lantern
-    mode: "0755"
-
-- name: Ensure Lantern app archive store exists on target host
-  file:
-    path: "{{ lantern_app_deploy_remote_archive_store_dir }}"
-    state: directory
-    owner: "{{ lantern_app_deploy_owner }}"
-    group: "{{ lantern_app_deploy_group }}"
-    mode: "{{ lantern_app_deploy_directory_mode }}"
-  when: lantern_app_deploy_deploy_archive
-
 - name: Copy Lantern app archive to target host
   copy:
     src: "{{ lantern_app_deploy_latest_archive_path }}"
@@ -252,48 +149,18 @@
     owner: "{{ lantern_app_deploy_owner }}"
     group: "{{ lantern_app_deploy_group }}"
     mode: "0644"
-  when: lantern_app_deploy_deploy_archive
 
 - name: Extract Lantern app bundle on target host
   unarchive:
-    src: >-
-      {{
-        lantern_app_deploy_remote_archive_path
-        if lantern_app_deploy_deploy_archive
-        else lantern_app_deploy_latest_archive_path
-      }}
+    src: "{{ lantern_app_deploy_remote_archive_path }}"
     dest: "{{ lantern_app_deploy_remote_root }}"
     remote_src: true
     owner: "{{ lantern_app_deploy_owner }}"
     group: "{{ lantern_app_deploy_group }}"
     extra_opts:
       - --no-same-owner
-  when: lantern_app_deploy_deploy_archive
 
-- name: Store deployed Lantern app archive on target host
-  copy:
-    src: "{{ lantern_app_deploy_remote_archive_path }}"
-    dest: "{{ lantern_app_deploy_remote_archive_store_dir }}/{{ lantern_app_deploy_local_archive_basename }}"
-    remote_src: true
-    owner: "{{ lantern_app_deploy_owner }}"
-    group: "{{ lantern_app_deploy_group }}"
-    mode: "0644"
-  when: lantern_app_deploy_deploy_archive
-
-- name: Record deployed Lantern app archive basename on target host
-  copy:
-    dest: "{{ lantern_app_deploy_remote_deployed_archive_path }}"
-    content: "{{ lantern_app_deploy_local_archive_basename }}\n"
-    owner: "{{ lantern_app_deploy_owner }}"
-    group: "{{ lantern_app_deploy_group }}"
-    mode: "0644"
-  when: lantern_app_deploy_deploy_archive
-
-- name: Ensure deployed Lantern app permissions are owned by lantern
-  when: lantern_app_deploy_owner != "root"
+- name: Remove staged Lantern app archive from target host
   file:
-    path: "{{ lantern_app_deploy_remote_app_dir }}"
-    state: directory
-    owner: "{{ lantern_app_deploy_owner }}"
-    group: "{{ lantern_app_deploy_group }}"
-    recurse: true
+    path: "{{ lantern_app_deploy_remote_archive_path }}"
+    state: absent

@@ -1,5 +1,5 @@
 - name: Build Lantern Debian release package
-  hosts: localhost
+  hosts: gex0
   become: false
   gather_facts: false
   tags:

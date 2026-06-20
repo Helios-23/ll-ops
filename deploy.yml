@@ -4,6 +4,17 @@
   gather_facts: false
   tags:
     - lantern_runtime
+  pre_tasks:
+    - name: Initialize Lantern runtime target filesystem
+      include_tasks: tasks/lantern_target_init.yml
+      vars:
+        lantern_target_init_user: lantern
+        lantern_target_init_group: lantern
+        lantern_target_init_directories:
+          - path: /var/log/lantern
+            owner: lantern
+            group: lantern
+            mode: "0755"
   roles:
     - role: lantern_deploy
       tags: lantern_runtime
@@ -14,6 +25,25 @@
   gather_facts: false
   tags:
     - lantern_app
+  pre_tasks:
+    - name: Initialize Lantern app target filesystem
+      include_tasks: tasks/lantern_target_init.yml
+      vars:
+        lantern_target_init_user: lantern
+        lantern_target_init_group: lantern
+        lantern_target_init_directories:
+          - path: /srv/lantern
+            owner: lantern
+            group: lantern
+            mode: "0755"
+          - path: /srv/lantern/apps
+            owner: lantern
+            group: lantern
+            mode: "0755"
+          - path: /var/log/lantern
+            owner: lantern
+            group: lantern
+            mode: "0755"
   roles:
     - role: lantern_app_deploy
       tags: lantern_app
