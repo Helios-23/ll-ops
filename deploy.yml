@@ -4,9 +4,9 @@
   gather_facts: false
   tags:
     - lantern_runtime
-  pre_tasks:
-    - name: Initialize Lantern runtime target filesystem
-      vars:
+  #pre_tasks:
+  #  - name: Initialize Lantern runtime target filesystem
+  #    vars:
         lantern_target_init_user: lantern
         lantern_target_init_group: lantern
         lantern_target_init_directories:
