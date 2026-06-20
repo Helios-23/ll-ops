@@ -55,13 +55,7 @@
   args:
     executable: /bin/sh
   register: lantern_deploy_install
-
-- name: Restart Lantern services after package install
-  systemd:
-    name: "{{ item }}"
-    enabled: true
-    state: restarted
-  loop: "{{ lantern_deploy_services }}"
+  notify: Restart Lantern services
 
 - name: Find stale Lantern packages on target host
   find:

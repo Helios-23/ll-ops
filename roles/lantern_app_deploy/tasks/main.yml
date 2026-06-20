@@ -159,6 +159,7 @@
     group: "{{ lantern_app_deploy_group }}"
     extra_opts:
       - --no-same-owner
+  notify: Restart Lantern services
 
 - name: Remove staged Lantern app archive from target host
   file:

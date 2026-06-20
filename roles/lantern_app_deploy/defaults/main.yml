@@ -33,3 +33,6 @@ lantern_app_deploy_deploy_archive: false
 lantern_app_deploy_owner: lantern
 lantern_app_deploy_group: lantern
 lantern_app_deploy_directory_mode: "0755"
+lantern_app_deploy_services:
+  - lantern.service
+  - lantern-ha.service

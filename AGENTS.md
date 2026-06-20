@@ -44,6 +44,9 @@ Apply this guard only to changes in `ops/`. Do not require it for unrelated part
 
 If you changed anything under `ops/`, mention whether you updated the `ops/docs/` docs set and whether you ran `ops/bin/check_features_sync.py`.
 
+End completed chats with a commit message that summarizes the full change set.
+That commit message must not contain single quotes, double quotes, backticks, or tildes.
+
 ## Local Ansible command preferences
 
 When suggesting Ansible commands for work in `ops/`, use these local defaults unless the user says otherwise:
