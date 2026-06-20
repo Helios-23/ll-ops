@@ -7,7 +7,9 @@ lantern_app_deploy_controller_release_root: /opt/release/lantern/app
 lantern_app_deploy_archive_ext: tar.gz
 lantern_app_deploy_archive_stamp: "{{ lookup('pipe', 'date +%Y%m%d-%H%M') }}"
 lantern_app_deploy_archive_revision: ""
-lantern_app_deploy_archive_path: ""
+lantern_app_deploy_archive_basename: >-
+  {{ lantern_app_id }}-{{ lantern_app_deploy_archive_stamp }}{{ lantern_app_deploy_archive_revision | ternary('-' ~ lantern_app_deploy_archive_revision, '') }}.{{ lantern_app_deploy_archive_ext }}
+lantern_app_deploy_archive_path: "{{ lantern_app_deploy_controller_release_root }}/{{ lantern_app_deploy_archive_basename }}"
 lantern_app_deploy_archive_glob: "{{ lantern_app_id }}-*.{{ lantern_app_deploy_archive_ext }}"
 lantern_app_deploy_latest_archive_path: ""
 lantern_app_deploy_bundle_fingerprint_path: >-
@@ -20,13 +22,13 @@ lantern_app_deploy_remote_root: /srv/lantern/apps
 lantern_app_deploy_remote_app_dir: "{{ lantern_app_deploy_remote_root }}/{{ lantern_app_id }}"
 lantern_app_deploy_remote_archive_store_dir: "{{ lantern_app_deploy_remote_app_dir }}/.archives"
 lantern_app_deploy_remote_deployed_archive_path: "{{ lantern_app_deploy_remote_app_dir }}/.deployed-archive"
-lantern_app_deploy_remote_archive_path: ""
+lantern_app_deploy_remote_archive_path: "{{ lantern_app_deploy_remote_deployed_archive_path }}"
 lantern_app_deploy_remote_archive_glob: "{{ lantern_app_id }}-*.{{ lantern_app_deploy_archive_ext }}"
 lantern_app_deploy_remote_log_dir: /var/log/lantern
 lantern_app_deploy_local_archive_size: 0
 lantern_app_deploy_local_archive_mtime: 0
-lantern_app_deploy_local_archive_basename: ""
-lantern_app_deploy_remote_archive_basename: ""
+lantern_app_deploy_local_archive_basename: "{{ lantern_app_deploy_archive_basename }}"
+lantern_app_deploy_remote_archive_basename: "{{ lantern_app_deploy_archive_basename }}"
 lantern_app_deploy_deploy_archive: false
 lantern_app_deploy_owner: lantern
 lantern_app_deploy_group: lantern
