@@ -6,6 +6,22 @@ terraform {
   }
 }
 
+locals {
+  cloud_init = <<-EOT
+    #cloud-config
+    users:
+      - default
+      - name: ${var.devops_user}
+        groups:
+          - sudo
+        shell: /bin/bash
+        sudo: ALL=(ALL) NOPASSWD:ALL
+        ssh_authorized_keys:
+          - ${trimspace(var.ssh_public_key)}
+          - ${trimspace(var.ssh_fips_public_key)}
+  EOT
+}
+
 resource "hcloud_network" "this" {
   name     = var.network_name
   ip_range = var.network_ip_range
@@ -47,6 +63,7 @@ resource "hcloud_server" "this" {
   image       = var.server_image
   location    = var.server_location
   ssh_keys    = [hcloud_ssh_key.devops.id]
+  user_data   = local.cloud_init
   backups     = true
 
   lifecycle {
@@ -64,6 +81,32 @@ resource "hcloud_server_network" "private" {
   server_id  = hcloud_server.this.id
   network_id = hcloud_network.this.id
   ip         = var.server_private_ip
+}
+
+resource "hcloud_server" "web" {
+  name        = var.web_server_name
+  server_type = var.web_server_type
+  image       = var.web_server_image
+  location    = var.web_server_location
+  ssh_keys    = [hcloud_ssh_key.devops.id]
+  user_data   = local.cloud_init
+  backups     = true
+
+  lifecycle {
+    ignore_changes = [
+      user_data,
+      labels,
+      placement_group_id,
+      firewall_ids,
+      ssh_keys,
+    ]
+  }
+}
+
+resource "hcloud_server_network" "web_private" {
+  server_id  = hcloud_server.web.id
+  network_id = hcloud_network.this.id
+  ip         = var.web_server_private_ip
 }
 
 resource "terraform_data" "dedicated_server" {

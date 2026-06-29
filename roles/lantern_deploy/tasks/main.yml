@@ -50,8 +50,9 @@
 - name: Install Lantern package
   shell: >
     set -e &&
-    dpkg -i "{{ lantern_deploy_package_dest }}" &&
-    apt-get -f install -y
+    dpkg -i "{{ lantern_deploy_package_dest }}" ||
+    apt-get -f install -y &&
+    dpkg -i "{{ lantern_deploy_package_dest }}"
   args:
     executable: /bin/sh
   register: lantern_deploy_install

@@ -28,6 +28,11 @@ output "server_name" {
   value       = var.server_name
 }
 
+output "server_inventory_name" {
+  description = "Inventory hostname for the provisioned cloud server."
+  value       = "${var.server_name}0"
+}
+
 output "server_ipv4" {
   description = "Public IPv4 address of the provisioned server."
   value       = module.hetzner_vpc.server_ipv4
@@ -36,6 +41,31 @@ output "server_ipv4" {
 output "server_private_ip" {
   description = "Private IP address of the provisioned cloud server."
   value       = module.hetzner_vpc.server_private_ip
+}
+
+output "web_server_id" {
+  description = "ID of the provisioned web server."
+  value       = module.hetzner_vpc.web_server_id
+}
+
+output "web_server_name" {
+  description = "Name of the provisioned web server."
+  value       = var.web_server_name
+}
+
+output "web_server_inventory_name" {
+  description = "Inventory hostname for the provisioned web server."
+  value       = "${var.web_server_name}0"
+}
+
+output "web_server_ipv4" {
+  description = "Public IPv4 address of the provisioned web server."
+  value       = module.hetzner_vpc.web_server_ipv4
+}
+
+output "web_server_private_ip" {
+  description = "Private IP address of the provisioned web server."
+  value       = module.hetzner_vpc.web_server_private_ip
 }
 
 output "dedicated_server" {
@@ -50,5 +80,5 @@ output "dns_records" {
 
 output "dns_record_values" {
   description = "DNS records with their names and values for inventory mapping."
-  value       = var.cloudflare_dns_records
+  value       = local.effective_cloudflare_dns_records
 }

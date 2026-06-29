@@ -1,3 +1,19 @@
+locals {
+  effective_cloudflare_dns_records = merge(
+    var.cloudflare_dns_records,
+    contains(keys(var.cloudflare_dns_records), "repo") ? {
+      repo = merge(var.cloudflare_dns_records["repo"], {
+        value = module.hetzner_vpc.server_ipv4
+      })
+    } : {},
+    contains(keys(var.cloudflare_dns_records), "lantern") ? {
+      lantern = merge(var.cloudflare_dns_records["lantern"], {
+        value = module.hetzner_vpc.web_server_ipv4
+      })
+    } : {},
+  )
+}
+
 module "hetzner_vpc" {
   source = "./modules/hetzner_vpc"
 
@@ -22,6 +38,12 @@ module "hetzner_vpc" {
   server_location   = var.server_location
   devops_user       = var.devops_user
 
+  web_server_name       = var.web_server_name
+  web_server_private_ip = var.web_server_private_ip
+  web_server_type       = var.web_server_type
+  web_server_image      = var.web_server_image
+  web_server_location   = var.web_server_location
+
   dedicated_server_name       = var.dedicated_server_name
   dedicated_server_public_ip  = var.dedicated_server_public_ip
   dedicated_server_private_ip = var.dedicated_server_private_ip
@@ -32,5 +54,5 @@ module "cloudflare_dns" {
   source = "./modules/cloudflare_dns"
 
   zone_id = var.cloudflare_zone_id
-  records = var.cloudflare_dns_records
+  records = local.effective_cloudflare_dns_records
 }

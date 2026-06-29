@@ -2,8 +2,12 @@
   hosts: localhost
   connection: local
   gather_facts: false
+  become: false
   tags:
     - terraform
+  vars:
+    tf_dir: "{{ playbook_dir }}/tf"
+    inventory_file: "{{ playbook_dir }}/inventory/epytype"
 
   tasks:
     - name: Check Terraform is initialized
@@ -55,8 +59,13 @@
     - name: Parse server details from outputs
       set_fact:
         tf_server_name: "{{ (tf_outputs.stdout | from_json).server_name.value | default('') }}"
+        tf_server_inventory_name: "{{ (tf_outputs.stdout | from_json).server_inventory_name.value | default('') }}"
         tf_server_ipv4: "{{ (tf_outputs.stdout | from_json).server_ipv4.value | default('') }}"
         tf_server_private_ip: "{{ (tf_outputs.stdout | from_json).server_private_ip.value | default('') }}"
+        tf_web_server_name: "{{ (tf_outputs.stdout | from_json).web_server_name.value | default('') }}"
+        tf_web_server_inventory_name: "{{ (tf_outputs.stdout | from_json).web_server_inventory_name.value | default('') }}"
+        tf_web_server_ipv4: "{{ (tf_outputs.stdout | from_json).web_server_ipv4.value | default('') }}"
+        tf_web_server_private_ip: "{{ (tf_outputs.stdout | from_json).web_server_private_ip.value | default('') }}"
         tf_dedicated_server: "{{ (tf_outputs.stdout | from_json).dedicated_server.value | default({}) }}"
         tf_dns_records: "{{ (tf_outputs.stdout | from_json).dns_record_values.value | default({}) }}"
 
@@ -72,18 +81,49 @@
     - name: Check if cloud server exists in inventory
       set_fact:
         server_in_inventory: >-
-          {{ inventory_lines | select('search', '^\\s*' + tf_server_name + '\\d*\\s') | list | length > 0 }}
+          {{ inventory_lines | select('search', '^\\s*' + tf_server_inventory_name + '\\s') | list | length > 0 }}
 
-    - name: Add cloud server to prod group
+    - name: Remove stale generated cloud server inventory alias
+      lineinfile:
+        path: "{{ inventory_file }}"
+        regexp: "^{{ tf_server_name }}1\\s+"
+        state: absent
+      when:
+        - tf_server_name | length > 0
+        - tf_server_inventory_name != (tf_server_name ~ '1')
+
+    - name: Add or update cloud server in prod group
       lineinfile:
         path: "{{ inventory_file }}"
         insertafter: "\\[prod\\]"
-        line: "{{ tf_server_name }}1            ansible_host={{ tf_server_ipv4 }}      host_name={{ tf_server_name }}1"
-      when: not server_in_inventory and tf_server_name | length > 0
+        regexp: "^{{ tf_server_inventory_name }}\\s+"
+        line: "{{ tf_server_inventory_name }}            ansible_host={{ tf_server_ipv4 }}      host_name={{ tf_server_inventory_name }}"
+      when: tf_server_inventory_name | length > 0
+
+    - name: Ensure prod_web group exists in inventory
+      lineinfile:
+        path: "{{ inventory_file }}"
+        line: "[prod_web]"
+        insertafter: EOF
+      when: tf_web_server_name | length > 0
+
+    - name: Check if web server exists in inventory
+      set_fact:
+        web_server_in_inventory: >-
+          {{ inventory_lines | select('search', '^\\s*' + tf_web_server_inventory_name + '\\s') | list | length > 0 }}
+
+    - name: Add or update web server in prod_web group
+      lineinfile:
+        path: "{{ inventory_file }}"
+        insertafter: "\\[prod_web\\]"
+        regexp: "^{{ tf_web_server_inventory_name }}\\s+"
+        line: "{{ tf_web_server_inventory_name }}            ansible_host={{ tf_web_server_ipv4 }}      host_name={{ tf_web_server_inventory_name }}"
+      when: tf_web_server_inventory_name | length > 0
 
     - name: Show inventory sync result
       debug:
         msg: |
-          Server: {{ tf_server_name }}1 -> {{ tf_server_ipv4 }} (private: {{ tf_server_private_ip }})
+          Server: {{ tf_server_inventory_name }} -> {{ tf_server_ipv4 }} (private: {{ tf_server_private_ip }})
+          Web server: {{ tf_web_server_inventory_name }} -> {{ tf_web_server_ipv4 }} (private: {{ tf_web_server_private_ip }})
           {% if tf_dedicated_server %}Dedicated: {{ tf_dedicated_server.name }} -> {{ tf_dedicated_server.public_ip }} (private: {{ tf_dedicated_server.private_ip }}){% endif %}
           {% if tf_dns_records %}DNS records: {{ tf_dns_records | to_json }}{% endif %}

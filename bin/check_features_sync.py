@@ -35,7 +35,7 @@ DOCUMENTED_SECTIONS = {
     "playbook list": {
         "start": "## Playbook Quick Map",
         "end": "## Examples",
-        "include": lambda token: token.endswith(".yml"),
+        "include": lambda token: token.endswith(".yml") or token.endswith(".yaml"),
     },
     "role list": {
         "start": "## Role Notes",
@@ -137,7 +137,12 @@ def extract_tags_from_yaml(path: Path) -> set[str]:
 
 
 def actual_tags() -> set[str]:
-    yaml_files = list(OPS_DIR.glob("*.yml")) + list(ROLES_DIR.rglob("*.yml"))
+    yaml_files = (
+        list(OPS_DIR.glob("*.yml"))
+        + list(OPS_DIR.glob("*.yaml"))
+        + list(ROLES_DIR.rglob("*.yml"))
+        + list(ROLES_DIR.rglob("*.yaml"))
+    )
     tags: set[str] = set()
     for path in sorted(yaml_files):
         tags.update(extract_tags_from_yaml(path))
@@ -145,7 +150,10 @@ def actual_tags() -> set[str]:
 
 
 def actual_playbooks() -> set[str]:
-    return {path.name for path in OPS_DIR.glob("*.yml")}
+    return {
+        path.name
+        for path in list(OPS_DIR.glob("*.yml")) + list(OPS_DIR.glob("*.yaml"))
+    }
 
 
 def actual_roles() -> set[str]:

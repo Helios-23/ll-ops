@@ -136,6 +136,36 @@ variable "devops_user" {
   default     = "devops"
 }
 
+variable "web_server_name" {
+  description = "Name of the Hetzner Cloud web server."
+  type        = string
+  default     = "web"
+}
+
+variable "web_server_private_ip" {
+  description = "Private IP for the web server inside the selected subnet."
+  type        = string
+  default     = "10.50.1.11"
+}
+
+variable "web_server_type" {
+  description = "Hetzner Cloud server type for the web host."
+  type        = string
+  default     = "cpx22"
+}
+
+variable "web_server_image" {
+  description = "Image used to provision the web server."
+  type        = string
+  default     = "ubuntu-24.04"
+}
+
+variable "web_server_location" {
+  description = "Hetzner location for the web server."
+  type        = string
+  default     = "nbg1"
+}
+
 variable "cloudflare_zone_id" {
   description = "Cloudflare zone ID for the domain."
   type        = string

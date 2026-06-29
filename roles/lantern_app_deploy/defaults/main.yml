@@ -1,9 +1,9 @@
 lantern_app_id: ucal
 lantern_app_deploy_repo_dir: "{{ playbook_dir }}/../lantern"
-lantern_app_deploy_repo_url: git@repo.epytype.org:Epytype/lantern.git
+lantern_app_deploy_repo_url: git@github.com:jperry303/lantern.git
 lantern_app_deploy_repo_version: HEAD
 lantern_app_deploy_source_dir: "{{ lantern_app_deploy_repo_dir }}/apps/{{ lantern_app_id }}"
-lantern_app_deploy_controller_release_root: /opt/release/lantern/app
+lantern_app_deploy_controller_release_root: "{{ lantern_app_deploy_repo_dir }}/dist/release/app"
 lantern_app_deploy_archive_ext: tar.gz
 lantern_app_deploy_archive_stamp: "{{ lookup('pipe', 'date +%Y%m%d-%H%M') }}"
 lantern_app_deploy_archive_revision: ""

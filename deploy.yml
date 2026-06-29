@@ -1,5 +1,5 @@
 - name: Deploy Lantern runtime package
-  hosts: gex0
+  hosts: web0
   become: true
   gather_facts: false
   tags:
@@ -9,11 +9,14 @@
       tags: lantern_runtime
 
 - name: Deploy Lantern app bundle
-  hosts: gex0
+  hosts: web0
   become: true
   gather_facts: false
   tags:
     - lantern_app
+    - lantern_app_deploy
   roles:
     - role: lantern_app_deploy
-      tags: lantern_app
+      tags:
+        - lantern_app
+        - lantern_app_deploy

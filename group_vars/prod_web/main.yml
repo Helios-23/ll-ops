@@ -1,0 +1,6 @@
+allowed_ssh_users:
+  - "devops"
+
+sshd_password_auth: "no"
+fail2ban_feature_sshd_invalid_user_enabled: true
+fail2ban_feature_reverse_proxy_enabled: false

@@ -10,14 +10,16 @@ Use this as the quick command map; the **Complete Tag Index** below is the autho
 
 | Playbook | Scope | Flow | Main tags | Focus tags |
 | --- | --- | --- | --- | --- |
-| `setup_epytype.yml` | `repo0`, `gex0` | choose `repo_server` or `ai_server` -> narrow to a role tag -> narrow to a task tag | `repo_server`, `ai_server` | `forgejo`, `forgejo_pull`, `harden`, `ai_rig`, `lantern`, `ipv4-forward`, `forgejo_users`, `ollama`, `pull_models`, `show_models`, `webui`, `ai_nginx`, `ai_certbot` |
-| `deploy.yml` | `gex0` | choose `lantern_runtime` to install a staged Lantern `.deb` and restart the Lantern services on `gex0`, or choose `lantern_app` to sync and extract a Lantern app bundle into `/srv/lantern/apps/<app_id>` | `lantern_runtime`, `lantern_app` | `lantern_runtime`, `lantern_app` |
+| `setup_epytype.yml` | `repo0`, `gex0`, `web0` | choose `repo_server`, `ai_server`, or `web_server` -> narrow to a role tag -> narrow to a task tag | `repo_server`, `ai_server`, `web_server` | `forgejo`, `forgejo_pull`, `harden`, `ai_rig`, `lantern`, `ipv4-forward`, `forgejo_users`, `ollama`, `pull_models`, `show_models`, `webui`, `ai_nginx`, `ai_certbot` |
+| `deploy.yml` | `web0` | choose `lantern_runtime` to install a staged Lantern `.deb` and restart the Lantern services on `web0`, or choose `lantern_app` to sync and extract a Lantern app bundle into `/srv/lantern/apps/<app_id>` | `lantern_runtime`, `lantern_app` | `lantern_runtime`, `lantern_app` |
 | `release.yaml` | `localhost` | stage fresh Lantern binaries on the controller, build the `.deb` with a `+git<sha>` version suffix and dirty-tree marker when needed, and leave the package in the release output directory; package payload includes only `atlas_studio` and `graph_studio` | `lantern_release` | `lantern_release` |
 | `repo0_nbde.yml` | `repo0` | provide vaulted LUKS/Clevis vars -> run preflight on an already encrypted host -> bind Clevis and rebuild initramfs | `repo0_nbde` | `luks_nbde` |
 | `admin.yml` | `all` with `-l/--limit` required | choose hosts -> run `admin` or `update_reboot` -> use Tailscale tags if needed | `admin` | `update_reboot`, `tailscale`, `tailscale_machine`, `tailscale_policy` |
 | `github-release.yml` | localhost | choose `epytype` or `lantern` -> optionally override version vars -> run from `ops/` | `epytype`, `lantern` | release variables only; no extra Ansible task tags |
 | `terraform.yml` | localhost | run plan -> apply automatically on drift -> sync inventory from outputs | `terraform` | none |
 | `kymstr.yml` | selected hosts | choose hosts -> run `kymstr` or an explicit opt-in task tag -> many paths also require `never` | `kymstr` | `ssh-auth`, `ssh-key`, `gen-csr`, `encrypt`, `cert`, `never` |
+| `lantern-app-deploy.yml` | `web0` | thin wrapper that imports `deploy.yml` for Lantern app/runtime deploy flows | inherited from `deploy.yml` | `lantern_runtime`, `lantern_app`, `lantern_app_deploy` |
+| `lantern-release-deploy.yml` | localhost, `web0` | thin wrapper that imports `release.yaml` and then `deploy.yml` | inherited from imported playbooks | `lantern_release`, `lantern_runtime`, `lantern_app`, `lantern_app_deploy` |
 
 ## Examples
 
@@ -29,7 +31,7 @@ apb setup_epytype.yml -l repo0 -t forgejo
 apb setup_epytype.yml -l repo0 -t forgejo_pull
 apb setup_epytype.yml -l repo0 -t forgejo_users
 apb setup_epytype.yml -l gex0 -t ai_rig
-apb setup_epytype.yml -l gex0 -t lantern
+apb setup_epytype.yml -l web0 -t lantern
 apb setup_epytype.yml -l gex0 -t ollama
 apb setup_epytype.yml -l gex0 -t pull_models
 apb setup_epytype.yml -l gex0 -t show_models
@@ -111,7 +113,7 @@ apb kymstr.yml -l repo0 -t cert
 
 | Tags |
 | --- |
-| `admin`, `ai_server`, `epytype`, `kymstr`, `lantern`, `lantern_app_deploy`, `lantern_app`, `lantern_release`, `lantern_runtime`, `repo0_nbde`, `repo_server`, `terraform` |
+| `admin`, `ai_server`, `epytype`, `kymstr`, `lantern`, `lantern_app_deploy`, `lantern_app`, `lantern_release`, `lantern_runtime`, `repo0_nbde`, `repo_server`, `terraform`, `web_server` |
 
 ### Role-level tags
 
@@ -135,9 +137,9 @@ apb kymstr.yml -l repo0 -t cert
 | `roles/harden` | `harden` | Extra tags: `fail2ban`, `fail2ban_sshd_invalid_user`, `ipv4-forward`, `reverse_proxy_fail2ban`. Feature booleans: `fail2ban_feature_forgejo_enabled`, `fail2ban_feature_reverse_proxy_enabled`, `fail2ban_feature_sshd_invalid_user_enabled`. |
 | `roles/tailscale_admin` | `tailscale`, `tailscale_machine`, `tailscale_policy` | `tailscale_machine` covers host-side install and `tailscale up`; `tailscale_policy` pushes tailnet ACL/SSH policy. Feature booleans: `tailscale_machine_enabled`, `tailscale_policy_enabled`. |
 | `roles/ai_rig` | `ai_rig` | Extra tags: `ai_certbot`, `ai_nginx`, `ollama`, `pull_models`, `show_models`, `webui`. `ai_nginx` is the narrow path for the AI vhost only. `ai_certbot` is the TLS issuance/renewal path. `pull_models` is narrower than `ollama` and useful for model refreshes after stack setup. `show_models` prints the current Ollama roster in a terminal-friendly multiline list. |
-| `roles/lantern` | `lantern` | Lantern reverse proxy and TLS rollout for `lantern.epytype.org`; manages the nginx vhost, certbot issuance, and renewal cron on `gex0`. |
-| `roles/lantern_app_deploy` | `lantern_app_deploy` | Syncs the Lantern repo on the controller, reads the controller git SHA after sync, archives a selected app bundle only when the bundle changes, names the archive with the build timestamp plus the 8-char git SHA and the bundle fingerprint short hash, and extracts it into `/srv/lantern/apps/<app_id>` on `gex0` with `lantern:lantern` ownership whenever the bundle changes or the controller archive basename differs from the deployed archive marker on the target; the target caches deployed archives under `/srv/lantern/apps/<app_id>/.archives/` and only updates `.deployed-archive` after a successful extraction. |
-| `roles/lantern_deploy` | `lantern_deploy` | Installs a built Lantern `.deb` on `gex0` with `dpkg -i` plus `apt-get -f install -y`, then starts `lantern.service` and `lantern-ha.service` and removes older staged `.deb` files from the target host while keeping the current package. |
+| `roles/lantern` | `lantern` | Lantern reverse proxy and TLS rollout for `lantern.epytype.org`; manages the nginx vhost, certbot issuance, and renewal cron on `web0` during the new web-host migration path. |
+| `roles/lantern_app_deploy` | `lantern_app_deploy` | Syncs the Lantern repo on the controller, reads the controller git SHA after sync, archives a selected app bundle only when the bundle changes, names the archive with the build timestamp plus the 8-char git SHA and the bundle fingerprint short hash, and extracts it into `/srv/lantern/apps/<app_id>` on `web0` with `lantern:lantern` ownership whenever the bundle changes or the controller archive basename differs from the deployed archive marker on the target; the target caches deployed archives under `/srv/lantern/apps/<app_id>/.archives/` and only updates `.deployed-archive` after a successful extraction. |
+| `roles/lantern_deploy` | `lantern_deploy` | Installs a built Lantern `.deb` on `web0` with `dpkg -i` plus `apt-get -f install -y`, then starts `lantern.service` and `lantern-ha.service` and removes older staged `.deb` files from the target host while keeping the current package. |
 | `roles/admin` | none | Task tag: `update_reboot` only. The package update and reboot path runs only when `update_reboot` is selected. |
 | `roles/epytype_release` | none | release helper role used by `github-release.yml`; see task areas above for versioning, check gate, and push controls. |
 | `roles/keymaster` | none | task areas are documented above. Many paths are intentionally guarded by `never` and should be run with host limits and explicit tag selection. |

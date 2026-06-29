@@ -89,6 +89,31 @@ variable "devops_user" {
   type        = string
 }
 
+variable "web_server_name" {
+  description = "Name of the Hetzner Cloud web server."
+  type        = string
+}
+
+variable "web_server_private_ip" {
+  description = "Private IP address for the web server inside the subnet."
+  type        = string
+}
+
+variable "web_server_type" {
+  description = "Hetzner Cloud server type for the web host."
+  type        = string
+}
+
+variable "web_server_image" {
+  description = "Image used to provision the web server."
+  type        = string
+}
+
+variable "web_server_location" {
+  description = "Hetzner location for the web server (for example nbg1, fsn1, hel1)."
+  type        = string
+}
+
 variable "dedicated_server_name" {
   description = "Name label for the existing dedicated server connected via vSwitch."
   type        = string

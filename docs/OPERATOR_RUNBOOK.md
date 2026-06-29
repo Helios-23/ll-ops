@@ -14,7 +14,7 @@ Consolidated SOP for the `ops/` repo. Use this document as the top-level workflo
 ## Environment and source of truth
 
 - default inventory: `inventory/epytype` via `ansible.cfg`
-- group vars: `group_vars/all`, `group_vars/prod`, `group_vars/prod_ai`
+- group vars: `group_vars/all`, `group_vars/prod`, `group_vars/prod_ai`, `group_vars/prod_web`
 - Terraform root: `tf/`
 - helper scripts: `bin/`
 - SSH public keys: `keys/ssh/`
@@ -72,6 +72,12 @@ AI server baseline:
 apb setup_epytype.yml -l gex0
 ```
 
+Web server baseline:
+
+```bash
+apb setup_epytype.yml -l web0
+```
+
 Narrow to role/task areas for incremental work:
 
 ```bash
@@ -79,7 +85,7 @@ apb setup_epytype.yml -l repo0 -t forgejo
 apb setup_epytype.yml -l repo0 -t forgejo_pull
 apb setup_epytype.yml -l repo0 -t forgejo_users
 apb setup_epytype.yml -l gex0 -t ai_rig
-apb setup_epytype.yml -l gex0 -t lantern
+apb setup_epytype.yml -l web0 -t lantern
 apb setup_epytype.yml -l gex0 -t pull_models
 ```
 
@@ -184,12 +190,12 @@ Use the specialist docs for runtime expectations and testing:
 
 ### 8. Operate the Lantern site
 
-Lantern shares `gex0` with the AI stack. Its public entrypoint is `https://lantern.epytype.org`, and the proxy roles keep the Lantern and AI nginx vhosts separate while both remain enabled.
+The active migration path moves Lantern onto `web0` as its own public web host. Its public entrypoint remains `https://lantern.epytype.org`. During transition, `gex0` may still serve the live site until DNS is cut over.
 
 Common command:
 
 ```bash
-apb setup_epytype.yml -l gex0 -t lantern
+apb setup_epytype.yml -l web0 -t lantern
 ```
 
 The Lantern runtime defaults to `127.0.0.1:7323`, so nginx proxies there unless the service is reconfigured.
@@ -198,8 +204,8 @@ Verification:
 
 - `curl -I https://lantern.epytype.org`
 - confirm `/etc/nginx/sites-available/lantern.epytype.org.conf` and `/etc/nginx/sites-enabled/lantern.epytype.org.conf` exist
-- confirm `/etc/nginx/sites-available/ai.epytype.org.conf` and `/etc/nginx/sites-enabled/ai.epytype.org.conf` exist
 - confirm `/var/log/nginx/lantern.access.log` and `/var/log/nginx/lantern.error.log` are being written
+- if DNS has not been cut over yet, run the same checks directly on `web0` before changing the public record
 
 ### 8b. Build the Lantern `.deb`
 
@@ -218,16 +224,16 @@ What it does:
 
 ### 8c. Deploy the Lantern runtime package
 
-Use this after building a `.deb` if you want to install it on `gex0`:
+Use this after building a `.deb` if you want to install it on `web0`:
 
 ```bash
-apb deploy.yml -t lantern_runtime -l gex0
+apb deploy.yml -t lantern_runtime -l web0
 ```
 
 What it does:
 
 - resolves the newest `lantern_*.deb` from `lantern/dist/release/deb` on the controller when no package path is passed
-- copies the `.deb` to `gex0`
+- copies the `.deb` to `web0`
 - installs it with `dpkg` and repairs dependencies with `apt`
 - restarts `lantern.service` and `lantern-ha.service`
 
@@ -235,10 +241,10 @@ The build step expects `../epytype/dist/binaries` to contain the matching `epyty
 
 ### 8d. Deploy a Lantern app bundle
 
-Use this when you want to sync one Lantern app bundle from `lantern/apps/` into the shared runtime apps tree on `gex0`:
+Use this when you want to sync one Lantern app bundle from `lantern/apps/` into the shared runtime apps tree on `web0`:
 
 ```bash
-apb deploy.yml -t lantern_app -l gex0 -e lantern_app_id=ucal
+apb deploy.yml -t lantern_app -l web0 -e lantern_app_id=ucal
 ```
 
 What it does:
@@ -247,7 +253,7 @@ What it does:
 - reads the controller git SHA after the repo sync completes
 - creates `/opt/release/lantern/app/<app_id>-<YYYYMMDD-HHMM>-<8-char-sha>-<bundle-fingerprint-short>.tar.gz` on the controller
 - rebuilds that archive only when the app bundle contents change
-- keeps the last deployed app archive marker on `gex0` and copies/extracts whenever the bundle changes or the controller archive basename differs from that marker
+- keeps the last deployed app archive marker on `web0` and copies/extracts whenever the bundle changes or the controller archive basename differs from that marker
 - stores deployed archives under `/srv/lantern/apps/<app_id>/.archives/` for rollback
 - updates `/srv/lantern/apps/<app_id>/.deployed-archive` only after extraction succeeds
 - extracts newer archives into `/srv/lantern/apps/<app_id>` with `lantern:lantern` ownership
@@ -258,7 +264,7 @@ Supported app ids today:
 - `graph_studio`
 - `ucal`
 
-The archive is built on the controller under `/opt/release/lantern/app` only when the bundle changes, and deployment proceeds whenever the bundle changes or that controller archive basename differs from the deployed archive marker on `gex0`. The target keeps the deployed archive copy under `/srv/lantern/apps/<app_id>/.archives/` and only updates the deployed marker after extraction succeeds.
+The archive is built on the controller under `/opt/release/lantern/app` only when the bundle changes, and deployment proceeds whenever the bundle changes or that controller archive basename differs from the deployed archive marker on `web0`. The target keeps the deployed archive copy under `/srv/lantern/apps/<app_id>/.archives/` and only updates the deployed marker after extraction succeeds.
 
 The Lantern `.deb` deploy path uses `dpkg -i` followed by `apt-get -f install -y` so a freshly built package is applied even when the package version has not changed. After install, the target keeps the current staged `.deb` and removes older `lantern_*.deb` files from the staging directory so the host does not accumulate stale packages.
 

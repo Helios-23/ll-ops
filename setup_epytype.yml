@@ -35,3 +35,17 @@
       tags: ai_rig
     - role: lantern
       tags: lantern
+
+- name: Configure web server baseline and Lantern edge
+  hosts: web0
+  tags:
+    - web_server
+  roles:
+    - role: harden
+      tags: harden
+    - role: nginx
+      tags: nginx
+    - role: certbot_tls
+      tags: certbot_tls
+    - role: lantern
+      tags: lantern

@@ -38,6 +38,21 @@ output "server_private_ip" {
   value       = hcloud_server_network.private.ip
 }
 
+output "web_server_id" {
+  description = "ID of the provisioned web server."
+  value       = hcloud_server.web.id
+}
+
+output "web_server_ipv4" {
+  description = "Public IPv4 address of the provisioned web server."
+  value       = hcloud_server.web.ipv4_address
+}
+
+output "web_server_private_ip" {
+  description = "Private IP address of the provisioned web server."
+  value       = hcloud_server_network.web_private.ip
+}
+
 output "dedicated_server" {
   description = "Metadata for the existing dedicated server expected in the same subnet."
   value       = terraform_data.dedicated_server.output
