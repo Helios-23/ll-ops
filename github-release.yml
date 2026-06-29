@@ -28,7 +28,7 @@
     lantern_release_push: true
     lantern_release_allow_dirty: false
     lantern_release_create_tag: true
-    lantern_release_github_repo: ""
+    lantern_release_github_repo: "jperry303/lantern"
     lantern_release_push_github: "{{ lantern_release_github_repo | length > 0 }}"
   roles:
     - role: epytype_release
@@ -64,8 +64,7 @@
         epytype_release_checks_command: |
           set -euo pipefail
           git remote -v
-          ! git remote -v | grep -i 'github.com'
-          git remote get-url origin | grep -Fx 'git@repo.epytype.org:Epytype/lantern.git'
+          git remote get-url origin | grep -E 'github\.com[:/]jperry303/lantern(\.git)?$'
           test -z "$(find . -path ./.git -prune -o -name '*.rs' -print -quit)"
           test ! -e Cargo.toml
           test ! -e Cargo.lock

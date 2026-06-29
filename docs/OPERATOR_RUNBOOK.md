@@ -207,20 +207,40 @@ Verification:
 - confirm `/var/log/nginx/lantern.access.log` and `/var/log/nginx/lantern.error.log` are being written
 - if DNS has not been cut over yet, run the same checks directly on `web0` before changing the public record
 
-### 8b. Build the Lantern `.deb`
+### 8b. Build the Lantern binaries and `.deb`
 
-Run this from `ops/` on the repo server after the Lantern and Epytype binaries are available in sibling checkouts:
+Run this from `ops/` on the controller with Lantern and Epytype repos as sibling checkouts, and Docker available:
 
 ```bash
 apb release.yaml -t lantern_release
 ```
 
+Build a single architecture (skip the other six):
+
+```bash
+apb release.yaml -t lantern_release -e target=linux-aarch64-gnu
+```
+
+Target matrix:
+
+| Target | Architecture | Libc / Runtime | Compatible distros / OS |
+| --- | --- | --- | --- |
+| `linux-x86_64-gnu` | x86_64 | glibc | Debian, Ubuntu, Red Hat, Fedora, CentOS, Rocky, Alma, SUSE, Arch |
+| `linux-x86_64-musl` | x86_64 | musl | Alpine Linux |
+| `linux-aarch64-gnu` | ARM64 (AArch64) | glibc | Debian/Ubuntu ARM64, Fedora ARM, RHEL ARM, Rocky ARM |
+| `linux-riscv64-gnu` | RISC-V 64-bit | glibc | Debian RISCV64, Fedora RISCV64, Ubuntu RISCV64 |
+| `macos-universal` | x86_64 + ARM64 | macOS | macOS 11+ (Intel + Apple Silicon) |
+| `windows-x86_64-msvc` | x86_64 | Windows (MSVC) | Windows 10/11 x86_64, Windows Server |
+| `windows-arm64-msvc` | ARM64 | Windows (MSVC) | Windows 11 ARM64, Windows Server ARM |
+
+Default: `all` (builds all seven). Pass `-e target=<name>` to build a single target.
+
 What it does:
 
-- builds `lantern/dist/release/deb/lantern_<version>_<arch>.deb` from the local Lantern checkout
-- stages fresh Lantern binaries in `lantern/dist/cross-platform/binaries` before packaging
-- includes only `atlas_studio` and `graph_studio` in the package payload
-- leaves the built package in the release output directory and prints its path
+- runs `docker compose run --rm` for each selected target using `lantern/cross/docker/docker-compose.yml`
+- each container: compiles with zig, validates the binary, runs `package-lantern-artifacts` which produces tar.gz/zip/checksums/sigs **and** the `.deb` (for linux-gnu targets) into `dist/packages/`
+- consumes `../epytype/dist/binaries` for included Epytype runtime binaries via the epytype cross scripts
+- includes only `atlas_studio` and `graph_studio` in the `.deb` payload
 
 ### 8c. Deploy the Lantern runtime package
 
@@ -232,7 +252,7 @@ apb deploy.yml -t lantern_runtime -l web0
 
 What it does:
 
-- resolves the newest `lantern_*.deb` from `lantern/dist/release/deb` on the controller when no package path is passed
+- resolves the newest `lantern_*.deb` from `lantern/dist/packages` on the controller when no package path is passed
 - copies the `.deb` to `web0`
 - installs it with `dpkg` and repairs dependencies with `apt`
 - restarts `lantern.service` and `lantern-ha.service`
@@ -301,15 +321,15 @@ The role performs this sequence:
 4. compute the next version or accept an explicit override
 5. update tracked version references and release markers
 6. run repo-specific release checks
-7. commit release prep, create tag, and push `HEAD:release`
-8. optionally mirror branch and tag to GitHub
+7. commit release prep, create tag, and push `HEAD:release` to the primary remote
+8. push the tag to GitHub to trigger the `release.yml` GHA workflow
 
 Verification:
 
 - inspect the generated version and tag before push
 - confirm release checks passed
-- verify Forgejo push succeeded
-- if GitHub mirroring is enabled, confirm the mirror branch and tag landed there too
+- verify git push to GitHub succeeded
+- confirm the tag push triggered the `release.yml` GitHub Actions workflow at `https://github.com/Epytype/<repo>/actions`
 
 Recovery note: when release prep has already changed files locally, examine the diff before rerunning. Do not use dirty-tree overrides casually.
 

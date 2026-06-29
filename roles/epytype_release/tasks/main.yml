@@ -284,4 +284,4 @@
       - "Prepared {{ epytype_release_project_name }} release {{ epytype_release_next_tag }}"
       - "Pushed {{ epytype_release_remote }} HEAD:{{ epytype_release_branch }}={{ epytype_release_push | bool }}"
       - "Pushed {{ epytype_release_github_remote }} HEAD:{{ epytype_release_branch }}={{ epytype_release_push_github | bool }}"
-      - "Forgejo Release Pipeline will publish GitHub release assets when its secrets and variables are configured"
+      - "GitHub Actions release workflow {{ epytype_release_github_repo }}/actions will publish GitHub release assets on tag push"

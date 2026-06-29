@@ -8,6 +8,6 @@ lantern_deploy_services:
   - lantern.service
   - lantern-ha.service
 lantern_release_repo_dir: "{{ playbook_dir }}/../lantern"
-lantern_release_output_dir: "{{ lantern_release_repo_dir }}/dist/release/deb"
+lantern_release_output_dir: "{{ lantern_release_repo_dir }}/dist/packages"
 lantern_release_epytype_binary_dir: "{{ playbook_dir }}/../epytype/dist/binaries"
 lantern_release_output_glob: "lantern_*.deb"

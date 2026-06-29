@@ -1,113 +1,135 @@
-- name: Build Lantern Debian release package
-  hosts: gex0
+- name: Build Lantern native binaries and packages via Docker Compose
+  hosts: localhost
+  connection: local
   become: false
   gather_facts: false
   tags:
     - lantern_release
   vars:
+    lantern_release_target: "{{ target | default('all') }}"
     lantern_release_repo_dir: "{{ playbook_dir }}/../lantern"
-    lantern_release_output_dir: "{{ lantern_release_repo_dir }}/dist/release/deb"
-    lantern_release_binary_stage_dir: "{{ lantern_release_repo_dir }}/dist/cross-platform/binaries"
-    lantern_release_epytype_binary_dir: "{{ playbook_dir }}/../epytype/dist/binaries"
-    lantern_release_native_target_id: linux-x86_64-gnu
-  pre_tasks:
+    lantern_release_epytype_repo_dir: "{{ playbook_dir }}/../epytype"
+    lantern_release_compose_dir: "{{ lantern_release_repo_dir }}/cross/docker"
+    lantern_release_all_targets:
+      - linux-x86_64-gnu
+      - linux-x86_64-musl
+      - linux-aarch64-gnu
+      - linux-riscv64-gnu
+      - macos-universal
+      - windows-x86_64-msvc
+      - windows-arm64-msvc
+    lantern_release_selected_targets: >-
+      {{
+        lantern_release_all_targets
+        if lantern_release_target == 'all'
+        else [lantern_release_target]
+      }}
+    lantern_release_binary_dir: "{{ lantern_release_repo_dir }}/dist/binaries"
+    lantern_release_package_dir: "{{ lantern_release_repo_dir }}/dist/packages"
+    lantern_release_deb_target_id: linux-x86_64-gnu
+    lantern_release_deb_binary: "{{ lantern_release_binary_dir }}/lantern-{{ lantern_release_deb_target_id }}"
+    lantern_release_epytype_binary_dir: "{{ lantern_release_epytype_repo_dir }}/dist/binaries"
+    lantern_release_build_deb: "{{ lantern_release_target == 'all' or lantern_release_target == 'linux-x86_64-gnu' }}"
+  tasks:
+    - name: Validate target
+      fail:
+        msg: "Unknown target '{{ lantern_release_target }}'. Valid: all, or one of {{ lantern_release_all_targets | join(', ') }}"
+      when:
+        - lantern_release_target != 'all'
+        - lantern_release_target not in lantern_release_all_targets
+
     - name: Check Lantern repository exists
-      delegate_to: localhost
-      become: false
       stat:
         path: "{{ lantern_release_repo_dir }}/.git"
-      register: lantern_release_repo_git_dir
-      run_once: true
+      register: lantern_git
 
     - name: Fail when Lantern repository is missing
       fail:
         msg: "Lantern git repository not found at {{ lantern_release_repo_dir }}"
-      when: not lantern_release_repo_git_dir.stat.exists
-      run_once: true
+      when: not lantern_git.stat.exists
 
     - name: Check Epytype repository exists
-      delegate_to: localhost
-      become: false
       stat:
-        path: "{{ playbook_dir }}/../epytype/.git"
-      register: lantern_release_epytype_repo_git_dir
-      run_once: true
+        path: "{{ lantern_release_epytype_repo_dir }}/.git"
+      register: epytype_git
 
     - name: Fail when Epytype repository is missing
       fail:
-        msg: "Epytype git repository not found at {{ playbook_dir }}/../epytype"
-      when: not lantern_release_epytype_repo_git_dir.stat.exists
-      run_once: true
+        msg: "Epytype git repository not found at {{ lantern_release_epytype_repo_dir }}"
+      when: not epytype_git.stat.exists
 
-    - name: Update Lantern repository on controller
-      delegate_to: localhost
-      become: false
+    - name: Update Lantern repository
       command: git pull --ff-only
       args:
         chdir: "{{ lantern_release_repo_dir }}"
-      register: lantern_release_repo_pull
-      changed_when: "'Already up to date.' not in (lantern_release_repo_pull.stdout | default(''))"
-      run_once: true
+      register: lantern_pull
+      changed_when: "'Already up to date.' not in (lantern_pull.stdout | default(''))"
 
-    - name: Update Epytype repository on controller
-      delegate_to: localhost
-      become: false
+    - name: Update Epytype repository
       command: git pull --ff-only
       args:
-        chdir: "{{ playbook_dir }}/../epytype"
-      register: lantern_release_epytype_repo_pull
-      changed_when: "'Already up to date.' not in (lantern_release_epytype_repo_pull.stdout | default(''))"
-      run_once: true
+        chdir: "{{ lantern_release_epytype_repo_dir }}"
+      register: epytype_pull
+      changed_when: "'Already up to date.' not in (epytype_pull.stdout | default(''))"
 
-    - name: Stage fresh Lantern binaries on controller
-      delegate_to: localhost
-      become: false
-      command: scripts/stage_lantern_binaries.sh "{{ lantern_release_binary_stage_dir }}" "{{ lantern_release_native_target_id }}"
+    - name: Create output directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - "{{ lantern_release_binary_dir }}"
+        - "{{ lantern_release_package_dir }}"
+
+    - name: Clean cached zig binaries for platform-agnostic Docker builds
+      file:
+        path: "{{ lantern_release_repo_dir }}/scripts/tools/zig"
+        state: absent
+
+    - name: Build all targets in parallel via Docker Compose
+      command: docker compose up
       args:
-        chdir: "{{ lantern_release_repo_dir }}"
-      register: lantern_release_binary_stage
-      changed_when: true
-      run_once: true
+        chdir: "{{ lantern_release_compose_dir }}"
+      register: compose_up
+      when: lantern_release_target == 'all'
 
-    - name: Store Lantern binary stage directory
-      set_fact:
-        lantern_release_binary_dir: "{{ lantern_release_binary_stage_dir }}"
-      run_once: true
-
-    - name: Build Lantern Debian package
-      delegate_to: localhost
-      become: false
-      command: scripts/package_deb.sh "{{ lantern_release_output_dir }}"
+    - name: Check all containers succeeded
+      command: >
+        sh -c '
+        docker compose ps --all --format "{{.Service}} {{.ExitCode}}" |
+        while read svc code; do
+          if [ "$code" != "0" ]; then
+            echo "FAILED: $svc exited with code $code"
+            exit 1
+          fi
+        done
+        echo "all targets passed"
+        '
       args:
-        chdir: "{{ lantern_release_repo_dir }}"
-      environment:
-        EPYTYPE_BINARY_DIR: "{{ lantern_release_epytype_binary_dir }}"
-        LANTERN_BINARY_DIR: "{{ lantern_release_binary_dir }}"
-        LANTERN_NATIVE_TARGET_ID: "{{ lantern_release_native_target_id }}"
-      register: lantern_release_package_build
-      changed_when: true
-      run_once: true
+        chdir: "{{ lantern_release_compose_dir }}"
+      when: lantern_release_target == 'all'
 
-    - name: Store Lantern Debian package path
-      set_fact:
-        lantern_release_deb_path: "{{ lantern_release_package_build.stdout_lines | last }}"
-      run_once: true
+    - name: Clean up compose resources
+      command: docker compose down
+      args:
+        chdir: "{{ lantern_release_compose_dir }}"
+      when: lantern_release_target == 'all'
 
-    - name: Validate Lantern Debian package path
-      delegate_to: localhost
-      become: false
-      stat:
-        path: "{{ lantern_release_deb_path }}"
-      register: lantern_release_deb_stat
-      run_once: true
+    - name: Build single target sequentially
+      command: docker compose run --rm -T {{ item }}
+      args:
+        chdir: "{{ lantern_release_compose_dir }}"
+      loop: "{{ lantern_release_selected_targets }}"
+      when: lantern_release_target != 'all'
 
-    - name: Fail when Lantern Debian package was not created
+    - name: Verify Debian package was produced by Docker pipeline
+      find:
+        paths: "{{ lantern_release_package_dir }}"
+        patterns: "lantern_*.deb"
+        file_type: file
+      register: deb_find
+
+    - name: Fail when no Debian package was produced
       fail:
-        msg: "Lantern Debian package was not created at {{ lantern_release_deb_path }}"
-      when: not lantern_release_deb_stat.stat.exists
-      run_once: true
-
-    - name: Report Lantern Debian package path
-      debug:
-        msg: "{{ lantern_release_deb_path }}"
-      run_once: true
+        msg: "No lantern_*.deb found in {{ lantern_release_package_dir }}"
+      when: deb_find.matched == 0
