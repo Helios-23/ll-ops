@@ -26,6 +26,10 @@ server {
 
     client_max_body_size 128M;
 
+    location = / {
+        return 301 /atlas;
+    }
+
     location / {
         proxy_pass http://{{ lantern_service_host }}:{{ lantern_service_port }};
         proxy_http_version 1.1;
