@@ -1,2 +1,2 @@
-- import_playbook: release.yaml
+- import_playbook: release.yml
 - import_playbook: deploy.yml

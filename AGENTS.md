@@ -46,8 +46,11 @@ If you changed anything under `ops/`, mention whether you updated the `ops/docs/
 
 End completed chats with a commit message that summarizes the full change set.
 That commit message must not contain single quotes, double quotes, backticks, or tildes.
+When work under `ops/` changes the repo, always return one concise commit message the user can use directly to commit the full `ops/` change set.
 
 ## Local Ansible command preferences
+
+New YAML files created under `ops/` must use the `.yml` extension. Do not introduce new `.yaml` files.
 
 When suggesting Ansible commands for work in `ops/`, use these local defaults unless the user says otherwise:
 

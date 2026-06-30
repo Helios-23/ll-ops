@@ -36,7 +36,7 @@
   fail:
     msg: >-
       Lantern package source could not be resolved. Build it with
-      release.yaml or pass lantern_deploy_package_src explicitly.
+      release.yml or pass lantern_deploy_package_src explicitly.
   when: lantern_deploy_package_src == ""
 
 - name: Copy Lantern package to target host

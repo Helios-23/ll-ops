@@ -212,13 +212,13 @@ Verification:
 Run this from `ops/` on the controller with Lantern and Epytype repos as sibling checkouts, and Docker available:
 
 ```bash
-apb release.yaml -t lantern_release
+apb release.yml -t lantern_release
 ```
 
 Build a single architecture (skip the other six):
 
 ```bash
-apb release.yaml -t lantern_release -e target=linux-aarch64-gnu
+apb release.yml -t lantern_release -e target=linux-aarch64-gnu
 ```
 
 Target matrix:
