@@ -12,9 +12,38 @@ if [ ! -f "$DB" ]; then
   return 1 2>/dev/null || exit 1
 fi
 
-printf "Database password: "
-read -s DB_PASS
-echo ""
+# Allow editor/tooling shells to skip the interactive KeePass prompt.
+# This keeps Zed-launched command shells from blocking unrelated work.
+if [ "${EPYTYPE_FORCE_LOADENV:-0}" != "1" ]; then
+  case "${TERM_PROGRAM:-}" in
+    zed|vscode)
+      if [ -z "${KEEPASSXC_DB_PASSWORD:-}" ] && [ -z "${DB_PASS:-}" ]; then
+        echo "Skipping KeePass credential prompt in editor/tooling shell."
+        return 0 2>/dev/null || exit 0
+      fi
+      ;;
+  esac
+  if [ "${ZED_TERM:-0}" = "1" ] || [ "${ZED_EDITOR:-0}" = "1" ] || [ "${EPYTYPE_SKIP_LOADENV:-0}" = "1" ]; then
+    if [ -z "${KEEPASSXC_DB_PASSWORD:-}" ] && [ -z "${DB_PASS:-}" ]; then
+      echo "Skipping KeePass credential prompt for non-ops shell session."
+      return 0 2>/dev/null || exit 0
+    fi
+  fi
+  if [ ! -t 0 ] && [ -z "${KEEPASSXC_DB_PASSWORD:-}" ] && [ -z "${DB_PASS:-}" ]; then
+    echo "Skipping KeePass credential prompt without interactive stdin."
+    return 0 2>/dev/null || exit 0
+  fi
+fi
+
+if [ -n "${KEEPASSXC_DB_PASSWORD:-}" ]; then
+  DB_PASS="$KEEPASSXC_DB_PASSWORD"
+elif [ -n "${DB_PASS:-}" ]; then
+  DB_PASS="$DB_PASS"
+else
+  printf "Database password: "
+  read -s DB_PASS
+  echo ""
+fi
 
 # Check for empty password
 if [ -z "$DB_PASS" ]; then

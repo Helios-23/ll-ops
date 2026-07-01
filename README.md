@@ -18,6 +18,8 @@ For SSH setup, repository checkout, and migration workflow details, use [docs/SE
   source ./bin/loadenv.sh
   ```
 
+  For editor/tooling shells such as Zed, `loadenv.sh` now skips the interactive KeePass password prompt unless you explicitly force it with `EPYTYPE_FORCE_LOADENV=1`. For non-interactive usage you can also preseed `KEEPASSXC_DB_PASSWORD` before sourcing the script.
+
 This loads required credentials into your environment.
 
 ## Features
