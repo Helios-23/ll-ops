@@ -254,7 +254,7 @@
     git checkout --detach HEAD
     git config user.name "{{ epytype_release_git_user_name }}"
     git config user.email "{{ epytype_release_git_user_email }}"
-    git rm -f --ignore-unmatch -- {% for path in epytype_release_github_exclude_paths %}{{ path | quote }} {% endfor %}
+    git rm -f --ignore-unmatch -- {% for path in epytype_release_github_exclude_paths %}{{ path | quote }} {% endfor %}; \
     if ! git diff --cached --quiet; then
       git commit -m "{{ epytype_release_github_mirror_commit_message }}"
     fi

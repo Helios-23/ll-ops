@@ -28,7 +28,7 @@
     lantern_release_push: true
     lantern_release_allow_dirty: false
     lantern_release_create_tag: true
-    lantern_release_github_repo: "jperry303/lantern"
+    lantern_release_github_repo: "Epytype/lantern"
     lantern_release_push_github: "{{ lantern_release_github_repo | length > 0 }}"
   roles:
     - role: epytype_release

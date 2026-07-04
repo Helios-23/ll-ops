@@ -19,7 +19,7 @@ epytype_release_allow_dirty: false
 epytype_release_create_tag: true
 
 # The GitHub owner/repo used for README CI links and the Forgejo release workflow.
-epytype_release_github_repo: "jperry303/epytype"
+epytype_release_github_repo: "Epytype/epytype"
 epytype_release_ci_badge_link_repo: "{{ epytype_release_github_repo }}"
 epytype_release_push_github: "{{ epytype_release_github_repo | length > 0 }}"
 epytype_release_github_remote: github
