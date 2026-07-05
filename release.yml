@@ -6,6 +6,7 @@
   tags:
     - lantern_release
   vars:
+    lantern_update_repo: false
     lantern_release_target: "{{ target | default('all') }}"
     lantern_release_repo_dir: "{{ playbook_dir }}/../lantern"
     lantern_release_epytype_repo_dir: "{{ playbook_dir }}/../epytype"
@@ -38,39 +39,59 @@
         - lantern_release_target != 'all'
         - lantern_release_target not in lantern_release_all_targets
 
-    - name: Check Lantern repository exists
-      stat:
-        path: "{{ lantern_release_repo_dir }}/.git"
-      register: lantern_git
+    #- name: Check Lantern repository exists
+    #  stat:
+    #    path: "{{ lantern_release_repo_dir }}/.git"
+    #  register: lantern_git
 
-    - name: Fail when Lantern repository is missing
-      fail:
-        msg: "Lantern git repository not found at {{ lantern_release_repo_dir }}"
-      when: not lantern_git.stat.exists
+    #- name: Fail when Lantern repository is missing
+    #  fail:
+    #    msg: "Lantern git repository not found at {{ lantern_release_repo_dir }}"
+    #  when: not lantern_git.stat.exists
 
-    - name: Check Epytype repository exists
-      stat:
-        path: "{{ lantern_release_epytype_repo_dir }}/.git"
-      register: epytype_git
+    #- name: Check Epytype repository exists
+    #  stat:
+    #    path: "{{ lantern_release_epytype_repo_dir }}/.git"
+    #  register: epytype_git
 
-    - name: Fail when Epytype repository is missing
-      fail:
-        msg: "Epytype git repository not found at {{ lantern_release_epytype_repo_dir }}"
-      when: not epytype_git.stat.exists
+    #- name: Fail when Epytype repository is missing
+    #  fail:
+    #    msg: "Epytype git repository not found at {{ lantern_release_epytype_repo_dir }}"
+    #  when: not epytype_git.stat.exists
 
-    - name: Update Lantern repository
-      command: git pull --ff-only
-      args:
-        chdir: "{{ lantern_release_repo_dir }}"
-      register: lantern_pull
-      changed_when: "'Already up to date.' not in (lantern_pull.stdout | default(''))"
-
-    - name: Update Epytype repository
-      command: git pull --ff-only
-      args:
-        chdir: "{{ lantern_release_epytype_repo_dir }}"
+    - name: Clone or update Epytype repository
+      ansible.builtin.git:
+        repo: "git@github.com:jperry303/epytype.git"
+        dest: "{{ lantern_release_epytype_repo_dir }}"
+        version: "main"
+        update: yes
       register: epytype_pull
       changed_when: "'Already up to date.' not in (epytype_pull.stdout | default(''))"
+      when: lantern_update_repo
+
+    - name: Clone or update Lantern repository
+      ansible.builtin.git:
+        repo: "git@github.com:jperry303/lantern.git"
+        dest: "{{ lantern_release_repo_dir }}"
+        version: "main"
+        update: yes
+      register: lantern_pull
+      changed_when: "'Already up to date.' not in (lantern_pull.stdout | default(''))"
+      when: lantern_update_repo
+
+    #- name: Update Lantern repository
+    #  command: git pull --ff-only
+    #  args:
+    #    chdir: "{{ lantern_release_repo_dir }}"
+    #  register: lantern_pull
+    #  changed_when: "'Already up to date.' not in (lantern_pull.stdout | default(''))"
+
+    #- name: Update Epytype repository
+    #  command: git pull --ff-only
+    #  args:
+    #    chdir: "{{ lantern_release_epytype_repo_dir }}"
+    #  register: epytype_pull
+    #  changed_when: "'Already up to date.' not in (epytype_pull.stdout | default(''))"
 
     - name: Create output directories
       file:
@@ -110,7 +131,7 @@
       when: lantern_release_target == 'all'
 
     - name: Clean up compose resources
-      command: docker compose down
+      command: docker compose down --remove-orphans
       args:
         chdir: "{{ lantern_release_compose_dir }}"
       when: lantern_release_target == 'all'
