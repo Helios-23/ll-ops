@@ -137,7 +137,7 @@
       when: lantern_release_target == 'all'
 
     - name: Build single target sequentially
-      command: docker compose run --rm -T {{ item }}
+      command: docker compose run --rm -T --remove-orphans {{ item }}
       args:
         chdir: "{{ lantern_release_compose_dir }}"
       loop: "{{ lantern_release_selected_targets }}"
