@@ -207,7 +207,7 @@ Verification:
 - confirm `/var/log/nginx/lantern.access.log` and `/var/log/nginx/lantern.error.log` are being written
 - if DNS has not been cut over yet, run the same checks directly on `web0` before changing the public record
 
-### 8b. Build the Lantern binaries and `.deb`
+### 8b. Build the Lantern binaries and release artifacts
 
 Run this from `ops/` on the controller with Lantern and Epytype repos as sibling checkouts, and Docker available:
 
@@ -238,9 +238,15 @@ Default: `all` (builds all seven). Pass `-e target=<name>` to build a single tar
 What it does:
 
 - runs `docker compose run --rm` for each selected target using `lantern/cross/docker/docker-compose.yml`
-- each container: compiles with zig, validates the binary, runs `package-lantern-artifacts` which produces tar.gz/zip/checksums/sigs **and** the `.deb` (for linux-gnu targets) into `dist/packages/`
+- each container: compiles with zig, validates the binary, runs `package-lantern-artifacts` which produces tar.gz/zip/checksums/sigs and a linux-gnu `.deb` (when applicable) into `dist/packages/`
 - consumes `../epytype/dist/binaries` for included Epytype runtime binaries via the epytype cross scripts
-- includes only `atlas_studio` and `graph_studio` in the `.deb` payload
+- includes only `atlas_studio` and `graph_studio` in the package payload
+
+Verification:
+
+- looks for any release artifact under `lantern/dist/packages` whose extension matches `*.deb`, `*.rpm`, `*.apk`, `*.tar.gz`, `*.tgz`, `*.msix`, or `*.zip`
+- sidecars like `.sha256`, `.asc`, `.manifest.json`, and `.zst` are intentionally ignored so verification works for every target, including non-deb builds such as `linux-x86_64-musl`, `macos-universal`, `windows-x86_64-msvc`, and `windows-arm64-msvc`
+- fails the playbook if no release artifact is found
 
 ### 8c. Deploy the Lantern runtime package
 

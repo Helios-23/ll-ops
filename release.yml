@@ -6,7 +6,7 @@
   tags:
     - lantern_release
   vars:
-    lantern_update_repo: false
+    lantern_update_repo: true
     lantern_release_target: "{{ target | default('all') }}"
     lantern_release_repo_dir: "{{ playbook_dir }}/../lantern"
     lantern_release_epytype_repo_dir: "{{ playbook_dir }}/../epytype"
@@ -27,10 +27,19 @@
       }}
     lantern_release_binary_dir: "{{ lantern_release_repo_dir }}/dist/binaries"
     lantern_release_package_dir: "{{ lantern_release_repo_dir }}/dist/packages"
-    lantern_release_deb_target_id: linux-x86_64-gnu
-    lantern_release_deb_binary: "{{ lantern_release_binary_dir }}/lantern-{{ lantern_release_deb_target_id }}"
-    lantern_release_epytype_binary_dir: "{{ lantern_release_epytype_repo_dir }}/dist/binaries"
-    lantern_release_build_deb: "{{ lantern_release_target == 'all' or lantern_release_target == 'linux-x86_64-gnu' }}"
+    # Each target in lantern_release_selected_targets produces a release artifact
+    # (.deb, .rpm, .apk, .tar.gz, .msix, .zip) under lantern_release_package_dir.
+    # Verification accepts any of those artifacts so it works for every target,
+    # not just the linux-gnu ones that produce a .deb. Verification sidecars such
+    # as .sha256, .asc, .manifest.json, and .zst are ignored.
+    lantern_release_release_artifacts:
+      - "*.deb"
+      - "*.rpm"
+      - "*.apk"
+      - "*.tar.gz"
+      - "*.tgz"
+      - "*.msix"
+      - "*.zip"
   tasks:
     - name: Validate target
       fail:
@@ -39,26 +48,6 @@
         - lantern_release_target != 'all'
         - lantern_release_target not in lantern_release_all_targets
 
-    #- name: Check Lantern repository exists
-    #  stat:
-    #    path: "{{ lantern_release_repo_dir }}/.git"
-    #  register: lantern_git
-
-    #- name: Fail when Lantern repository is missing
-    #  fail:
-    #    msg: "Lantern git repository not found at {{ lantern_release_repo_dir }}"
-    #  when: not lantern_git.stat.exists
-
-    #- name: Check Epytype repository exists
-    #  stat:
-    #    path: "{{ lantern_release_epytype_repo_dir }}/.git"
-    #  register: epytype_git
-
-    #- name: Fail when Epytype repository is missing
-    #  fail:
-    #    msg: "Epytype git repository not found at {{ lantern_release_epytype_repo_dir }}"
-    #  when: not epytype_git.stat.exists
-
     - name: Clone or update Epytype repository
       ansible.builtin.git:
         repo: "git@github.com:jperry303/epytype.git"
@@ -66,7 +55,6 @@
         version: "main"
         update: yes
       register: epytype_pull
-      changed_when: "'Already up to date.' not in (epytype_pull.stdout | default(''))"
       when: lantern_update_repo
 
     - name: Clone or update Lantern repository
@@ -76,22 +64,7 @@
         version: "main"
         update: yes
       register: lantern_pull
-      changed_when: "'Already up to date.' not in (lantern_pull.stdout | default(''))"
       when: lantern_update_repo
-
-    #- name: Update Lantern repository
-    #  command: git pull --ff-only
-    #  args:
-    #    chdir: "{{ lantern_release_repo_dir }}"
-    #  register: lantern_pull
-    #  changed_when: "'Already up to date.' not in (lantern_pull.stdout | default(''))"
-
-    #- name: Update Epytype repository
-    #  command: git pull --ff-only
-    #  args:
-    #    chdir: "{{ lantern_release_epytype_repo_dir }}"
-    #  register: epytype_pull
-    #  changed_when: "'Already up to date.' not in (epytype_pull.stdout | default(''))"
 
     - name: Create output directories
       file:
@@ -143,14 +116,27 @@
       loop: "{{ lantern_release_selected_targets }}"
       when: lantern_release_target != 'all'
 
-    - name: Verify Debian package was produced by Docker pipeline
+    - name: Verify release artifact was produced by Docker pipeline
       find:
         paths: "{{ lantern_release_package_dir }}"
-        patterns: "lantern_*.deb"
+        patterns: "{{ lantern_release_release_artifacts }}"
         file_type: file
-      register: deb_find
+      register: release_find
 
-    - name: Fail when no Debian package was produced
+    - name: Show release artifacts produced
+      debug:
+        msg: |
+          Release artifacts produced under {{ lantern_release_package_dir }}:
+          {% for item in release_find.files %}
+          {{ item.path }}
+          {% endfor %}
+      when: release_find.matched > 0
+
+    - name: Fail when no release artifact was produced
       fail:
-        msg: "No lantern_*.deb found in {{ lantern_release_package_dir }}"
-      when: deb_find.matched == 0
+        msg: >-
+          None of {{ lantern_release_release_artifacts | join(', ') }}
+          found under {{ lantern_release_package_dir }}.
+          Expected at least one release artifact per target in
+          {{ lantern_release_selected_targets }}.
+      when: release_find.matched == 0
