@@ -128,7 +128,7 @@
   become: false
   shell: >-
     umask 022 &&
-    tar -C "{{ lantern_app_deploy_repo_dir }}/apps" -czf "{{ lantern_app_deploy_archive_path }}" "{{ lantern_app_id }}" &&
+    tar -C "{{ lantern_app_deploy_repo_dir }}/apps" -czf "{{ lantern_app_deploy_archive_path }}" "{{ app_id }}" &&
     printf '%s\n' "{{ lantern_app_deploy_bundle_fingerprint }}" > "{{ lantern_app_deploy_bundle_fingerprint_path }}"
   args:
     executable: /bin/sh
