@@ -1,16 +1,19 @@
 # Epytype build role. Mirrors the structure of `roles/lantern_build` so that
 # `ops/build.yml` can build either product (or both) by selecting tags.
 #
-# NOTE: The Epytype cross-build pipeline is scaffolded but not yet wired up.
-# The tasks in this role announce that state at the top, then provide the
-# same defaults/tasks shape (clone, dirs, snapshot, matrix selection,
-# verification) so adding the real Epytype build steps later is just
+# The Epytype build pipeline leverages Docker Compose to build across a variety
+# of targets (Linux, WASM, macOS, Windows).
 epytype_build_repo_dir: "{{ playbook_dir }}/../epytype"
 epytype_build_target: "{{ target | default('all') }}"
+epytype_build_compose_dir: "{{ epytype_build_repo_dir }}/cross/docker"
 epytype_build_all_targets:
-  # Placeholder target matrix. Epytype may ship more release targets than
-  # Lantern; expand this list as the Epytype cross-build tooling grows.
-  - all
+  - x86_64
+  - x86_64-musl
+  - aarch64
+  - riscv64
+  - wasm
+  - macos
+  - windows
 epytype_build_selected_targets: >-
   {{
     epytype_build_all_targets
@@ -20,7 +23,7 @@ epytype_build_selected_targets: >-
 epytype_build_binary_dir: "{{ epytype_build_repo_dir }}/dist/binaries"
 epytype_build_package_dir: "{{ epytype_build_repo_dir }}/dist/packages"
 # Verification accepts any of these extensions so the check works for every
-# target the Epytype build pipeline eventually produces.
+# target the Epytype build pipeline produces.
 epytype_build_release_artifacts:
   - "*.tar.gz"
   - "*.tgz"
