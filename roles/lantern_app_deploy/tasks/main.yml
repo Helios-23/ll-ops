@@ -17,6 +17,7 @@
     update: true
     force: true
   run_once: true
+  when: update_repo
 
 - name: Read existing Lantern app bundle fingerprint on controller
   delegate_to: localhost
@@ -41,18 +42,44 @@
   shell: |
     python3 - "{{ lantern_app_deploy_source_dir }}" <<'PY'
     import hashlib
+    import json
     import os
     import sys
 
     root = sys.argv[1]
     digest = hashlib.sha256()
+    exclude_prefixes = json.loads('{{ lantern_app_deploy_bundle_exclude_prefixes | to_json }}')
+    exclude_exact_paths = set(json.loads('{{ lantern_app_deploy_bundle_exclude_exact_paths | to_json }}'))
+    exclude_names = set(json.loads('{{ lantern_app_deploy_bundle_exclude_names | to_json }}'))
+    exclude_suffixes = tuple(json.loads('{{ lantern_app_deploy_bundle_exclude_suffixes | to_json }}'))
+
+    def should_skip(rel_path: str) -> bool:
+        normalized = rel_path.replace(os.sep, "/")
+        base_name = os.path.basename(normalized.rstrip("/"))
+        if normalized in exclude_exact_paths:
+            return True
+        if base_name in exclude_names:
+            return True
+        if exclude_suffixes and base_name.endswith(exclude_suffixes):
+            return True
+        for prefix in exclude_prefixes:
+            if normalized.startswith(prefix):
+                return True
+        return False
 
     for dirpath, dirnames, filenames in os.walk(root):
-        dirnames.sort()
-        filenames.sort()
+        rel_dir = os.path.relpath(dirpath, root)
+        rel_dir = "" if rel_dir == "." else rel_dir.replace(os.sep, "/") + "/"
+        dirnames[:] = sorted(
+            name for name in dirnames
+            if name not in exclude_names and not should_skip(rel_dir + name + "/")
+        )
+        filenames = sorted(filenames)
         for name in filenames:
             path = os.path.join(dirpath, name)
-            rel = os.path.relpath(path, root)
+            rel = os.path.relpath(path, root).replace(os.sep, "/")
+            if should_skip(rel):
+                continue
             digest.update(rel.encode("utf-8"))
             digest.update(b"\0")
             with open(path, "rb") as handle:
@@ -126,9 +153,27 @@
 - name: Build Lantern app bundle archive on controller when bundle changed
   delegate_to: localhost
   become: false
-  shell: >-
-    umask 022 &&
-    tar -C "{{ lantern_app_deploy_repo_dir }}/apps" -czf "{{ lantern_app_deploy_archive_path }}" "{{ app_id }}" &&
+  shell: |
+    set -eu
+    umask 022
+    archive_source_dir="{{ lantern_app_deploy_repo_dir }}/apps"
+    archive_path="{{ lantern_app_deploy_archive_path }}"
+    app_id_local="{{ app_id }}"
+    tar_args=''
+    {% for prefix in lantern_app_deploy_bundle_exclude_prefixes %}
+    tar_args="$tar_args --exclude={{ app_id }}/{{ prefix }}"
+    {% endfor %}
+    {% for exact_path in lantern_app_deploy_bundle_exclude_exact_paths %}
+    tar_args="$tar_args --exclude={{ app_id }}/{{ exact_path }}"
+    {% endfor %}
+    {% for name in lantern_app_deploy_bundle_exclude_names %}
+    tar_args="$tar_args --exclude={{ name }}"
+    {% endfor %}
+    {% for suffix in lantern_app_deploy_bundle_exclude_suffixes %}
+    tar_args="$tar_args --exclude=*{{ suffix }}"
+    {% endfor %}
+    # shellcheck disable=SC2086
+    tar -C "$archive_source_dir" $tar_args -czf "$archive_path" "$app_id_local"
     printf '%s\n' "{{ lantern_app_deploy_bundle_fingerprint }}" > "{{ lantern_app_deploy_bundle_fingerprint_path }}"
   args:
     executable: /bin/sh
@@ -163,6 +208,16 @@
     owner: "{{ lantern_app_deploy_owner }}"
     group: "{{ lantern_app_deploy_group }}"
     mode: "0644"
+
+- name: Optionally clean Lantern app directory on target host before extraction
+  shell: |
+    set -eu
+    app_dir="{{ lantern_app_deploy_remote_app_dir }}"
+    archive_dir="{{ lantern_app_deploy_remote_archive_store_dir }}"
+    find "$app_dir" -mindepth 1 -maxdepth 1 ! -path "$archive_dir" -exec rm -rf {} +
+  args:
+    executable: /bin/sh
+  when: clean_app | bool
 
 - name: Extract Lantern app bundle on target host
   unarchive:

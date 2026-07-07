@@ -16,6 +16,9 @@
     - lantern_app
   vars:
     app_id: ucal
+    clean_app: false
+    # Update repositories on the controller before building when true
+    update_repo: false
   roles:
     - role: lantern_app_deploy
       tags:

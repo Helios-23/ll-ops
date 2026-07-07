@@ -20,9 +20,30 @@ lantern_app_deploy_bundle_changed: false
 lantern_app_deploy_remote_root: /srv/lantern/apps
 lantern_app_deploy_remote_app_dir: "{{ lantern_app_deploy_remote_root }}/{{ app_id }}"
 lantern_app_deploy_remote_archive_store_dir: "{{ lantern_app_deploy_remote_app_dir }}/.archives"
-lantern_app_deploy_remote_deployed_archive_path: "{{ lantern_app_deploy_remote_app_dir }}/.deployed-archive"
+lantern_app_deploy_remote_deployed_archive_path: "{{ lantern_app_deploy_remote_archive_store_dir }}/{{ lantern_app_deploy_remote_archive_basename }}"
 lantern_app_deploy_remote_archive_path: "{{ lantern_app_deploy_remote_deployed_archive_path }}"
 lantern_app_deploy_remote_archive_glob: "{{ app_id }}-*.{{ lantern_app_deploy_archive_ext }}"
+lantern_app_deploy_bundle_exclude_prefixes:
+  - dist/
+  - var/db/
+  - var/backups/
+lantern_app_deploy_bundle_exclude_exact_paths:
+  - var/runtime-state.json
+lantern_app_deploy_bundle_exclude_names:
+  - .DS_Store
+  - .archives
+lantern_app_deploy_bundle_exclude_suffixes:
+  - .tar
+  - .tar.gz
+  - .tgz
+  - .zip
+  - .gz
+  - .bz2
+  - .xz
+  - .zst
+  - .deb
+  - .rpm
+  - .apk
 lantern_app_deploy_remote_log_dir: /var/log/lantern
 lantern_app_deploy_local_archive_size: 0
 lantern_app_deploy_local_archive_mtime: 0
