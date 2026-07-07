@@ -56,22 +56,6 @@
       register: lantern_build_compose_up
       when: lantern_build_target == 'all'
 
-    #- name: Check all Lantern containers succeeded
-    #  command: >
-    #    sh -c '
-    #    docker compose ps --all --format "{{.Service}} {{.ExitCode}}" |
-    #    while read svc code; do
-    #      if [ "$code" != "0" ]; then
-    #        echo "FAILED: $svc exited with code $code"
-    #        exit 1
-    #      fi
-    #    done
-    #    echo "all targets passed"
-    #    '
-    #  args:
-    #    chdir: "{{ lantern_build_compose_dir }}"
-    #  when: lantern_build_target == 'all'
-
     - name: Clean up Lantern compose resources
       command: docker compose down --remove-orphans
       args:
