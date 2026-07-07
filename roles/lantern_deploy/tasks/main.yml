@@ -10,8 +10,8 @@
   delegate_to: localhost
   become: false
   find:
-    paths: "{{ lantern_release_output_dir }}"
-    patterns: "{{ lantern_release_output_glob }}"
+    paths: "{{ lantern_build_package_dir }}"
+    patterns: "{{ lantern_deploy_package_glob }}"
     file_type: file
   register: lantern_deploy_package_find
   when: lantern_deploy_package_src == ""
@@ -36,7 +36,8 @@
   fail:
     msg: >-
       Lantern package source could not be resolved. Build it with
-      release.yml or pass lantern_deploy_package_src explicitly.
+      build.yml -t lantern_build or pass lantern_deploy_package_src
+      explicitly.
   when: lantern_deploy_package_src == ""
 
 - name: Copy Lantern package to target host

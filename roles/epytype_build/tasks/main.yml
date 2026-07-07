@@ -1,0 +1,119 @@
+- name: Epytype build role
+  tags: epytype_build
+  block:
+    - name: Epytype build pipeline placeholder notice
+      debug:
+        msg: |
+          Epytype cross-build pipeline is not yet implemented.
+          This role currently validates input, prepares the workspace,
+          and verifies output, but does not run a real build.
+          Add the Epytype build steps under
+          roles/epytype_build/tasks/main.yml to wire this up.
+
+    - name: Validate Epytype build target
+      fail:
+        msg: >-
+          Unknown Epytype build target '{{ epytype_build_target }}'.
+          Valid: all, or one of {{ epytype_build_all_targets | join(', ') }}.
+      when:
+        - epytype_build_target != 'all'
+        - epytype_build_target not in epytype_build_all_targets
+
+    # Run-start timestamp for the verify filter. Currently this role has no
+    # real build step, so nothing will be produced, and the fail task at
+    # the end of the verify block will surface that loudly.
+    #
+    # Captured via the shell because variables stored through set_fact with
+    # templated Jinja values can remain wrapped in AnsibleUnsafeText, which
+    # breaks later float-vs-UnsafeText comparisons. A plain command stdout
+    # is just str, so a follow-up `| int` cast lands safely as a real
+    # Python int. The cast itself happens at the comparison site (see the
+    # Restrict verification summary task below) so neither side ever needs
+    # to survive a set_fact round-trip.
+    - name: Capture Epytype build start time (UTC epoch seconds)
+      ansible.builtin.command: "date -u +%s"
+      register: _epytype_build_start_cmd
+      changed_when: false
+
+    - name: Snapshot existing release artifacts before this build
+      find:
+        paths: "{{ epytype_build_package_dir }}"
+        file_type: file
+      register: epytype_build_release_before
+
+    # Epytype repository and tooling setup
+    - name: Create Epytype build output directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - "{{ epytype_build_binary_dir }}"
+        - "{{ epytype_build_package_dir }}"
+
+    - name: Clone or update Epytype repository
+      ansible.builtin.git:
+        repo: "git@github.com:jperry303/epytype.git"
+        dest: "{{ epytype_build_repo_dir }}"
+        version: main
+        update: yes
+      register: epytype_build_pull
+      when: update_repo
+
+    # The actual Epytype cross-build pipeline is not implemented yet. This
+    # block exists as a placeholder pre-fix so the role's structure mirrors
+    # `roles/lantern_build/tasks/main.yml`; replacing this debug with the
+    # real Docker Compose orchestration (single vs all target loops) is the
+    # whole job.
+    - name: Epytype build (placeholder)
+      debug:
+        msg: >-
+          Epytype cross-build for {{ epytype_build_selected_targets | join(', ') }}
+          is a placeholder. No artifacts will be produced until the build pipeline
+          is wired up under roles/epytype_build/tasks/main.yml.
+
+    # Verification
+    - name: Verify release artifact was produced by Epytype build pipeline
+      find:
+        paths: "{{ epytype_build_package_dir }}"
+        patterns: "{{ epytype_build_release_artifacts }}"
+        file_type: file
+      register: epytype_build_release_find
+
+    - name: Show release artifacts produced by this run
+      vars:
+        epytype_build_start_ts: "{{ _epytype_build_start_cmd.stdout | trim | int }}"
+      when:
+        - epytype_build_release_find.files
+          | map(attribute='mtime')
+          | map('int')
+          | select('ge', epytype_build_start_ts)
+          | list | length > 0
+      block:
+        - name: Print release artifacts produced by this run
+          debug:
+            msg: |
+              Targets selected for this run: {{ epytype_build_selected_targets | join(', ') }}
+              Build scope: {{ 'all targets' if epytype_build_target == 'all' else 'single target ' ~ epytype_build_target }}
+              Release artifacts produced under {{ epytype_build_package_dir }}:
+              {% for item in epytype_build_release_find.files %}
+              {%   if item.mtime | int >= epytype_build_start_ts %}
+              {{ item.path }}
+              {%   endif %}
+              {% endfor %}
+
+    - name: Fail when no release artifact was produced
+      vars:
+        epytype_build_start_ts: "{{ _epytype_build_start_cmd.stdout | trim | int }}"
+      when:
+        - epytype_build_release_find.files
+          | map(attribute='mtime')
+          | map('int')
+          | select('ge', epytype_build_start_ts)
+          | list | length == 0
+      fail:
+        msg: >-
+          None of {{ epytype_build_release_artifacts | join(', ') }}
+          found under {{ epytype_build_package_dir }}.
+          Expected at least one release artifact per target in
+          {{ epytype_build_selected_targets }}.

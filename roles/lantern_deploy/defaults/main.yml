@@ -7,7 +7,13 @@ lantern_deploy_log_dir: /var/log/lantern
 lantern_deploy_services:
   - lantern.service
   - lantern-ha.service
-lantern_release_repo_dir: "{{ playbook_dir }}/../lantern"
-lantern_release_output_dir: "{{ lantern_release_repo_dir }}/dist/packages"
-lantern_release_epytype_binary_dir: "{{ playbook_dir }}/../epytype/dist/binaries"
-lantern_release_output_glob: "lantern_*.deb"
+# These two defaults mirror what `roles/lantern_build/defaults/main.yml`
+# defines in the build play. The deploy role runs in a separate play
+# (hosts: web0) so it does not inherit lantern_build's defaults, and is
+# therefore redeclared here. If the build layout changes, update both
+# files. The deploy role always installs lantern_*.deb because that is
+# the runtime contract with dpkg; the build role's broader artifact
+# patterns (.rpm, .apk, .tar.gz, etc.) intentionally coexist with this.
+lantern_build_repo_dir: "{{ playbook_dir }}/../lantern"
+lantern_build_package_dir: "{{ lantern_build_repo_dir }}/dist/packages"
+lantern_deploy_package_glob: "lantern_*.deb"

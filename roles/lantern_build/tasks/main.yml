@@ -1,0 +1,123 @@
+- name: Lantern build role
+  tags: lantern_build
+  block:
+    - name: Validate Lantern build target
+      fail:
+        msg: >-
+          Unknown Lantern build target '{{ lantern_build_target }}'.
+          Valid: all, or one of {{ lantern_build_all_targets | join(', ') }}.
+      when:
+        - lantern_build_target != 'all'
+        - lantern_build_target not in lantern_build_all_targets
+
+    # Repo Clone
+    - name: Create Lantern build output directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - "{{ lantern_build_binary_dir }}"
+        - "{{ lantern_build_package_dir }}"
+
+    - name: Clone or update Epytype repository
+      ansible.builtin.git:
+        repo: "git@github.com:jperry303/epytype.git"
+        dest: "{{ lantern_build_epytype_repo_dir }}"
+        version: main
+        update: yes
+      register: lantern_build_epytype_pull
+      when: update_repo
+
+    - name: Clone or update Lantern repository
+      ansible.builtin.git:
+        repo: "git@github.com:jperry303/lantern.git"
+        dest: "{{ lantern_build_repo_dir }}"
+        version: main
+        update: yes
+      register: lantern_build_lantern_pull
+      when: update_repo
+
+    - name: Clean cached zig binaries for platform-agnostic Docker builds
+      file:
+        path: "{{ lantern_build_repo_dir }}/scripts/tools/zig"
+        state: absent
+
+    - name: Capture pre-build checksums
+      shell: |
+        find {{ lantern_build_package_dir }} -type f \( -name "*.apk" -o -name "*.deb" -o -name "*.zip" -o -name "*.tar.gz" -o -name "*.msix" -o -name "*.rpm" \) -exec shasum -a 256 {} + > {{ lantern_build_binary_dir }}/pre_build_hashes.txt
+      register: pre_build_hashes
+
+    # Docker Compose orchestration
+    - name: Build ALL Lantern targets in parallel via Docker Compose
+      command: docker compose --profile all up
+      args:
+        chdir: "{{ lantern_build_compose_dir }}"
+      register: lantern_build_compose_up
+      when: lantern_build_target == 'all'
+
+    #- name: Check all Lantern containers succeeded
+    #  command: >
+    #    sh -c '
+    #    docker compose ps --all --format "{{.Service}} {{.ExitCode}}" |
+    #    while read svc code; do
+    #      if [ "$code" != "0" ]; then
+    #        echo "FAILED: $svc exited with code $code"
+    #        exit 1
+    #      fi
+    #    done
+    #    echo "all targets passed"
+    #    '
+    #  args:
+    #    chdir: "{{ lantern_build_compose_dir }}"
+    #  when: lantern_build_target == 'all'
+
+    - name: Clean up Lantern compose resources
+      command: docker compose down --remove-orphans
+      args:
+        chdir: "{{ lantern_build_compose_dir }}"
+      when: lantern_build_target == 'all'
+
+    - name: Build single Lantern target sequentially
+      command: docker compose run --rm -T --remove-orphans {{ item }}
+      args:
+        chdir: "{{ lantern_build_compose_dir }}"
+      loop: "{{ lantern_build_selected_targets }}"
+      when: lantern_build_target != 'all'
+
+    # Verification
+    - name: Find all files in the output directory
+      ansible.builtin.find:
+        paths: "{{ lantern_build_package_dir }}"
+        patterns: "{{ lantern_build_release_artifacts }}"
+        file_type: file
+      register: found_files
+
+    - name: Identify files with updated checksums
+      shell: |
+        changed_list=""
+        for file in {{ found_files.files | map(attribute='path') | join(' ') }}; do
+          current_hash=$(shasum -a 256 "$file" | awk '{print $1}')
+          if ! grep -q "$current_hash" {{ lantern_build_binary_dir }}/pre_build_hashes.txt; then
+            changed_list="$changed_list $file"
+          fi
+        done
+        echo $changed_list
+      register: checksum_verification
+
+    - name: Set changed files fact
+      ansible.builtin.set_fact:
+        changed_files: "{{ checksum_verification.stdout.split() }}"
+
+    - name: Show the list of changed files
+      ansible.builtin.debug:
+        msg: |
+          Changed files:
+          {% for file in changed_files %}
+          {{ file }}
+          {% endfor %}
+
+    - name: Cleanup checksum snapshots
+      ansible.builtin.file:
+        path: "{{ lantern_build_binary_dir }}/pre_build_hashes.txt"
+        state: absent

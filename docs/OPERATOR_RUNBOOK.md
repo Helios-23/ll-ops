@@ -209,19 +209,27 @@ Verification:
 
 ### 8b. Build the Lantern binaries and release artifacts
 
+`build.yml` is the generic product-build entry in `ops/`. Today it contains both `roles/lantern_build` (real build) and `roles/epytype_build` (placeholder for when the Epytype cross-build pipeline is wired up). Select a single role's tasks with `-t <role>`; omit `-t` to run every role.
+
 Run this from `ops/` on the controller with Lantern and Epytype repos as sibling checkouts, and Docker available:
 
 ```bash
-apb release.yml -t lantern_release
+apb build.yml -t lantern_build
 ```
 
 Build a single architecture (skip the other six):
 
 ```bash
-apb release.yml -t lantern_release -e target=linux-aarch64-gnu
+apb build.yml -t lantern_build -e target=linux-aarch64-gnu
 ```
 
-Target matrix:
+Run both roles (Epytype side fails today because its pipeline isn't implemented yet):
+
+```bash
+apb build.yml
+```
+
+Target matrix for `lantern_build`:
 
 | Target | Architecture | Libc / Runtime | Compatible distros / OS |
 | --- | --- | --- | --- |
@@ -235,18 +243,26 @@ Target matrix:
 
 Default: `all` (builds all seven). Pass `-e target=<name>` to build a single target.
 
-What it does:
+What `lantern_build` does:
 
 - runs `docker compose run --rm` for each selected target using `lantern/cross/docker/docker-compose.yml`
 - each container: compiles with zig, validates the binary, runs `package-lantern-artifacts` which produces tar.gz/zip/checksums/sigs and a linux-gnu `.deb` (when applicable) into `dist/packages/`
 - consumes `../epytype/dist/binaries` for included Epytype runtime binaries via the epytype cross scripts
 - includes only `atlas_studio` and `graph_studio` in the package payload
 
-Verification:
+Verification (per-run scoped):
 
-- looks for any release artifact under `lantern/dist/packages` whose extension matches `*.deb`, `*.rpm`, `*.apk`, `*.tar.gz`, `*.tgz`, `*.msix`, or `*.zip`
-- sidecars like `.sha256`, `.asc`, `.manifest.json`, and `.zst` are intentionally ignored so verification works for every target, including non-deb builds such as `linux-x86_64-musl`, `macos-universal`, `windows-x86_64-msvc`, and `windows-arm64-msvc`
-- fails the playbook if no release artifact is found
+- captures the run-start timestamp at the top of the role, then lists release artifacts in `dist/packages` whose `mtime` is at-or-after that timestamp
+- this catches both fresh writes and in-place overwrites, so a single-target run against an already-populated `dist/packages` (the normal case) still shows only the artifacts freshly laid down by this invocation
+- an `all` invocation shows every target's artifacts this run produced
+- accepts any release artifact matching `*.deb`, `*.rpm`, `*.apk`, `*.tar.gz`, `*.tgz`, `*.msix`, or `*.zip`; sidecars (`.sha256`, `.asc`, `.manifest.json`, `.zst`) are intentionally excluded so verification works for every target, including non-deb builds such as `linux-x86_64-musl`, `macos-universal`, `windows-x86_64-msvc`, and `windows-arm64-msvc`
+- fails the playbook if no release artifact was produced
+
+What `epytype_build` does today:
+
+- prints a placeholder notice explaining the Epytype cross-build pipeline is not yet wired up
+- runs the same validation, snapshot, and verify scaffolding `lantern_build` uses, so wiring the real build steps later is mechanical
+- calls without `-t epytype_build` won't trigger it; calling it today will fail at the verify step because no artifact lands in `dist/packages`
 
 ### 8c. Deploy the Lantern runtime package
 

@@ -12,14 +12,14 @@ Use this as the quick command map; the **Complete Tag Index** below is the autho
 | --- | --- | --- | --- | --- |
 | `setup_epytype.yml` | `repo0`, `gex0`, `web0` | choose `repo_server`, `ai_server`, or `web_server` -> narrow to a role tag -> narrow to a task tag | `repo_server`, `ai_server`, `web_server` | `forgejo`, `forgejo_pull`, `harden`, `ai_rig`, `lantern`, `ipv4-forward`, `forgejo_users`, `ollama`, `pull_models`, `show_models`, `webui`, `ai_nginx`, `ai_certbot` |
 | `deploy.yml` | `web0` | choose `lantern_runtime` to install a staged Lantern `.deb` and restart the Lantern services on `web0`, or choose `lantern_app` to sync and extract a Lantern app bundle into `/srv/lantern/apps/<app_id>` | `lantern_runtime`, `lantern_app` | `lantern_runtime`, `lantern_app` |
-| `release.yml` | `localhost` | build Lantern native binaries and packages via Docker Compose across 7 targets (linux-x86_64-gnu [Debian/Ubuntu/RHEL/SUSE], linux-x86_64-musl [Alpine], linux-aarch64-gnu [ARM64], linux-riscv64-gnu, macos-universal, windows-x86_64-msvc, windows-arm64-msvc), optionally scoped to a single target with `-e target=linux-aarch64-gnu`; package payload includes only `atlas_studio` and `graph_studio`; verification accepts any release artifact (`.deb`, `.rpm`, `.apk`, `.tar.gz`/`.tgz`, `.msix`, `.zip`) so it works for every target, not only the linux-gnu builds that produce a `.deb` | `lantern_release` | `lantern_release` |
+| `build.yml` | `localhost` | build product release artifacts on the controller via product-specific roles; selecting `-t <role>` runs that role only, omitting `-t` runs all of them; the `update_repo` play var defaults to `false` and is the umbrella toggle for the per-role repo clones; currently contains `roles/epytype_build` (Epytype cross-build pipeline scaffold, not yet wired up) and `roles/lantern_build` (builds Lantern native binaries and packages via Docker Compose across 7 targets: linux-x86_64-gnu [Debian/Ubuntu/RHEL/SUSE], linux-x86_64-musl [Alpine], linux-aarch64-gnu [ARM64], linux-riscv64-gnu, macos-universal, windows-x86_64-msvc, windows-arm64-msvc), optionally scoped to a single target with `-e target=<name>`; package payload includes only `atlas_studio` and `graph_studio`; verification accepts any release artifact (`.deb`, `.rpm`, `.apk`, `.tar.gz`/`.tgz`, `.msix`, `.zip`) so it works for every target, not only the linux-gnu builds that produce a `.deb` | `epytype_build`, `lantern_build` | `epytype_build`, `lantern_build` |
 | `repo0_nbde.yml` | `repo0` | provide vaulted LUKS/Clevis vars -> run preflight on an already encrypted host -> bind Clevis and rebuild initramfs | `repo0_nbde` | `luks_nbde` |
 | `admin.yml` | `all` with `-l/--limit` required | choose hosts -> run `admin` or `update_reboot` -> use Tailscale tags if needed | `admin` | `update_reboot`, `tailscale`, `tailscale_machine`, `tailscale_policy` |
 | `github-release.yml` | localhost | choose `epytype` or `lantern` -> optionally override version vars -> run from `ops/` | `epytype`, `lantern` | release variables only; no extra Ansible task tags |
 | `terraform.yml` | localhost | run plan -> apply automatically on drift -> sync inventory from outputs | `terraform` | none |
 | `kymstr.yml` | selected hosts | choose hosts -> run `kymstr` or an explicit opt-in task tag -> many paths also require `never` | `kymstr` | `ssh-auth`, `ssh-key`, `gen-csr`, `encrypt`, `cert`, `never` |
 | `lantern-app-deploy.yml` | `web0` | thin wrapper that imports `deploy.yml` for Lantern app/runtime deploy flows | inherited from `deploy.yml` | `lantern_runtime`, `lantern_app`, `lantern_app_deploy` |
-| `lantern-release-deploy.yml` | localhost, `web0` | thin wrapper that imports `release.yml` and then `deploy.yml` | inherited from imported playbooks | `lantern_release`, `lantern_runtime`, `lantern_app`, `lantern_app_deploy` |
+| `lantern-release-deploy.yml` | localhost, `web0` | thin wrapper that imports `build.yml` and then `deploy.yml` | inherited from imported playbooks | `lantern_build`, `lantern_runtime`, `lantern_app`, `lantern_app_deploy` |
 
 ## Examples
 
@@ -79,6 +79,20 @@ apb kymstr.yml -l repo0 -t gen-csr
 apb kymstr.yml -l repo0 -t cert
 ```
 
+### `build.yml`
+
+```bash
+# Build all registered products (Lantern today, Epytype when its pipeline is wired up).
+apb build.yml
+
+# Build a single product only by selecting its role tag.
+apb build.yml -t lantern_build
+apb build.yml -t epytype_build
+
+# Build a single architecture (skip the other six).
+apb build.yml -t lantern_build -e target=linux-aarch64-gnu
+```
+
 ## Role Task Areas
 
 ### `roles/keymaster`
@@ -113,19 +127,19 @@ apb kymstr.yml -l repo0 -t cert
 
 | Tags |
 | --- |
-| `admin`, `ai_server`, `epytype`, `kymstr`, `lantern`, `lantern_app_deploy`, `lantern_app`, `lantern_release`, `lantern_runtime`, `repo0_nbde`, `repo_server`, `terraform`, `web_server` |
+| `admin`, `ai_server`, `epytype`, `kymstr`, `lantern`, `lantern_app_deploy`, `lantern_app`, `lantern_runtime`, `repo0_nbde`, `repo_server`, `terraform`, `web_server` |
 
 ### Role-level tags
 
 | Tags |
 | --- |
-| `ai_rig`, `ai_certbot`, `ai_nginx`, `certbot_tls`, `docker_engine`, `forgejo`, `forgejo_pull`, `harden`, `lantern`, `lantern_app`, `lantern_app_deploy`, `lantern_release`, `lantern_runtime`, `luks_nbde`, `nginx`, `tailscale`, `ubuntu_pro_fips` |
+| `ai_rig`, `ai_certbot`, `ai_nginx`, `certbot_tls`, `docker_engine`, `epytype_build`, `forgejo`, `forgejo_pull`, `harden`, `lantern`, `lantern_app`, `lantern_app_deploy`, `lantern_build`, `lantern_runtime`, `luks_nbde`, `nginx`, `tailscale`, `ubuntu_pro_fips` |
 
 ### Task-level tags
 
 | Tags |
 | --- |
-| `always`, `ai_certbot`, `ai_nginx`, `cert`, `check-csr`, `encrypt`, `fail2ban`, `fail2ban_sshd_invalid_user`, `forgejo_push_create_org`, `forgejo_reverse_proxy_trust`, `forgejo_tailscale_access_control`, `forgejo_users`, `gen-csr`, `gen-ssh`, `install`, `ipv4-forward`, `lantern_app`, `lantern_app_deploy`, `lantern_release`, `lantern_runtime`, `mysql`, `never`, `ollama`, `pull_models`, `reverse_proxy_fail2ban`, `show_models`, `ssh-auth`, `ssh-auth-review`, `ssh-gen`, `ssh-key`, `ssh-key-report`, `tailscale_machine`, `tailscale_policy`, `update_reboot`, `webui` |
+| `always`, `ai_certbot`, `ai_nginx`, `cert`, `check-csr`, `encrypt`, `fail2ban`, `fail2ban_sshd_invalid_user`, `forgejo_push_create_org`, `forgejo_reverse_proxy_trust`, `forgejo_tailscale_access_control`, `forgejo_users`, `gen-csr`, `gen-ssh`, `install`, `ipv4-forward`, `lantern_app`, `lantern_app_deploy`, `lantern_build`, `lantern_runtime`, `mysql`, `never`, `ollama`, `pull_models`, `reverse_proxy_fail2ban`, `show_models`, `ssh-auth`, `ssh-auth-review`, `ssh-gen`, `ssh-key`, `ssh-key-report`, `tailscale_machine`, `tailscale_policy`, `update_reboot`, `webui` |
 
 ## Role Notes
 
@@ -138,6 +152,8 @@ apb kymstr.yml -l repo0 -t cert
 | `roles/tailscale_admin` | `tailscale`, `tailscale_machine`, `tailscale_policy` | `tailscale_machine` covers host-side install and `tailscale up`; `tailscale_policy` pushes tailnet ACL/SSH policy. Feature booleans: `tailscale_machine_enabled`, `tailscale_policy_enabled`. |
 | `roles/ai_rig` | `ai_rig` | Extra tags: `ai_certbot`, `ai_nginx`, `ollama`, `pull_models`, `show_models`, `webui`. `ai_nginx` is the narrow path for the AI vhost only. `ai_certbot` is the TLS issuance/renewal path. `pull_models` is narrower than `ollama` and useful for model refreshes after stack setup. `show_models` prints the current Ollama roster in a terminal-friendly multiline list. |
 | `roles/lantern` | `lantern` | Lantern reverse proxy and TLS rollout for `lantern.epytype.org`; manages the nginx vhost, certbot issuance, and renewal cron on `web0` during the new web-host migration path. The nginx vhost issues a `301 /atlas` redirect for the root path so that `https://lantern.epytype.org/` lands on the Atlas app. |
+| `roles/lantern_build` | `lantern_build` | Build Lantern native binaries and packages via Docker Compose for the 7 release targets (linux-x86_64-gnu/musl/aarch64-gnu/riscv64-gnu, macos-universal, windows-x86_64-msvc/arm64-msvc). Single-target mode triggered with `-e target=<name>` via `build.yml -t lantern_build`. Runs `docker compose up` for `all`, or one `docker compose run` per selected target. Verification captures a run-start timestamp at the top of the role and reports any release artifact in `dist/packages` whose `mtime` is at-or-after that timestamp, so single-target runs against an already-populated directory still show only the artifacts freshly laid down this run. Verification accepts any release artifact (`.deb`, `.rpm`, `.apk`, `.tar.gz`/`.tgz`, `.msix`, `.zip`) so it works for every target, not only linux-gnu builds. |
+| `roles/epytype_build` | `epytype_build` | Build Epytype release artifacts. Scaffold mirrors `roles/lantern_build` (defaults, validation, run-start timestamp, verify shape) so adding the Epytype cross-build pipeline later is mechanical; the placeholder build step is a no-op `debug` followed by verify. Today, `-t epytype_build` against no real build will fail loudly at the verify step because no artifact lands in `dist/packages`. |
 | `roles/lantern_app_deploy` | `lantern_app_deploy` | Syncs the Lantern repo on the controller, reads the controller git SHA after sync, archives a selected app bundle only when the bundle changes, names the archive with the build timestamp plus the 8-char git SHA and the bundle fingerprint short hash, and extracts it into `/srv/lantern/apps/<app_id>` on `web0` with `lantern:lantern` ownership whenever the bundle changes or the controller archive basename differs from the deployed archive marker on the target; the target caches deployed archives under `/srv/lantern/apps/<app_id>/.archives/` and only updates `.deployed-archive` after a successful extraction. |
 | `roles/lantern_deploy` | `lantern_deploy` | Installs a built Lantern `.deb` on `web0` with `dpkg -i` plus `apt-get -f install -y`, then starts `lantern.service` and `lantern-ha.service` and removes older staged `.deb` files from the target host while keeping the current package. |
 | `roles/admin` | none | Task tag: `update_reboot` only. The package update and reboot path runs only when `update_reboot` is selected. |
