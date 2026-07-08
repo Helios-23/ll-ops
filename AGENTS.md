@@ -52,18 +52,22 @@ When work under `ops/` changes the repo, always return one concise commit messag
 
 New YAML files created under `ops/` must use the `.yml` extension. Do not introduce new `.yaml` files.
 
+New tasks created must avoid using check/verify type tasks unless it is explicitly necessary
+
+New tasks created under `ops/` must be idempotent and prefer ansible.builtin or community.general modules
+
+
 When suggesting Ansible commands for work in `ops/`, use these local defaults unless the user says otherwise:
 
 - assume commands are run from the `ops/` directory
 - use the user's `apb` alias instead of `ansible-playbook`
 - prefer `-t` instead of `--tags`
 - prefer `-l` to limit execution to a specific host when that is the tighter control
-- do not add the `ai_server` or `repo_server` play tags when a host limit plus a narrower role/task tag is sufficient
 
 Example:
 
-- prefer `apb setup_epytype.yml -l gex0 -t pull_models`
-- avoid `apb setup_epytype.yml -t ai_server,pull_models` unless the broader play selection is specifically needed
+- prefer `apb deploy.yml -l web0 -t lantern_app`
+- avoid `apb  deploy.yml -l web0 -t lantern_app,lantern_runtime` unless the broader play selection is specifically needed
 
 ## Ansible debug list formatting preference
 
