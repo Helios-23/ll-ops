@@ -1,0 +1,13 @@
+- name: Resolve epytype_repo from epytype_repo_type
+  ansible.builtin.set_fact:
+    epytype_repo: "{{ epytype_repo_dir }}/{{ epytype_repo_type }}"
+
+- name: Prune archives in {{ epytype_repo }} keeping newest {{ epytype_repo_keep }}
+  ansible.builtin.shell: |
+    cd "{{ epytype_repo }}" || exit 0
+    ls -1t 2>/dev/null \
+      | awk 'NR>{{ epytype_repo_keep }}' \
+      | xargs -r rm -f --
+  args:
+    executable: /bin/sh
+  changed_when: false

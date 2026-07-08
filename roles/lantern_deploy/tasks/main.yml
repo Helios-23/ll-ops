@@ -40,39 +40,26 @@
       explicitly.
   when: lantern_deploy_package_src == ""
 
-- name: Copy Lantern package to target host
-  copy:
-    src: "{{ lantern_deploy_package_src }}"
-    dest: "{{ lantern_deploy_package_dest }}"
-    owner: root
-    group: root
-    mode: "0644"
+- name: Stage Lantern runtime package in epytype_repo
+  vars:
+    epytype_repo_artifact_src: "{{ lantern_deploy_package_src }}"
+  import_role: { name: epytype_repo }
 
-- name: Install Lantern package
-  shell: >
-    set -e &&
-    dpkg -i "{{ lantern_deploy_package_dest }}" ||
-    apt-get -f install -y &&
-    dpkg -i "{{ lantern_deploy_package_dest }}"
+- name: Install Lantern package from staged repository
+  shell: |
+    set -e
+    deb="{{ epytype_repo }}/$(ls -1t {{ epytype_repo }}/lantern_*.deb | head -1 | xargs -n1 basename)"
+    dpkg -i "$deb" || (apt-get -f install -y && dpkg -i "$deb")
   args:
     executable: /bin/sh
   register: lantern_deploy_install
   notify: Restart Lantern services
 
-- name: Find stale Lantern packages on target host
-  find:
-    paths: "{{ lantern_deploy_package_dest_dir }}"
-    patterns: "lantern_*.deb"
-    file_type: file
-  register: lantern_deploy_stale_packages
-
-- name: Remove stale Lantern packages on target host
-  file:
-    path: "{{ item.path }}"
-    state: absent
-  loop: >-
-    {{
-      lantern_deploy_stale_packages.files
-      | rejectattr('path', 'equalto', lantern_deploy_package_dest)
-      | list
-    }}
+- name: Prune older Lantern runtime packages
+  vars:
+    epytype_repo_type: pack
+    epytype_repo_keep: 2
+  import_role:
+    name: epytype_repo
+    tasks_from: prune
+  when: lantern_deploy_install is succeeded

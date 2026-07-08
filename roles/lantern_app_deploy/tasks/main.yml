@@ -199,38 +199,38 @@
   loop:
     - "{{ lantern_app_deploy_remote_root }}"
     - "{{ lantern_app_deploy_remote_app_dir }}"
-    - "{{ lantern_app_deploy_remote_archive_store_dir }}"
 
-- name: Copy Lantern app archive to target host
-  copy:
-    src: "{{ lantern_app_deploy_latest_archive_path }}"
-    dest: "{{ lantern_app_deploy_remote_archive_path }}"
-    owner: "{{ lantern_app_deploy_owner }}"
-    group: "{{ lantern_app_deploy_group }}"
-    mode: "0644"
+- name: Stage {{ app_id }} bundle in epytype_repo
+  vars:
+    epytype_repo_artifact_src: "{{ lantern_app_deploy_latest_archive_path }}"
+  import_role: { name: epytype_repo }
 
 - name: Optionally clean Lantern app directory on target host before extraction
   shell: |
     set -eu
     app_dir="{{ lantern_app_deploy_remote_app_dir }}"
-    archive_dir="{{ lantern_app_deploy_remote_archive_store_dir }}"
-    find "$app_dir" -mindepth 1 -maxdepth 1 ! -path "$archive_dir" -exec rm -rf {} +
+    find "$app_dir" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
   args:
     executable: /bin/sh
   when: clean_app | bool
 
 - name: Extract Lantern app bundle on target host
   unarchive:
-    src: "{{ lantern_app_deploy_remote_archive_path }}"
+    src: "{{ epytype_repo }}/{{ lantern_app_deploy_latest_archive_path | basename }}"
     dest: "{{ lantern_app_deploy_remote_root }}"
     remote_src: true
     owner: "{{ lantern_app_deploy_owner }}"
     group: "{{ lantern_app_deploy_group }}"
     extra_opts:
       - --no-same-owner
+  register: lantern_app_deploy_extract
   notify: Restart Lantern services
 
-- name: Remove staged Lantern app archive from target host
-  file:
-    path: "{{ lantern_app_deploy_remote_archive_path }}"
-    state: absent
+- name: Prune older {{ app_id }} bundles
+  vars:
+    epytype_repo_type: app
+    epytype_repo_keep: 2
+  import_role:
+    name: epytype_repo
+    tasks_from: prune
+  when: lantern_app_deploy_extract is succeeded

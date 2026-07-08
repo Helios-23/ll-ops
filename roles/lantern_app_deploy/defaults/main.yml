@@ -1,3 +1,4 @@
+# ... (lines 1-19 keep existing)
 lantern_app_deploy_repo_dir: "{{ playbook_dir }}/../lantern"
 lantern_app_deploy_repo_url: git@github.com:jperry303/lantern.git
 lantern_app_deploy_repo_version: HEAD
@@ -17,12 +18,19 @@ lantern_app_deploy_bundle_fingerprint: ""
 lantern_app_deploy_bundle_fingerprint_short: ""
 lantern_app_deploy_previous_bundle_fingerprint: ""
 lantern_app_deploy_bundle_changed: false
+
+# Staged-archive repository (managed by roles/epytype_repo).
+# epytype_repo_type values: pack (runtime/services) | app (apps under services).
+epytype_repo_type: app
+# Define how many versions to keep; minimum 2 (current + previous for rollback).
+epytype_repo_keep: 2
+
 lantern_app_deploy_remote_root: /srv/lantern/apps
 lantern_app_deploy_remote_app_dir: "{{ lantern_app_deploy_remote_root }}/{{ app_id }}"
-lantern_app_deploy_remote_archive_store_dir: "{{ lantern_app_deploy_remote_app_dir }}/.archives"
-lantern_app_deploy_remote_deployed_archive_path: "{{ lantern_app_deploy_remote_archive_store_dir }}/{{ lantern_app_deploy_remote_archive_basename }}"
-lantern_app_deploy_remote_archive_path: "{{ lantern_app_deploy_remote_deployed_archive_path }}"
-lantern_app_deploy_remote_archive_glob: "{{ app_id }}-*.{{ lantern_app_deploy_archive_ext }}"
+# Staging is now handled by epytype_repo in /opt/epytype/app
+lantern_app_deploy_remote_archive_store_dir: "/opt/epytype/app"
+lantern_app_deploy_remote_archive_path: "{{ epytype_repo_dir }}/{{ epytype_repo_type }}/{{ lantern_app_deploy_archive_basename }}"
+# ... (rest of file keep existing)
 lantern_app_deploy_bundle_exclude_prefixes:
   - dist/
   - var/db/
