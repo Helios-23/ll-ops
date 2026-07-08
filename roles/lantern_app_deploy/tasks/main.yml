@@ -1,193 +1,58 @@
-- name: Ensure Lantern app release artifact root exists on controller
+- name: Host Archive Prep
+  block:
+    - name: Ensure Lantern app release artifact root exists on controller
+      file:
+        path: "{{ lantern_app_deploy_controller_release_root }}"
+        state: directory
+        mode: "{{ lantern_app_deploy_directory_mode }}"
+
+    - name: Sync Lantern repo on controller
+      git:
+        repo: "{{ lantern_app_deploy_repo_url }}"
+        dest: "{{ lantern_app_deploy_repo_dir }}"
+        version: "{{ lantern_app_deploy_repo_version }}"
+        update: true
+        force: true
+      when: update_repo
+
+    - name: Generate Lantern app archive stamp on controller
+      set_fact:
+        lantern_app_deploy_archive_stamp: "{{ lookup('pipe', 'date +%Y%m%d-%H%M%S') }}"
+
+    - name: Render {{ app_id }} app bundle in {{ lantern_app_deploy_repo_dir }} before packaging
+      ansible.builtin.command:
+        cmd: bin/lantern build app {{ app_id }} --build-dir dist --text
+        chdir: "{{ lantern_app_deploy_repo_dir }}"
+
+    - name: Package Lantern app bundle archive on controller
+      shell: |
+        set -eu
+        umask 022
+        archive_source_dir="{{ lantern_app_deploy_repo_dir }}/apps"
+        archive_path="{{ lantern_app_deploy_archive_path }}"
+        app_id_local="{{ app_id }}"
+        tar_args=''
+        {% for prefix in lantern_app_deploy_bundle_exclude_prefixes %}
+        tar_args="$tar_args --exclude={{ app_id }}/{{ prefix }}"
+        {% endfor %}
+        {% for exact_path in lantern_app_deploy_bundle_exclude_exact_paths %}
+        tar_args="$tar_args --exclude={{ app_id }}/{{ exact_path }}"
+        {% endfor %}
+        {% for name in lantern_app_deploy_bundle_exclude_names %}
+        tar_args="$tar_args --exclude={{ name }}"
+        {% endfor %}
+        {% for suffix in lantern_app_deploy_bundle_exclude_suffixes %}
+        tar_args="$tar_args --exclude=*{{ suffix }}"
+        {% endfor %}
+        # shellcheck disable=SC2086
+        tar -C "$archive_source_dir" $tar_args -czf "$archive_path" "$app_id_local"
+      args:
+        executable: /bin/sh
+
   delegate_to: localhost
   become: false
-  file:
-    path: "{{ lantern_app_deploy_controller_release_root }}"
-    state: directory
-    mode: "{{ lantern_app_deploy_directory_mode }}"
   run_once: true
-
-- name: Sync Lantern repo on controller
-  delegate_to: localhost
-  become: false
-  git:
-    repo: "{{ lantern_app_deploy_repo_url }}"
-    dest: "{{ lantern_app_deploy_repo_dir }}"
-    version: "{{ lantern_app_deploy_repo_version }}"
-    update: true
-    force: true
-  run_once: true
-  when: update_repo
-
-- name: Read existing Lantern app bundle fingerprint on controller
-  delegate_to: localhost
-  become: false
-  stat:
-    path: "{{ lantern_app_deploy_bundle_fingerprint_path }}"
-  register: lantern_app_deploy_bundle_fingerprint_stat
-  run_once: true
-
-- name: Load existing Lantern app bundle fingerprint on controller
-  delegate_to: localhost
-  become: false
-  slurp:
-    src: "{{ lantern_app_deploy_bundle_fingerprint_path }}"
-  register: lantern_app_deploy_bundle_fingerprint_slurp
-  when: lantern_app_deploy_bundle_fingerprint_stat.stat.exists
-  run_once: true
-
-- name: Calculate Lantern app bundle fingerprint on controller
-  delegate_to: localhost
-  become: false
-  shell: |
-    python3 - "{{ lantern_app_deploy_source_dir }}" <<'PY'
-    import hashlib
-    import json
-    import os
-    import sys
-
-    root = sys.argv[1]
-    digest = hashlib.sha256()
-    exclude_prefixes = json.loads('{{ lantern_app_deploy_bundle_exclude_prefixes | to_json }}')
-    exclude_exact_paths = set(json.loads('{{ lantern_app_deploy_bundle_exclude_exact_paths | to_json }}'))
-    exclude_names = set(json.loads('{{ lantern_app_deploy_bundle_exclude_names | to_json }}'))
-    exclude_suffixes = tuple(json.loads('{{ lantern_app_deploy_bundle_exclude_suffixes | to_json }}'))
-
-    def should_skip(rel_path: str) -> bool:
-        normalized = rel_path.replace(os.sep, "/")
-        base_name = os.path.basename(normalized.rstrip("/"))
-        if normalized in exclude_exact_paths:
-            return True
-        if base_name in exclude_names:
-            return True
-        if exclude_suffixes and base_name.endswith(exclude_suffixes):
-            return True
-        for prefix in exclude_prefixes:
-            if normalized.startswith(prefix):
-                return True
-        return False
-
-    for dirpath, dirnames, filenames in os.walk(root):
-        rel_dir = os.path.relpath(dirpath, root)
-        rel_dir = "" if rel_dir == "." else rel_dir.replace(os.sep, "/") + "/"
-        dirnames[:] = sorted(
-            name for name in dirnames
-            if name not in exclude_names and not should_skip(rel_dir + name + "/")
-        )
-        filenames = sorted(filenames)
-        for name in filenames:
-            path = os.path.join(dirpath, name)
-            rel = os.path.relpath(path, root).replace(os.sep, "/")
-            if should_skip(rel):
-                continue
-            digest.update(rel.encode("utf-8"))
-            digest.update(b"\0")
-            with open(path, "rb") as handle:
-                for chunk in iter(lambda: handle.read(65536), b""):
-                    digest.update(chunk)
-
-    print(digest.hexdigest())
-    PY
-  args:
-    executable: /bin/sh
-  register: lantern_app_deploy_bundle_fingerprint_result
-  changed_when: false
-  run_once: true
-
-- name: Decide whether Lantern app bundle archive should be rebuilt on controller
-  delegate_to: localhost
-  become: false
-  set_fact:
-    lantern_app_deploy_bundle_fingerprint: "{{ lantern_app_deploy_bundle_fingerprint_result.stdout | trim }}"
-    lantern_app_deploy_previous_bundle_fingerprint: >-
-      {{
-        (
-          lantern_app_deploy_bundle_fingerprint_slurp.content
-          | default('')
-          | b64decode
-          | trim
-        )
-        if lantern_app_deploy_bundle_fingerprint_stat.stat.exists
-        else ''
-      }}
-    lantern_app_deploy_bundle_changed: >-
-      {{
-        (
-          not lantern_app_deploy_bundle_fingerprint_stat.stat.exists
-        )
-        or (
-          (
-            lantern_app_deploy_bundle_fingerprint_slurp.content
-            | default('')
-            | b64decode
-            | trim
-          ) != (lantern_app_deploy_bundle_fingerprint_result.stdout | trim)
-        )
-      }}
-  run_once: true
-
-- name: Find Lantern app archives on controller
-  delegate_to: localhost
-  become: false
-  find:
-    paths: "{{ lantern_app_deploy_controller_release_root }}"
-    patterns: "{{ lantern_app_deploy_archive_glob }}"
-    file_type: file
-  register: lantern_app_deploy_archive_find
-  run_once: true
-
-- name: Select newest Lantern app archive on controller
-  delegate_to: localhost
-  become: false
-  set_fact:
-    lantern_app_deploy_latest_archive_path: >-
-      {{
-        (lantern_app_deploy_archive_find.files
-        | sort(attribute='mtime', reverse=true)
-        | first).path
-        if lantern_app_deploy_archive_find.matched | int > 0
-        else ''
-      }}
-  run_once: true
-
-- name: Build Lantern app bundle archive on controller when bundle changed
-  delegate_to: localhost
-  become: false
-  shell: |
-    set -eu
-    umask 022
-    archive_source_dir="{{ lantern_app_deploy_repo_dir }}/apps"
-    archive_path="{{ lantern_app_deploy_archive_path }}"
-    app_id_local="{{ app_id }}"
-    tar_args=''
-    {% for prefix in lantern_app_deploy_bundle_exclude_prefixes %}
-    tar_args="$tar_args --exclude={{ app_id }}/{{ prefix }}"
-    {% endfor %}
-    {% for exact_path in lantern_app_deploy_bundle_exclude_exact_paths %}
-    tar_args="$tar_args --exclude={{ app_id }}/{{ exact_path }}"
-    {% endfor %}
-    {% for name in lantern_app_deploy_bundle_exclude_names %}
-    tar_args="$tar_args --exclude={{ name }}"
-    {% endfor %}
-    {% for suffix in lantern_app_deploy_bundle_exclude_suffixes %}
-    tar_args="$tar_args --exclude=*{{ suffix }}"
-    {% endfor %}
-    # shellcheck disable=SC2086
-    tar -C "$archive_source_dir" $tar_args -czf "$archive_path" "$app_id_local"
-    printf '%s\n' "{{ lantern_app_deploy_bundle_fingerprint }}" > "{{ lantern_app_deploy_bundle_fingerprint_path }}"
-  args:
-    executable: /bin/sh
-  when:
-    - lantern_app_deploy_bundle_changed or lantern_app_deploy_latest_archive_path == ""
-  run_once: true
-
-- name: Use freshly built Lantern app archive on controller
-  delegate_to: localhost
-  set_fact:
-    lantern_app_deploy_latest_archive_path: "{{ lantern_app_deploy_archive_path }}"
-  when:
-    - lantern_app_deploy_bundle_changed or lantern_app_deploy_latest_archive_path == ""
-  run_once: true
+## END Host Archive Prep
 
 - name: Ensure Lantern app directories exist on target host
   file:
@@ -202,7 +67,8 @@
 
 - name: Stage {{ app_id }} bundle in epytype_repo
   vars:
-    epytype_repo_artifact_src: "{{ lantern_app_deploy_latest_archive_path }}"
+    epytype_repo_artifact_src: "{{ lantern_app_deploy_archive_path }}"
+    epytype_repo_type: app
   import_role: { name: epytype_repo }
 
 - name: Optionally clean Lantern app directory on target host before extraction
@@ -216,7 +82,7 @@
 
 - name: Extract Lantern app bundle on target host
   unarchive:
-    src: "{{ epytype_repo }}/{{ lantern_app_deploy_latest_archive_path | basename }}"
+    src: "{{ epytype_repo }}/{{ lantern_app_deploy_archive_basename }}"
     dest: "{{ lantern_app_deploy_remote_root }}"
     remote_src: true
     owner: "{{ lantern_app_deploy_owner }}"
