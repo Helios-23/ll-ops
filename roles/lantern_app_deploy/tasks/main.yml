@@ -21,7 +21,7 @@
 
     - name: Render {{ app_id }} app bundle in {{ lantern_app_deploy_repo_dir }} before packaging
       ansible.builtin.command:
-        cmd: bin/lantern build app {{ app_id }} --build-dir dist --text
+        cmd: bin/lantern build app {{ app_id }} --build-dir dist --text --seed-state
         chdir: "{{ lantern_app_deploy_repo_dir }}"
 
     - name: Package Lantern app bundle archive on controller
