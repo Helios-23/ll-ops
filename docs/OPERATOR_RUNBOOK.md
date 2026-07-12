@@ -198,13 +198,16 @@ Common command:
 apb setup_epytype.yml -l web0 -t lantern
 ```
 
-The Lantern runtime defaults to `127.0.0.1:7323`, so nginx proxies there unless the service is reconfigured.
+The packaged Lantern runtime defaults to `socket_path=/run/lantern/lantern.sock`, and `prod_web` enables `lantern_use_socket: true`, so nginx proxies to that Unix socket there. The packaged systemd unit creates `/run/lantern` with mode `0750`, assigns it to group `www-data`, and the Lantern runtime sets `/run/lantern/lantern.sock` to group `www-data` with mode `0660` so nginx can connect without making the socket world-accessible. If `lantern_use_socket` is disabled, the role falls back to TCP proxying at `127.0.0.1:7323`.
 
 Verification:
 
 - `curl -I https://lantern.epytype.org`
+- `curl https://lantern.epytype.org/api/graph/health` (or another app health endpoint you expect to be live) to confirm upstream health still works through nginx
 - confirm `/etc/nginx/sites-available/lantern.epytype.org.conf` and `/etc/nginx/sites-enabled/lantern.epytype.org.conf` exist
 - confirm `/var/log/nginx/lantern.access.log` and `/var/log/nginx/lantern.error.log` are being written
+- in socket mode, confirm `test -S /run/lantern/lantern.sock` on `web0`
+- confirm `stat -c '%A %U %G %n' /run/lantern /run/lantern/lantern.sock` reports `/run/lantern` as mode `0750` and group `www-data`, and `lantern.sock` as mode `0660` and group `www-data`
 - if DNS has not been cut over yet, run the same checks directly on `web0` before changing the public record
 
 ### 8b. Build the Lantern binaries and release artifacts
@@ -277,7 +280,7 @@ What it does:
 - resolves the newest `lantern_*.deb` from `lantern/dist/packages` on the controller when no package path is passed
 - copies the `.deb` to `web0`
 - installs it with `dpkg` and repairs dependencies with `apt`
-- restarts `lantern.service` and `lantern-ha.service`
+- restarts `lantern.service` and `lantern-ha.service` so packaged runtime changes (including the `/run/lantern` directory ownership/mode and `lantern.sock` group-access contract for nginx) are picked up cleanly
 
 The build step expects `../epytype/dist/binaries` to contain the matching `epytype` and `epm` release binaries.
 

@@ -1,4 +1,6 @@
 lantern_domain: "lantern.epytype.org"
+lantern_use_socket: false
+lantern_socket_path: "/run/lantern/lantern.sock"
 lantern_service_host: "127.0.0.1"
 lantern_service_port: 7323
 lantern_access_log: "/var/log/nginx/lantern.access.log"

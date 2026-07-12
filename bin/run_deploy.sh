@@ -16,6 +16,6 @@ run_playbook() {
 }
 
 # Sequential execution logic (type commands exactly like the command line)
-run_playbook apb build.yml -t lantern_release -e target=linux-x86_64-gnu && \
+run_playbook apb build.yml -t lantern_build -e target=linux-x86_64-gnu && \
 run_playbook apb deploy.yml -t lantern_runtime -l web0 && \
 run_playbook apb deploy.yml -t lantern_app -l web0 && \

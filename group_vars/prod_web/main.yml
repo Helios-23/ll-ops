@@ -1,3 +1,5 @@
+lantern_use_socket: true
+
 allowed_ssh_users:
   - "devops"
 

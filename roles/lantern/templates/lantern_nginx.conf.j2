@@ -1,3 +1,11 @@
+upstream lantern_app {
+{% if lantern_use_socket %}
+    server unix:{{ lantern_socket_path }};
+{% else %}
+    server {{ lantern_service_host }}:{{ lantern_service_port }};
+{% endif %}
+}
+
 server {
     listen 80;
     server_name {{ lantern_domain }};
@@ -31,7 +39,7 @@ server {
     }
 
     location / {
-        proxy_pass http://{{ lantern_service_host }}:{{ lantern_service_port }};
+        proxy_pass http://lantern_app;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;

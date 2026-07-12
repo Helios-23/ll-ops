@@ -18,25 +18,29 @@
     'obtained' in (lantern_certbot_result.stdout | lower) or
     'new certificate' in (lantern_certbot_result.stdout | lower)
 
-- name: Deploy nginx reverse proxy config for Lantern with TLS
-  template:
-    src: lantern_nginx.conf.j2
-    dest: /etc/nginx/sites-available/lantern.epytype.org.conf
-    owner: root
-    group: root
-    mode: "0644"
-  notify: Reload nginx
+- name: Lantern nginx vhost
+  tags:
+    - lantern_nginx
+  block:
+    - name: Deploy nginx reverse proxy config for Lantern with TLS
+      template:
+        src: lantern_nginx.conf.j2
+        dest: /etc/nginx/sites-available/lantern.epytype.org.conf
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Reload nginx
 
-- name: Enable nginx Lantern site
-  file:
-    src: /etc/nginx/sites-available/lantern.epytype.org.conf
-    dest: /etc/nginx/sites-enabled/lantern.epytype.org.conf
-    state: link
-  notify: Reload nginx
+    - name: Enable nginx Lantern site
+      file:
+        src: /etc/nginx/sites-available/lantern.epytype.org.conf
+        dest: /etc/nginx/sites-enabled/lantern.epytype.org.conf
+        state: link
+      notify: Reload nginx
 
-- name: Test nginx configuration
-  command: nginx -t
-  changed_when: false
+    - name: Test nginx configuration
+      command: nginx -t
+      changed_when: false
 
 - name: Set up certbot auto-renewal cron job for Lantern
   cron:
