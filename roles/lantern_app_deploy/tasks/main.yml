@@ -19,11 +19,6 @@
       set_fact:
         lantern_app_deploy_archive_stamp: "{{ lookup('pipe', 'date +%Y%m%d-%H%M%S') }}"
 
-    - name: Render {{ app_id }} app bundle in {{ lantern_app_deploy_repo_dir }} before packaging
-      ansible.builtin.command:
-        cmd: bin/lantern build app {{ app_id }} --build-dir dist --text --seed-state
-        chdir: "{{ lantern_app_deploy_repo_dir }}"
-
     - name: Package Lantern app bundle archive on controller
       shell: |
         set -eu
@@ -91,6 +86,14 @@
       - --no-same-owner
   register: lantern_app_deploy_extract
   notify: Restart Lantern services
+
+
+- name: Render {{ app_id }} app bundle in {{ lantern_app_deploy_remote_root }}/{{ app_id }}
+  ansible.builtin.command:
+    cmd: lantern build app {{ app_id }} --build-dir dist --text --seed-state
+    chdir: "{{ lantern_app_deploy_remote_root }}/{{ app_id }}"
+  become: yes
+  become_user: "{{ lantern_app_deploy_owner }}"
 
 - name: Prune older {{ app_id }} bundles
   vars:
