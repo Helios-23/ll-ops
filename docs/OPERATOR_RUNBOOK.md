@@ -249,15 +249,15 @@ Default: `all` (builds all seven). Pass `-e target=<name>` to build a single tar
 What `lantern_build` does:
 
 - runs `docker compose run --rm` for each selected target using `lantern/cross/docker/docker-compose.yml`
-- each container: compiles with zig, validates the binary, runs `package-lantern-artifacts` which produces tar.gz/zip/checksums/sigs and a linux-gnu `.deb` (when applicable) into `dist/packages/`
+- each container: compiles with zig, validates the binary, and runs `package-lantern-artifacts` to emit packaged release artifacts into `dist/packages/`; current formats include `.deb`, `.rpm`, `.apk`, `.pkg.tar.zst`, `.ebuild`, `.pkg`, `.rb`, `.tar.gz`, `.msix`, and `.zip` depending on target
 - consumes `../epytype/dist/binaries` for included Epytype runtime binaries via the epytype cross scripts
 - includes only `atlas_studio` and `graph_studio` in the package payload
 
 Verification (per-run scoped):
 
-- captures the run-start timestamp at the top of the role, then lists release artifacts in `dist/packages` whose `mtime` is at-or-after that timestamp
-- this catches both fresh writes and in-place overwrites, so a single-target run against an already-populated `dist/packages` (the normal case) still shows only the artifacts freshly laid down by this invocation
-- an `all` invocation shows every target's artifacts this run produced
+- captures pre-build checksums, then prints only packaged release artifacts in `dist/packages` whose checksum changed during this run
+- this catches both fresh writes and in-place overwrites, so a single-target run against an already-populated `dist/packages` still shows only the packaged artifacts freshly laid down by this invocation
+- an `all` invocation shows every packaged artifact this run produced
 - accepts any release artifact matching `*.deb`, `*.rpm`, `*.apk`, `*.tar.gz`, `*.tgz`, `*.msix`, or `*.zip`; sidecars (`.sha256`, `.asc`, `.manifest.json`, `.zst`) are intentionally excluded so verification works for every target, including non-deb builds such as `linux-x86_64-musl`, `macos-universal`, `windows-x86_64-msvc`, and `windows-arm64-msvc`
 - fails the playbook if no release artifact was produced
 

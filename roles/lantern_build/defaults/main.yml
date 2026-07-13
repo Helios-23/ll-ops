@@ -19,15 +19,19 @@ lantern_build_selected_targets: >-
   }}
 lantern_build_binary_dir: "{{ lantern_build_repo_dir }}/dist/binaries"
 lantern_build_package_dir: "{{ lantern_build_repo_dir }}/dist/packages"
-# Each target produces a release artifact under lantern_build_package_dir.
-# Verification accepts any of these extensions so the check works for every
-# target, not just the linux-gnu ones that produce a .deb. Verification
-# sidecars (.sha256, .asc, .manifest.json, .zst) are not patterns, so they
-# are excluded.
+# Each target produces one or more release artifacts under
+# lantern_build_package_dir. Keep this list aligned with
+# lantern/cross/bin/package-lantern-artifacts and the release workflow so
+# verification reports every package format we intentionally emit.
+# Verification sidecars (.sha256, .asc, .manifest.json) are excluded.
 lantern_build_release_artifacts:
   - "*.deb"
   - "*.rpm"
   - "*.apk"
+  - "*.pkg.tar.zst"
+  - "*.ebuild"
+  - "*.pkg"
+  - "*.rb"
   - "*.tar.gz"
   - "*.tgz"
   - "*.msix"

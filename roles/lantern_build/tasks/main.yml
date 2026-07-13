@@ -45,7 +45,7 @@
 
     - name: Capture pre-build checksums
       shell: |
-        find {{ lantern_build_package_dir }} -type f \( -name "*.apk" -o -name "*.deb" -o -name "*.zip" -o -name "*.tar.gz" -o -name "*.msix" -o -name "*.rpm" \) -exec shasum -a 256 {} + > {{ lantern_build_binary_dir }}/pre_build_hashes.txt
+        find {{ lantern_build_package_dir }} -type f \( -name "*.apk" -o -name "*.deb" -o -name "*.zip" -o -name "*.tar.gz" -o -name "*.msix" -o -name "*.rpm" -o -name "*.pkg" -o -name "*.pkg.tar.zst" -o -name "*.ebuild" -o -name "*.rb" \) -exec shasum -a 256 {} + > {{ lantern_build_binary_dir }}/pre_build_hashes.txt
       register: pre_build_hashes
 
     # Docker Compose orchestration
@@ -93,10 +93,10 @@
       ansible.builtin.set_fact:
         changed_files: "{{ checksum_verification.stdout.split() }}"
 
-    - name: Show the list of changed files
+    - name: Show packaged artifacts from this run
       ansible.builtin.debug:
         msg: |
-          Changed files:
+          Packaged artifacts:
           {% for file in changed_files %}
           {{ file }}
           {% endfor %}
