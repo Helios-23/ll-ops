@@ -107,27 +107,16 @@
   notify: Restart Lantern services
 
 
-- name: Rewrite deployed {{ app_id }} artifact manifest app_root on target host
-  ansible.builtin.replace:
-    path: "{{ item }}"
-    regexp: '("app_root"\s*:\s*")[^"]*(")'
-    replace: '\1{{ lantern_app_deploy_remote_app_dir }}\2'
-  loop:
-    - "{{ lantern_app_deploy_remote_app_dir }}/manifest.json"
-    - "{{ lantern_app_deploy_remote_app_dir }}/lantern-app-manifest.json"
-  notify: Restart Lantern services
-
-- name: Verify deployed {{ app_id }} artifact manifests exist and point at target app_root
+- name: Verify deployed {{ app_id }} artifact manifests exist and preserve relocatable app_root
   ansible.builtin.shell: |
     set -eu
     manifest_path="{{ lantern_app_deploy_remote_app_dir }}/manifest.json"
     app_manifest_path="{{ lantern_app_deploy_remote_app_dir }}/lantern-app-manifest.json"
-    expected_root="{{ lantern_app_deploy_remote_app_dir }}"
-    expected_pattern='"app_root"[[:space:]]*:[[:space:]]*"'"$expected_root"'"'
+    relocatable_pattern='"app_root"[[:space:]]*:[[:space:]]*"\."'
     [ -f "$manifest_path" ]
     [ -f "$app_manifest_path" ]
-    grep -E "$expected_pattern" "$manifest_path" >/dev/null
-    grep -E "$expected_pattern" "$app_manifest_path" >/dev/null
+    grep -E "$relocatable_pattern" "$manifest_path" >/dev/null
+    grep -E "$relocatable_pattern" "$app_manifest_path" >/dev/null
   args:
     executable: /bin/sh
   become: true
