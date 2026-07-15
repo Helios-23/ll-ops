@@ -9,6 +9,7 @@ lantern_app_deploy_archive_revision: ""
 lantern_app_deploy_archive_basename: >-
   {{ app_id }}-{{ lantern_app_deploy_archive_stamp }}{{ lantern_app_deploy_archive_revision | ternary('-' ~ lantern_app_deploy_archive_revision, '') }}.{{ lantern_app_deploy_archive_ext }}
 lantern_app_deploy_archive_path: "{{ lantern_app_deploy_controller_release_root }}/{{ lantern_app_deploy_archive_basename }}"
+lantern_app_deploy_controller_app_root: "{{ lantern_app_deploy_repo_dir }}/dist/apps/{{ app_id }}"
 
 # Staged-archive repository (managed by roles/epytype_repo).
 # epytype_repo_type values: pack (runtime/services) | app (apps under services).
@@ -23,9 +24,11 @@ lantern_app_deploy_bundle_exclude_prefixes:
   - var/backups/
 lantern_app_deploy_bundle_exclude_exact_paths:
   - var/runtime-state.json
+  - .deployed-archive
 lantern_app_deploy_bundle_exclude_names:
   - .DS_Store
   - .archives
+  - .gitkeep
 lantern_app_deploy_bundle_exclude_suffixes:
   - .tar
   - .tar.gz
