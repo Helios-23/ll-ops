@@ -19,7 +19,6 @@ epytype_repo_keep: 2
 lantern_app_deploy_remote_root: /srv/lantern/apps
 lantern_app_deploy_remote_app_dir: "{{ lantern_app_deploy_remote_root }}/{{ app_id }}"
 lantern_app_deploy_bundle_exclude_prefixes:
-  - dist/
   - var/db/
   - var/backups/
 lantern_app_deploy_bundle_exclude_exact_paths:

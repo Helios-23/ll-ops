@@ -210,6 +210,14 @@ Verification:
 - confirm `stat -c '%A %U %G %n' /run/lantern /run/lantern/lantern.sock` reports `/run/lantern` as mode `0750` and group `www-data`, and `lantern.sock` as mode `0660` and group `www-data`
 - if DNS has not been cut over yet, run the same checks directly on `web0` before changing the public record
 
+Lantern app deploy note:
+
+- the `lantern_app_deploy` role now renders app-local `dist/` artifacts on the controller before packaging the app bundle
+- the target host does not source-build the app from the installed `lantern` package during deploy
+- after extraction, the deploy role rewrites the shipped app artifact manifests so `app_root` matches `/srv/lantern/apps/<app_id>` on the target host
+- the deploy role then verifies that both `dist/<app_id>/manifest.json` and `dist/<app_id>/lantern-app-manifest.json` exist on the target and contain the rewritten target `app_root`
+- seed JSON changes in an app bundle do not automatically overwrite an already-managed live database; they only affect fresh bootstrap paths unless you also run an explicit migration, refresh, or maintenance flow
+
 ### 8b. Build the Lantern binaries and release artifacts
 
 `build.yml` is the generic product-build entry in `ops/`. Today it contains both `roles/lantern_build` (real build) and `roles/epytype_build` (placeholder for when the Epytype cross-build pipeline is wired up). Select a single role's tasks with `-t <role>`; omit `-t` to run every role.

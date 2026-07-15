@@ -19,6 +19,15 @@
       set_fact:
         lantern_app_deploy_archive_stamp: "{{ lookup('pipe', 'date +%Y%m%d-%H%M%S') }}"
 
+    - name: Render {{ app_id }} app bundle on controller before packaging
+      ansible.builtin.command:
+        cmd: >-
+          sh scripts/lantern_runtime.sh build app {{ app_id }}
+          --app-dir {{ lantern_app_deploy_repo_dir }}/apps/{{ app_id }}
+          --build-dir {{ lantern_app_deploy_repo_dir }}/apps/{{ app_id }}/dist
+          --text
+        chdir: "{{ lantern_app_deploy_repo_dir }}"
+
     - name: Package Lantern app bundle archive on controller
       shell: |
         set -eu
@@ -88,10 +97,29 @@
   notify: Restart Lantern services
 
 
-- name: Render {{ app_id }} app bundle in {{ lantern_app_deploy_remote_root }}/{{ app_id }}
-  ansible.builtin.command:
-    cmd: lantern build app {{ app_id }} --build-dir dist --text
-    chdir: "{{ lantern_app_deploy_remote_root }}/{{ app_id }}"
+- name: Rewrite deployed {{ app_id }} artifact manifest app_root on target host
+  ansible.builtin.replace:
+    path: "{{ item }}"
+    regexp: '("app_root"\s*:\s*")[^"]*(")'
+    replace: '\1{{ lantern_app_deploy_remote_app_dir }}\2'
+  loop:
+    - "{{ lantern_app_deploy_remote_app_dir }}/dist/{{ app_id }}/manifest.json"
+    - "{{ lantern_app_deploy_remote_app_dir }}/dist/{{ app_id }}/lantern-app-manifest.json"
+  notify: Restart Lantern services
+
+- name: Verify deployed {{ app_id }} artifact manifests exist and point at target app_root
+  ansible.builtin.shell: |
+    set -eu
+    manifest_path="{{ lantern_app_deploy_remote_app_dir }}/dist/{{ app_id }}/manifest.json"
+    app_manifest_path="{{ lantern_app_deploy_remote_app_dir }}/dist/{{ app_id }}/lantern-app-manifest.json"
+    expected_root="{{ lantern_app_deploy_remote_app_dir }}"
+    expected_pattern='"app_root"[[:space:]]*:[[:space:]]*"'"$expected_root"'"'
+    [ -f "$manifest_path" ]
+    [ -f "$app_manifest_path" ]
+    grep -E "$expected_pattern" "$manifest_path" >/dev/null
+    grep -E "$expected_pattern" "$app_manifest_path" >/dev/null
+  args:
+    executable: /bin/sh
   become: yes
   become_user: "{{ lantern_app_deploy_owner }}"
 
