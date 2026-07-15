@@ -18,8 +18,7 @@ Use this as the quick command map; the **Complete Tag Index** below is the autho
 | `github-release.yml` | localhost | choose `epytype` or `lantern` -> optionally override version vars -> run from `ops/` | `epytype`, `lantern` | release variables only; no extra Ansible task tags |
 | `terraform.yml` | localhost | run plan -> apply automatically on drift -> sync inventory from outputs | `terraform` | none |
 | `kymstr.yml` | selected hosts | choose hosts -> run `kymstr` or an explicit opt-in task tag -> many paths also require `never` | `kymstr` | `ssh-auth`, `ssh-key`, `gen-csr`, `encrypt`, `cert`, `never` |
-| `lantern-app-deploy.yml` | `web0` | thin wrapper that imports `deploy.yml` for Lantern app/runtime deploy flows | inherited from `deploy.yml` | `lantern_runtime`, `lantern_app`, `lantern_app_deploy` |
-| `lantern-release-deploy.yml` | localhost, `web0` | thin wrapper that imports `build.yml` and then `deploy.yml` | inherited from imported playbooks | `lantern_build`, `lantern_runtime`, `lantern_app`, `lantern_app_deploy` |
+
 
 ## Examples
 
@@ -127,19 +126,19 @@ apb build.yml -t lantern_build -e target=linux-aarch64-gnu
 
 | Tags |
 | --- |
-| `admin`, `ai_server`, `epytype`, `kymstr`, `lantern`, `lantern_app_deploy`, `lantern_app`, `lantern_runtime`, `repo0_nbde`, `repo_server`, `terraform`, `web_server` |
+| `admin`, `ai_server`, `epytype`, `kymstr`, `lantern`, `lantern_app`, `lantern_runtime`, `repo0_nbde`, `repo_server`, `terraform`, `web_server` |
 
 ### Role-level tags
 
 | Tags |
 | --- |
-| `ai_rig`, `ai_certbot`, `ai_nginx`, `certbot_tls`, `docker_engine`, `epytype_build`, `forgejo`, `forgejo_pull`, `harden`, `lantern`, `lantern_app`, `lantern_app_deploy`, `lantern_build`, `lantern_nginx`, `lantern_runtime`, `luks_nbde`, `nginx`, `tailscale`, `ubuntu_pro_fips` |
+| `ai_rig`, `ai_certbot`, `ai_nginx`, `certbot_tls`, `docker_engine`, `epytype_build`, `forgejo`, `forgejo_pull`, `harden`, `lantern`, `lantern_app`, `lantern_build`, `lantern_nginx`, `lantern_runtime`, `luks_nbde`, `nginx`, `tailscale`, `ubuntu_pro_fips` |
 
 ### Task-level tags
 
 | Tags |
 | --- |
-| `forgejo_push_create_org`, `forgejo_reverse_proxy_trust`, `forgejo_tailscale_access_control`, `forgejo_users`, `gen-csr`, `gen-ssh`, `install`, `ipv4-forward`, `lantern_app`, `lantern_app_deploy`, `lantern_build`, `lantern_nginx`, `lantern_runtime`, `mysql`, `never`, `ollama`, `pull_models`, `reverse_proxy_fail2ban`, `show_models`, `ssh-auth`, `ssh-auth-review`, `ssh-gen`, `ssh-key`, `ssh-key-report`, `tailscale_machine`, `tailscale_policy`, `update_reboot`, `webui` |
+| `always`, `cert`, `check-csr`, `encrypt`, `fail2ban`, `fail2ban_sshd_invalid_user`, `forgejo_push_create_org`, `forgejo_reverse_proxy_trust`, `forgejo_tailscale_access_control`, `forgejo_users`, `gen-csr`, `gen-ssh`, `install`, `ipv4-forward`, `lantern_app`, `lantern_build`, `lantern_nginx`, `lantern_runtime`, `mysql`, `never`, `ollama`, `pull_models`, `reverse_proxy_fail2ban`, `show_models`, `ssh-auth`, `ssh-auth-review`, `ssh-gen`, `ssh-key`, `ssh-key-report`, `tailscale_machine`, `tailscale_policy`, `update_reboot`, `webui` |
 
 ## Role Notes
 
@@ -158,6 +157,7 @@ apb build.yml -t lantern_build -e target=linux-aarch64-gnu
 | `roles/lantern_deploy` | `lantern_deploy` | Installs a built Lantern `.deb` on `web0` with `dpkg -i` plus `apt-get -f install -y`, then starts `lantern.service` and `lantern-ha.service` and removes older staged `.deb` files from the target host while keeping the current package. The packaged service/runtime contract provides `/run/lantern` as group `www-data` mode `0750` and `lantern.sock` as group `www-data` mode `0660` for nginx socket proxying. |
 | `roles/admin` | none | Task tag: `update_reboot` only. The package update and reboot path runs only when `update_reboot` is selected. |
 | `roles/epytype_release` | none | release helper role used by `github-release.yml`; see task areas above for versioning, check gate, and push controls. |
+| `roles/epytype_repo` | none | helper role used by deploy flows to stage archives into typed repo directories and to prune older retained artifacts through its `prune.yml` task surface. |
 | `roles/keymaster` | none | task areas are documented above. Many paths are intentionally guarded by `never` and should be run with host limits and explicit tag selection. |
 | `roles/certbot_tls` | `certbot_tls` | no extra documented task tags |
 | `roles/docker_engine` | `docker_engine` | no extra documented task tags |
