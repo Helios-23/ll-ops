@@ -214,8 +214,8 @@ Lantern app deploy note:
 
 - the `lantern_app_deploy` role now renders a finalized staged app root at `lantern/dist/apps/<app_id>/` on the controller before packaging the app bundle
 - the target host does not source-build the app from the installed `lantern` package during deploy
-- after extraction, the deploy role rewrites the shipped app artifact manifests so `app_root` matches `/srv/lantern/apps/<app_id>` on the target host
-- the deploy role then verifies that both `/srv/lantern/apps/<app_id>/manifest.json` and `/srv/lantern/apps/<app_id>/lantern-app-manifest.json` exist on the target and contain the rewritten target `app_root`
+- after extraction, the deploy role verifies `/srv/lantern/apps/<app_id>/lantern.app.json` exists on the target host
+- the deploy role then verifies that the generated `artifact.app_root` metadata inside that file remains relocatable as `.`
 - seed JSON changes in an app bundle do not automatically overwrite an already-managed live database; they only affect fresh bootstrap paths unless you also run an explicit migration, refresh, or maintenance flow
 
 ### 8b. Build the Lantern binaries and release artifacts
