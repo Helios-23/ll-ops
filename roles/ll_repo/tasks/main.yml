@@ -1,20 +1,20 @@
-- name: Set epytype_repo directory based on epytype_repo_type
+- name: Set ll_repo directory based on ll_repo_type
   ansible.builtin.set_fact:
-    epytype_repo: "{{ epytype_repo_dir }}/{{ epytype_repo_type }}"
+    ll_repo: "{{ ll_repo_dir }}/{{ ll_repo_type }}"
 
-- name: Ensure {{ epytype_repo }} exists
+- name: Ensure {{ ll_repo }} exists
   ansible.builtin.file:
-    path: "{{ epytype_repo }}"
+    path: "{{ ll_repo }}"
     state: directory
     owner: root
     group: root
     mode: "0755"
 
-- name: Copy archive from controller to {{ epytype_repo }}
+- name: Copy archive from controller to {{ ll_repo }}
   ansible.builtin.copy:
-    src: "{{ epytype_repo_artifact_src }}"
-    dest: "{{ epytype_repo }}/"
+    src: "{{ ll_repo_artifact_src }}"
+    dest: "{{ ll_repo }}/"
     owner: root
     group: root
     mode: "0644"
-  when: epytype_repo_artifact_src | length > 0
+  when: ll_repo_artifact_src | length > 0

@@ -1,12 +1,12 @@
-- name: Resolve epytype_repo from epytype_repo_type
+- name: Resolve ll_repo from ll_repo_type
   ansible.builtin.set_fact:
-    epytype_repo: "{{ epytype_repo_dir }}/{{ epytype_repo_type }}"
+    ll_repo: "{{ ll_repo_dir }}/{{ ll_repo_type }}"
 
-- name: Prune archives in {{ epytype_repo }} keeping newest {{ epytype_repo_keep }}
+- name: Prune archives in {{ ll_repo }} keeping newest {{ ll_repo_keep }}
   ansible.builtin.shell: |
-    cd "{{ epytype_repo }}" || exit 0
+    cd "{{ ll_repo }}" || exit 0
     ls -1t 2>/dev/null \
-      | awk 'NR>{{ epytype_repo_keep }}' \
+      | awk 'NR>{{ ll_repo_keep }}' \
       | xargs -r rm -f --
   args:
     executable: /bin/sh

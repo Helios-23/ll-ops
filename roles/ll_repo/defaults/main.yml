@@ -1,11 +1,11 @@
 # Staged-archive repository root.
-epytype_repo_type: pack        # pack | app
-epytype_repo_keep: 2           # current + previous = 2
-epytype_repo_dir: /opt/epytype
-# Derived per-type directory. /opt/epytype/<type>/
-#   pack  (runtime/services like the lantern deb): /opt/epytype/pack
-#   app   (apps running under those services):    /opt/epytype/app
+ll_repo_type: pack        # pack | app
+ll_repo_keep: 2           # current + previous = 2
+ll_repo_dir: /opt/ll
+# Derived per-type directory. /opt/ll/<type>/
+#   pack  (runtime/services like the lantern deb): /opt/ll/pack
+#   app   (apps running under those services):    /opt/ll/app
 
 # Source path of the artifact on the controller. Caller sets this before
-# importing the role. The role copies this file to {{ epytype_repo }}/.
-epytype_repo_artifact_src: ""
+# importing the role. The role copies this file to {{ ll_repo }}/.
+ll_repo_artifact_src: ""

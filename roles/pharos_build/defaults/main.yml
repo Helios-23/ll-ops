@@ -1,9 +1,9 @@
-# Build Epytype and Lantern as sibling checkouts of ops/ (one level up).
-lantern_build_repo_dir: "{{ playbook_dir }}/../lantern"
-lantern_build_epytype_repo_dir: "{{ playbook_dir }}/../epytype"
-lantern_build_target: "{{ target | default('all') }}"
-lantern_build_compose_dir: "{{ lantern_build_repo_dir }}/cross/docker"
-lantern_build_all_targets:
+# Build Epytype and Pharos as sibling checkouts of ops/ (one level up).
+pharos_build_repo_dir: "{{ playbook_dir }}/../pharos"
+pharos_build_epytype_repo_dir: "{{ playbook_dir }}/../epytype"
+pharos_build_target: "{{ target | default('all') }}"
+pharos_build_compose_dir: "{{ pharos_build_repo_dir }}/cross/docker"
+pharos_build_all_targets:
   - linux-x86_64-gnu
   - linux-x86_64-musl
   - linux-aarch64-gnu
@@ -11,20 +11,20 @@ lantern_build_all_targets:
   - macos-universal
   - windows-x86_64-msvc
   - windows-arm64-msvc
-lantern_build_selected_targets: >-
+pharos_build_selected_targets: >-
   {{
-    lantern_build_all_targets
-    if lantern_build_target == 'all'
-    else [lantern_build_target]
+    pharos_build_all_targets
+    if pharos_build_target == 'all'
+    else [pharos_build_target]
   }}
-lantern_build_binary_dir: "{{ lantern_build_repo_dir }}/dist/binaries"
-lantern_build_package_dir: "{{ lantern_build_repo_dir }}/dist/packages"
+pharos_build_binary_dir: "{{ pharos_build_repo_dir }}/dist/binaries"
+pharos_build_package_dir: "{{ pharos_build_repo_dir }}/dist/packages"
 # Each target produces one or more release artifacts under
-# lantern_build_package_dir. Keep this list aligned with
-# lantern/cross/bin/package-lantern-artifacts and the release workflow so
+# pharos_build_package_dir. Keep this list aligned with
+# pharos/cross/bin/package-pharos-artifacts and the release workflow so
 # verification reports every package format we intentionally emit.
 # Verification sidecars (.sha256, .asc, .manifest.json) are excluded.
-lantern_build_release_artifacts:
+pharos_build_release_artifacts:
   - "*.deb"
   - "*.rpm"
   - "*.apk"
