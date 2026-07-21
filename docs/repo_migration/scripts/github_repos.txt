@@ -1,5 +1,0 @@
-jperry303/epytype
-jperry303/epytype-docstore
-jperry303/epytype-kernel
-jperry303/epytype-lang
-jperry303/epytype-spec

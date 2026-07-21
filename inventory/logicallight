@@ -1,0 +1,12 @@
+#localhost alias
+local ansible_connection=local
+
+## Production Shared Resources
+[prod]
+
+## Production AI
+[prod_ai]
+
+## Production Web
+[prod_web]
+web0            ansible_host=xxx.xxx.xxx.xxx      host_name=web0

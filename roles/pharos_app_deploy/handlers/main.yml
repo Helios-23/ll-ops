@@ -1,0 +1,6 @@
+- name: Restart Pharos services
+  systemd:
+    name: "{{ item }}"
+    enabled: true
+    state: restarted
+  loop: "{{ pharos_app_deploy_services }}"

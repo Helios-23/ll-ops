@@ -1,36 +1,35 @@
 # tailscale policy overrides
 tailscale_policy_groups:
-  group:epytype-admins:
+  group:ll-admins:
     - "helios23@gmail.com"
-  group:epytype-users:
+  group:ll-users:
     - "helios23@gmail.com"
-    - "jperry303@gmail.com"
 
 tailscale_policy_tag_owners:
-  tag:epytype:
-    - "group:epytype-admins"
+  tag:ll:
+    - "group:ll-admins"
 
 tailscale_policy_grants:
   - src:
-      - "group:epytype-admins"
-      - "group:epytype-users"
+      - "group:ll-admins"
+      - "group:ll-users"
     dst:
-      - "tag:epytype"
+      - "tag:ll"
     ip:
       - "tcp:22"
 
 tailscale_policy_ssh:
   - action: "accept"
     src:
-      - "group:epytype-admins"
+      - "group:ll-admins"
     dst:
-      - "tag:epytype"
+      - "tag:ll"
     users:
       - "devops"
   - action: "accept"
     src:
-      - "group:epytype-users"
+      - "group:ll-users"
     dst:
-      - "tag:epytype"
+      - "tag:ll"
     users:
-      - "j"
+      - "rp"

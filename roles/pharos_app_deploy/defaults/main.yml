@@ -1,0 +1,49 @@
+# ... (lines 1-19 keep existing)
+pharos_app_deploy_repo_dir: "{{ playbook_dir }}/../pharos"
+pharos_app_deploy_repo_url: git@github.com:Helios-23/pharos.git
+pharos_app_deploy_repo_version: HEAD
+pharos_app_deploy_controller_release_root: "{{ pharos_app_deploy_repo_dir }}/dist/release/app"
+pharos_app_deploy_archive_ext: tar.gz
+pharos_app_deploy_archive_stamp: ""
+pharos_app_deploy_archive_revision: ""
+pharos_app_deploy_archive_basename: >-
+  {{ app_id }}-{{ pharos_app_deploy_archive_stamp }}{{ pharos_app_deploy_archive_revision | ternary('-' ~ pharos_app_deploy_archive_revision, '') }}.{{ pharos_app_deploy_archive_ext }}
+pharos_app_deploy_archive_path: "{{ pharos_app_deploy_controller_release_root }}/{{ pharos_app_deploy_archive_basename }}"
+pharos_app_deploy_controller_app_root: "{{ pharos_app_deploy_repo_dir }}/dist/apps/{{ app_id }}"
+
+# Staged-archive repository (managed by roles/ll_repo).
+# ll_repo_type values: pack (runtime/services) | app (apps under services).
+ll_repo_type: app
+# Define how many versions to keep; minimum 2 (current + previous for rollback).
+ll_repo_keep: 2
+
+pharos_app_deploy_remote_root: /srv/pharos/apps
+pharos_app_deploy_remote_app_dir: "{{ pharos_app_deploy_remote_root }}/{{ app_id }}"
+pharos_app_deploy_bundle_exclude_prefixes:
+  - var/db/
+  - var/backups/
+pharos_app_deploy_bundle_exclude_exact_paths:
+  - var/runtime-state.json
+  - .deployed-archive
+pharos_app_deploy_bundle_exclude_names:
+  - .DS_Store
+  - .archives
+  - .gitkeep
+pharos_app_deploy_bundle_exclude_suffixes:
+  - .tar
+  - .tar.gz
+  - .tgz
+  - .zip
+  - .gz
+  - .bz2
+  - .xz
+  - .zst
+  - .deb
+  - .rpm
+  - .apk
+pharos_app_deploy_owner: pharos
+pharos_app_deploy_group: pharos
+pharos_app_deploy_directory_mode: "0755"
+pharos_app_deploy_services:
+  - pharos.service
+  - pharos-ha.service

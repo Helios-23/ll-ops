@@ -1,6 +1,0 @@
-- name: Restart Lantern services
-  systemd:
-    name: "{{ item }}"
-    enabled: true
-    state: restarted
-  loop: "{{ lantern_deploy_services }}"

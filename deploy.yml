@@ -1,25 +1,25 @@
-- name: Deploy Lantern runtime package
+- name: Deploy Pharos runtime package
   hosts: web0
   become: true
   gather_facts: false
   tags:
-    - lantern_runtime
+    - pharos_runtime
   roles:
-    - role: lantern_deploy
-      tags: lantern_runtime
+    - role: pharos_deploy
+      tags: pharos_runtime
 
-- name: Deploy Lantern app bundle
+- name: Deploy Pharos app bundle
   hosts: web0
   become: true
   gather_facts: false
   tags:
-    - lantern_app
+    - pharos_app
   vars:
     app_id: ucal
     clean_app: false
     # Update repositories on the controller before building when true
     update_repo: false
   roles:
-    - role: lantern_app_deploy
+    - role: pharos_app_deploy
       tags:
-        - lantern_app
+        - pharos_app

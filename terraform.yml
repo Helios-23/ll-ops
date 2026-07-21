@@ -7,7 +7,7 @@
     - terraform
   vars:
     tf_dir: "{{ playbook_dir }}/tf"
-    inventory_file: "{{ playbook_dir }}/inventory/epytype"
+    inventory_file: "{{ playbook_dir }}/inventory/logicallight"
 
   tasks:
     - name: Check Terraform is initialized

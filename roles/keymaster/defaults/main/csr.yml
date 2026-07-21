@@ -1,7 +1,7 @@
 #user auth
 ssh_user: "devops"
 key_domain: "{{ org_name }}.{{ org_suffix }}"
-org_name: "epytype"
+org_name: "llight"
 org_suffix: "org"
 
 #dirs
@@ -17,11 +17,11 @@ sites:
   - "demo.{{ key_domain }}"
 
 key_email: "support@{{ key_domain }}"
-key_org_name: "Epytype"
+key_org_name: "Logical Light"
 key_org_unit: "IT"
 key_country: "US"
-key_state: "Dellaware"
-key_city: "Wilmington"
+key_state: "California"
+key_city: "San Francisco"
 
 #CSR_LIST
 csr_list:

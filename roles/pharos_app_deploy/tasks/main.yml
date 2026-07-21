@@ -1,0 +1,129 @@
+- name: Host Archive Prep
+  block:
+    - name: Ensure Pharos app release artifact root exists on controller
+      file:
+        path: "{{ pharos_app_deploy_controller_release_root }}"
+        state: directory
+        mode: "{{ pharos_app_deploy_directory_mode }}"
+
+    - name: Sync Pharos repo on controller
+      git:
+        repo: "{{ pharos_app_deploy_repo_url }}"
+        dest: "{{ pharos_app_deploy_repo_dir }}"
+        version: "{{ pharos_app_deploy_repo_version }}"
+        update: true
+        force: true
+      when: update_repo
+
+    - name: Generate Pharos app archive stamp on controller
+      set_fact:
+        pharos_app_deploy_archive_stamp: "{{ lookup('pipe', 'date +%Y%m%d-%H%M%S') }}"
+
+    - name: Render finalized {{ app_id }} app root on controller before packaging
+      ansible.builtin.command:
+        cmd: >-
+          sh scripts/pharos_runtime.sh build app {{ app_id }}
+          --app-dir {{ pharos_app_deploy_repo_dir }}/apps/{{ app_id }}
+          --build-dir {{ pharos_app_deploy_repo_dir }}/dist
+          --text
+        chdir: "{{ pharos_app_deploy_repo_dir }}"
+
+    - name: Verify finalized {{ app_id }} app root exists on controller
+      ansible.builtin.stat:
+        path: "{{ pharos_app_deploy_controller_app_root }}/pharos.app.json"
+      register: pharos_app_deploy_controller_manifest
+
+    - name: Fail when finalized {{ app_id }} app root was not emitted on controller
+      ansible.builtin.fail:
+        msg: >-
+          expected finalized app root at {{ pharos_app_deploy_controller_app_root }} but pharos.app.json was not emitted
+      when: not pharos_app_deploy_controller_manifest.stat.exists
+
+    - name: Package finalized Pharos app root archive on controller
+      shell: |
+        set -eu
+        umask 022
+        archive_source_dir="{{ pharos_app_deploy_controller_app_root }}"
+        archive_path="{{ pharos_app_deploy_archive_path }}"
+        tar_args=''
+        {% for prefix in pharos_app_deploy_bundle_exclude_prefixes %}
+        tar_args="$tar_args --exclude={{ prefix }}"
+        {% endfor %}
+        {% for exact_path in pharos_app_deploy_bundle_exclude_exact_paths %}
+        tar_args="$tar_args --exclude={{ exact_path }}"
+        {% endfor %}
+        {% for name in pharos_app_deploy_bundle_exclude_names %}
+        tar_args="$tar_args --exclude={{ name }}"
+        {% endfor %}
+        {% for suffix in pharos_app_deploy_bundle_exclude_suffixes %}
+        tar_args="$tar_args --exclude=*{{ suffix }}"
+        {% endfor %}
+        # shellcheck disable=SC2086
+        tar -C "$archive_source_dir" $tar_args -czf "$archive_path" .
+      args:
+        executable: /bin/sh
+
+  delegate_to: localhost
+  become: false
+  run_once: true
+## END Host Archive Prep
+
+- name: Ensure Pharos app directories exist on target host
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ pharos_app_deploy_owner }}"
+    group: "{{ pharos_app_deploy_group }}"
+    mode: "{{ pharos_app_deploy_directory_mode }}"
+  loop:
+    - "{{ pharos_app_deploy_remote_root }}"
+    - "{{ pharos_app_deploy_remote_app_dir }}"
+
+- name: Stage {{ app_id }} bundle in epytype_repo
+  vars:
+    epytype_repo_artifact_src: "{{ pharos_app_deploy_archive_path }}"
+    epytype_repo_type: app
+  import_role: { name: epytype_repo }
+
+- name: Optionally clean Pharos app directory on target host before extraction
+  shell: |
+    set -eu
+    app_dir="{{ pharos_app_deploy_remote_app_dir }}"
+    find "$app_dir" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+  args:
+    executable: /bin/sh
+  when: clean_app | bool
+
+- name: Extract Pharos app bundle on target host
+  unarchive:
+    src: "{{ epytype_repo }}/{{ pharos_app_deploy_archive_basename }}"
+    dest: "{{ pharos_app_deploy_remote_app_dir }}"
+    remote_src: true
+    owner: "{{ pharos_app_deploy_owner }}"
+    group: "{{ pharos_app_deploy_group }}"
+    extra_opts:
+      - --no-same-owner
+  register: pharos_app_deploy_extract
+  notify: Restart Pharos services
+
+
+- name: Verify deployed {{ app_id }} packaged manifest exists and preserves relocatable app_root
+  ansible.builtin.shell: |
+    set -eu
+    manifest_path="{{ pharos_app_deploy_remote_app_dir }}/pharos.app.json"
+    relocatable_pattern='"app_root"[[:space:]]*:[[:space:]]*"\."'
+    [ -f "$manifest_path" ]
+    grep -E "$relocatable_pattern" "$manifest_path" >/dev/null
+  args:
+    executable: /bin/sh
+  become: true
+  become_user: "{{ pharos_app_deploy_owner }}"
+
+- name: Prune older {{ app_id }} bundles
+  vars:
+    ll_repo_type: app
+    ll_repo_keep: 2
+  import_role:
+    name: ll_repo
+    tasks_from: prune
+  when: pharos_app_deploy_extract is succeeded

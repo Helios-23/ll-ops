@@ -8,9 +8,9 @@ ubuntu_pro_usg_run_fix: true
 ubuntu_pro_usg_run_audit: true
 ubuntu_pro_preserve_access: true
 ubuntu_pro_access_user: "devops"
-ubuntu_pro_access_public_key_path: "{{ playbook_dir }}/keys/ssh/devops.epytype.org.pub"
+ubuntu_pro_access_public_key_path: "{{ playbook_dir }}/keys/ssh/devops.llight.org.pub"
 ubuntu_pro_access_public_key_paths:
-  - "{{ playbook_dir }}/keys/ssh/devops.epytype.org.fips_rsa.pub"
+  - "{{ playbook_dir }}/keys/ssh/devops.llight.org.fips_rsa.pub"
   - "{{ ubuntu_pro_access_public_key_path }}"
 ubuntu_pro_access_password: "{{ vault_all.ansible_become_password }}"
 
@@ -25,23 +25,3 @@ fail2ban_feature_forgejo_enabled: true
 fail2ban_feature_sshd_invalid_user_enabled: true
 # Enable to have Fail2ban watch reverse-proxy access logs for repeated 401/403 responses.
 fail2ban_feature_reverse_proxy_enabled: false
-forgejo_http_port: 3000
-forgejo_ssh_port: 2222
-forgejo_postgres_password: "{{ vault_all.forgejo.postgres_password }}"
-# Forgejo security features (opt-in)
-# Enable to have Forgejo trust only the configured reverse-proxy CIDRs for forwarded headers.
-forgejo_reverse_proxy_trust_feature_enabled: false
-# Enable to have nginx only allow Forgejo access from Tailscale client CIDRs.
-forgejo_tailscale_access_control_feature_enabled: false
-# mail
-forgejo_mailer_enabled: true
-forgejo_mailer_from: "{{ vault_all.forgejo.smtp_user }}"
-forgejo_mailer_protocol: "smtp+starttls"
-forgejo_mailer_smtp_port: 587
-forgejo_mailer_smtp_addr: "smtp.gmail.com"
-forgejo_mailer_user: "{{ vault_all.forgejo.smtp_user }}"
-forgejo_mailer_passwd: "{{ vault_all.forgejo.smtp_password }}"
-forgejo_mailer_enable_notify_mail: true
-forgejo_mailer_enable_helo: true
-forgejo_mailer_helo_hostname: "repo.epytype.org"
-forgejo_mailer_envelope_from: "{{ vault_all.forgejo.smtp_user }}"

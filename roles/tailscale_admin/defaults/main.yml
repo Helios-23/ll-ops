@@ -16,37 +16,37 @@ tailscale_policy_template_src: "{{ role_path }}/templates/tailscale.hujson.j2"
 
 # Policy dictionaries/lists (can be overridden from group_vars).
 tailscale_policy_groups:
-  group:epytype-admins:
+  group:ll-admins:
     - "helios23@gmail.com"
-  group:epytype-users:
-    - "jperry303@gmail.com"
+  group:ll-users:
+    - "helios23@gmail.com"
 
 tailscale_policy_tag_owners:
-  tag:epytype:
-    - "group:epytype-admins"
+  tag:ll:
+    - "group:ll-admins"
 
 tailscale_policy_grants:
   - src:
-      - "group:epytype-admins"
-      - "group:epytype-users"
+      - "group:ll-admins"
+      - "group:ll-users"
     dst:
-      - "tag:epytype"
+      - "tag:ll"
     ip:
       - "tcp:22"
 
 tailscale_policy_ssh:
   - action: "accept"
     src:
-      - "group:epytype-admins"
+      - "group:ll-admins"
     dst:
-      - "tag:epytype"
+      - "tag:ll"
     users:
       - "devops"
   - action: "accept"
     src:
-      - "group:epytype-users"
+      - "group:ll-users"
     dst:
-      - "tag:epytype"
+      - "tag:ll"
     users:
       - "j"
 
@@ -73,4 +73,4 @@ tailscale_ssh_enabled: true
 
 # Tags to advertise from this machine.
 tailscale_advertise_tags:
-  - "tag:epytype"
+  - "tag:ll"

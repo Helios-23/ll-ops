@@ -11,11 +11,9 @@ auth_keys:
     key_envs: "all"
     key_pass: "{{ vault_all.ansible_become_password }}"
 
-  - key_user: "r"
+  - key_user: "rp"
     key_envs: "all"
 
-  - key_user: "j"
-    key_envs: "all"
 
   # developers
   #- key_user: "d"

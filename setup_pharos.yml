@@ -1,0 +1,13 @@
+- name: Configure web server baseline and Pharos edge
+  hosts: web0
+  tags:
+    - web_server
+  roles:
+    - role: harden
+      tags: harden
+    - role: nginx
+      tags: nginx
+    - role: certbot_tls
+      tags: certbot_tls
+    - role: pharos
+      tags: pharos

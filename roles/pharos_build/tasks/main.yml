@@ -1,0 +1,98 @@
+- name: Pharos build role
+  tags: pharos_build
+  block:
+    - name: Validate Pharos build target
+      fail:
+        msg: >-
+          Unknown Pharos build target '{{ pharos_build_target }}'.
+          Valid: all, or one of {{ pharos_build_all_targets | join(', ') }}.
+      when:
+        - pharos_build_target != 'all'
+        - pharos_build_target not in pharos_build_all_targets
+
+    # Repo Clone
+    - name: Create Pharos build output directories
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - "{{ pharos_build_binary_dir }}"
+        - "{{ pharos_build_package_dir }}"
+
+    - name: Clone or update Pharos repository
+      ansible.builtin.git:
+        repo: "git@github.com:Helios-23/pharos.git"
+        dest: "{{ pharos_build_repo_dir }}"
+        version: main
+        update: yes
+      register: pharos_build_pharos_pull
+      when: update_repo
+
+    - name: Clean cached zig binaries for platform-agnostic Docker builds
+      file:
+        path: "{{ pharos_build_repo_dir }}/scripts/tools/zig"
+        state: absent
+
+    - name: Capture pre-build checksums
+      shell: |
+        find {{ pharos_build_package_dir }} -type f \( -name "*.apk" -o -name "*.deb" -o -name "*.zip" -o -name "*.tar.gz" -o -name "*.msix" -o -name "*.rpm" -o -name "*.pkg" -o -name "*.pkg.tar.zst" -o -name "*.ebuild" -o -name "*.rb" \) -exec shasum -a 256 {} + > {{ pharos_build_binary_dir }}/pre_build_hashes.txt
+      register: pre_build_hashes
+
+    # Docker Compose orchestration
+    - name: Build ALL Pharos targets in parallel via Docker Compose
+      command: docker compose --profile all up
+      args:
+        chdir: "{{ pharos_build_compose_dir }}"
+      register: pharos_build_compose_up
+      when: pharos_build_target == 'all'
+
+    - name: Clean up Pharos compose resources
+      command: docker compose down --remove-orphans
+      args:
+        chdir: "{{ pharos_build_compose_dir }}"
+      when: pharos_build_target == 'all'
+
+    - name: Build single Pharos target sequentially
+      command: docker compose run --rm -T --remove-orphans {{ item }}
+      args:
+        chdir: "{{ pharos_build_compose_dir }}"
+      loop: "{{ pharos_build_selected_targets }}"
+      when: pharos_build_target != 'all'
+
+    # Verification
+    - name: Find all files in the output directory
+      ansible.builtin.find:
+        paths: "{{ pharos_build_package_dir }}"
+        patterns: "{{ pharos_build_release_artifacts }}"
+        file_type: file
+      register: found_files
+
+    - name: Identify files with updated checksums
+      shell: |
+        changed_list=""
+        for file in {{ found_files.files | map(attribute='path') | join(' ') }}; do
+          current_hash=$(shasum -a 256 "$file" | awk '{print $1}')
+          if ! grep -q "$current_hash" {{ pharos_build_binary_dir }}/pre_build_hashes.txt; then
+            changed_list="$changed_list $file"
+          fi
+        done
+        echo $changed_list
+      register: checksum_verification
+
+    - name: Set changed files fact
+      ansible.builtin.set_fact:
+        changed_files: "{{ checksum_verification.stdout.split() }}"
+
+    - name: Show packaged artifacts from this run
+      ansible.builtin.debug:
+        msg: |
+          Packaged artifacts:
+          {% for file in changed_files %}
+          {{ file }}
+          {% endfor %}
+
+    - name: Cleanup checksum snapshots
+      ansible.builtin.file:
+        path: "{{ pharos_build_binary_dir }}/pre_build_hashes.txt"
+        state: absent

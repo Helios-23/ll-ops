@@ -1,4 +1,4 @@
-- name: Build Lantern and Epytype release artifacts on the controller
+- name: Build Pharos release artifacts on the controller
   hosts: localhost
   connection: local
   become: false
@@ -7,5 +7,4 @@
     # Update repositories on the controller before building when true
     update_repo: false
   roles:
-    - role: epytype_build
-    - role: lantern_build
+    - role: pharos_build

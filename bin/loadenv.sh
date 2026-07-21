@@ -3,14 +3,14 @@
 # Usage: source ./bin/loadenv.sh
 # Or: . ./bin/loadenv.sh
 
-OPS_ROOT="/Users/H23/logicallight/Epytype"
-DB="$OPS_ROOT/ops/kpxc/epytype_ops.kdbx"
+OPS_ROOT="/Users/H23/logicallight/LL/ops"
+#DB="$OPS_ROOT/kpxc/logicl_ops.kdbx"
 KEEPASSXC="/Applications/KeePassXC.app/Contents/MacOS/keepassxc-cli"
 
-if [ ! -f "$DB" ]; then
-  echo "ERROR: Database not found at $DB"
-  return 1 2>/dev/null || exit 1
-fi
+#if [ ! -f "$DB" ]; then
+#  echo "ERROR: Database not found at $DB"
+#  return 1 2>/dev/null || exit 1
+#fi
 
 # Allow editor/tooling shells to skip the interactive KeePass prompt.
 # This keeps Zed-launched command shells from blocking unrelated work.
@@ -35,21 +35,21 @@ if [ "${EPYTYPE_FORCE_LOADENV:-0}" != "1" ]; then
   fi
 fi
 
-if [ -n "${KEEPASSXC_DB_PASSWORD:-}" ]; then
-  DB_PASS="$KEEPASSXC_DB_PASSWORD"
-elif [ -n "${DB_PASS:-}" ]; then
-  DB_PASS="$DB_PASS"
-else
-  printf "Database password: "
-  read -s DB_PASS
-  echo ""
-fi
+#if [ -n "${KEEPASSXC_DB_PASSWORD:-}" ]; then
+#  DB_PASS="$KEEPASSXC_DB_PASSWORD"
+#elif [ -n "${DB_PASS:-}" ]; then
+#  DB_PASS="$DB_PASS"
+#else
+#  printf "Database password: "
+#  read -s DB_PASS
+#  echo ""
+#fi
 
 # Check for empty password
-if [ -z "$DB_PASS" ]; then
-  echo "ERROR: Password cannot be empty"
-  return 1 2>/dev/null || exit 1
-fi
+#if [ -z "$DB_PASS" ]; then
+#  echo "ERROR: Password cannot be empty"
+#  return 1 2>/dev/null || exit 1
+#fi
 
 # Query function
 query_entry() {

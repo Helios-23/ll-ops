@@ -1,0 +1,65 @@
+- name: Resolve Pharos package source from build output
+  set_fact:
+    pharos_deploy_package_src: >-
+      {{
+        hostvars['localhost']['pharos_deploy_package_src']
+        | default(pharos_deploy_package_src | default(''))
+      }}
+
+- name: Find latest Pharos package on controller when source is unspecified
+  delegate_to: localhost
+  become: false
+  find:
+    paths: "{{ pharos_build_package_dir }}"
+    patterns: "{{ pharos_deploy_package_glob }}"
+    file_type: file
+  register: pharos_deploy_package_find
+  when: pharos_deploy_package_src == ""
+  run_once: true
+
+- name: Select latest Pharos package on controller when source is unspecified
+  delegate_to: localhost
+  become: false
+  set_fact:
+    pharos_deploy_package_src: >-
+      {{
+        (pharos_deploy_package_find.files
+        | sort(attribute='mtime', reverse=true)
+        | first).path
+        if pharos_deploy_package_find.matched | int > 0
+        else ''
+      }}
+  when: pharos_deploy_package_src == ""
+  run_once: true
+
+- name: Fail when Pharos package source cannot be resolved
+  fail:
+    msg: >-
+      Pharos package source could not be resolved. Build it with
+      build.yml -t pharos_build or pass pharos_deploy_package_src
+      explicitly.
+  when: pharos_deploy_package_src == ""
+
+- name: Stage Pharos runtime package in ll_repo
+  vars:
+    ll_repo_artifact_src: "{{ pharos_deploy_package_src }}"
+  import_role: { name: ll_repo }
+
+- name: Install Pharos package from staged repository
+  shell: |
+    set -e
+    deb="{{ ll_repo }}/$(ls -1t {{ ll_repo }}/pharos_*.deb | head -1 | xargs -n1 basename)"
+    dpkg -i "$deb" || (apt-get -f install -y && dpkg -i "$deb")
+  args:
+    executable: /bin/sh
+  register: pharos_deploy_install
+  notify: Restart Pharos services
+
+- name: Prune older Pharos runtime packages
+  vars:
+    ll_repo_type: pack
+    ll_repo_keep: 2
+  import_role:
+    name: ll_repo
+    tasks_from: prune
+  when: pharos_deploy_install is succeeded

@@ -1,0 +1,51 @@
+- name: Check if Pharos TLS certificate already exists
+  stat:
+    path: /etc/letsencrypt/live/{{ pharos_domain }}/fullchain.pem
+  register: pharos_certbot_cert
+
+- name: Obtain Pharos TLS certificate with certbot
+  command: >
+    certbot certonly --webroot
+    --webroot-path /var/www/certbot
+    --non-interactive
+    --agree-tos
+    --email {{ pharos_certbot_email }}
+    -d {{ pharos_domain }}
+    --keep-until-expiring
+  when: not pharos_certbot_cert.stat.exists
+  register: pharos_certbot_result
+  changed_when: >
+    'obtained' in (pharos_certbot_result.stdout | lower) or
+    'new certificate' in (pharos_certbot_result.stdout | lower)
+
+- name: Pharos nginx vhost
+  tags:
+    - pharos_nginx
+  block:
+    - name: Deploy nginx reverse proxy config for Pharos with TLS
+      template:
+        src: pharos_nginx.conf.j2
+        dest: '/etc/nginx/sites-available/{{ pharos_domain }}.conf'
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Reload nginx
+
+    - name: Enable nginx Pharos site
+      file:
+        src: /etc/nginx/sites-available/{{ pharos_domain }}.conf
+        dest: /etc/nginx/sites-enabled/{{ pharos_domain }}.conf
+        state: link
+      notify: Reload nginx
+
+    - name: Test nginx configuration
+      command: nginx -t
+      changed_when: false
+
+- name: Set up certbot auto-renewal cron job for Pharos
+  cron:
+    name: "certbot auto-renew pharos"
+    job: "certbot renew --quiet --deploy-hook 'systemctl reload nginx'"
+    minute: "15"
+    hour: "3"
+    state: present
