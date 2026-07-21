@@ -2,7 +2,7 @@
 local_ip: 127.0.0.1
 autobuild: true
 unattended_upgrades: true
-remote_user: devops
+
 ansible_python_interpreter: auto_silent
 
 # keys
