@@ -15,7 +15,7 @@ keepass/*.kdbx
 kpxc/
 
 # SSH private keys (keep *.pub only)
-keys/ssh/*
+keys/*
 !keys/ssh/*.pub
 
 # Terraform
@@ -25,6 +25,7 @@ tf/terraform.tfstate.*.backup
 tf/terraform.tfstate.backup
 tf/.terraform.lock.hcl
 tf/spaceship.auto.tfvars.json
+tf/gcp.auto.tfvars.json
 
 # Build artifacts
 dist/

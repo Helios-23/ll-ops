@@ -7,6 +7,8 @@
     - terraform
   vars:
     tf_dir: "{{ playbook_dir }}/tf"
+    inventory_file: "{{ playbook_dir }}/inventory/logicallight"
+    gcp_credentials_file: "{{ playbook_dir }}/keys/tf/terraform-key.json"
 
   tasks:
     - name: Check Ansible vault password file exists for vaulted Terraform credentials
@@ -35,10 +37,45 @@
           in group_vars/all/vault.yml.
       no_log: true
 
+    - name: Check GCP Terraform service account key exists
+      stat:
+        path: "{{ gcp_credentials_file }}"
+      register: terraform_gcp_credentials_file
+
+    - name: Fail when GCP Terraform service account key is missing
+      fail:
+        msg: >-
+          missing GCP Terraform credentials file at {{ gcp_credentials_file }};
+          set GOOGLE_APPLICATION_CREDENTIALS to this file when running Terraform.
+      when: not terraform_gcp_credentials_file.stat.exists
+
+    - name: Validate GCP Terraform variables are available
+      assert:
+        that:
+          - gcp_org_id is defined
+          - gcp_proj_id is defined
+          - gcp_region is defined
+          - gcp_zone is defined
+          - (gcp_org_id | string | length) > 0
+          - (gcp_proj_id | string | length) > 0
+          - (gcp_region | string | length) > 0
+          - (gcp_zone | string | length) > 0
+        fail_msg: >-
+          GCP org/project/location variables are missing.
+          Expected gcp_org_id, gcp_proj_id, gcp_region, and gcp_zone in group_vars/all/main.yml.
+      no_log: true
+
     - name: Render Spaceship Terraform auto tfvars from decrypted Ansible vault data
       template:
         src: "{{ tf_dir }}/spaceship.auto.tfvars.json.j2"
         dest: "{{ tf_dir }}/spaceship.auto.tfvars.json"
+        mode: "0600"
+      no_log: true
+
+    - name: Render GCP Terraform auto tfvars from Ansible vars
+      template:
+        src: "{{ tf_dir }}/gcp.auto.tfvars.json.j2"
+        dest: "{{ tf_dir }}/gcp.auto.tfvars.json"
         mode: "0600"
       no_log: true
 
@@ -51,12 +88,52 @@
       command: terraform init
       args:
         chdir: "{{ tf_dir }}"
+      environment:
+        GOOGLE_APPLICATION_CREDENTIALS: "{{ gcp_credentials_file }}"
       when: not tf_init.stat.exists
+
+    - name: Check whether Pharos public IP already exists in Terraform state
+      command: terraform output -raw gcp_instance_public_ip
+      args:
+        chdir: "{{ tf_dir }}"
+      environment:
+        GOOGLE_APPLICATION_CREDENTIALS: "{{ gcp_credentials_file }}"
+      register: tf_existing_gcp_ip
+      changed_when: false
+      failed_when: false
+
+    - name: Determine whether GCP bootstrap apply is required before DNS plan
+      set_fact:
+        tf_gcp_bootstrap_needed: "{{ tf_existing_gcp_ip.rc != 0 or (tf_existing_gcp_ip.stdout | trim | length) == 0 }}"
+
+    - name: Bootstrap GCP infrastructure before full DNS-aware Terraform plan
+      command: >-
+        terraform apply -auto-approve
+        -target=google_project_service.compute_api
+        -target=google_compute_network.ll_vpc_west
+        -target=google_compute_subnetwork.ll_pharos_subnet
+        -target=google_compute_firewall.allow_ssh_http
+        -target=google_compute_address.pharos
+        -target=google_compute_project_metadata_item.devops_ssh_key
+        -target=google_compute_instance.pharos
+      args:
+        chdir: "{{ tf_dir }}"
+      environment:
+        GOOGLE_APPLICATION_CREDENTIALS: "{{ gcp_credentials_file }}"
+      register: tf_bootstrap_apply
+      when: tf_gcp_bootstrap_needed
+
+    - name: Show Terraform bootstrap apply output
+      debug:
+        var: tf_bootstrap_apply.stdout_lines
+      when: tf_gcp_bootstrap_needed and tf_bootstrap_apply is changed
 
     - name: Run Terraform plan
       command: terraform plan -detailed-exitcode
       args:
         chdir: "{{ tf_dir }}"
+      environment:
+        GOOGLE_APPLICATION_CREDENTIALS: "{{ gcp_credentials_file }}"
       register: tf_plan
       changed_when: tf_plan.rc == 2
       failed_when: tf_plan.rc > 2
@@ -73,6 +150,8 @@
       command: terraform apply -auto-approve
       args:
         chdir: "{{ tf_dir }}"
+      environment:
+        GOOGLE_APPLICATION_CREDENTIALS: "{{ gcp_credentials_file }}"
       register: tf_apply
       when: tf_plan.rc == 2
 
@@ -85,20 +164,42 @@
       command: terraform output -json
       args:
         chdir: "{{ tf_dir }}"
+      environment:
+        GOOGLE_APPLICATION_CREDENTIALS: "{{ gcp_credentials_file }}"
       register: tf_outputs
       changed_when: false
 
-    - name: Parse DNS details from outputs
+    - name: Parse Terraform infrastructure details from outputs
       set_fact:
         tf_domain: "{{ (tf_outputs.stdout | from_json).domain.value | default('') }}"
         tf_pharos_fqdn: "{{ (tf_outputs.stdout | from_json).pharos_fqdn.value | default('') }}"
         tf_dns_records: "{{ (tf_outputs.stdout | from_json).dns_records.value | default([]) }}"
+        tf_gcp_network_name: "{{ (tf_outputs.stdout | from_json).gcp_network_name.value | default('') }}"
+        tf_gcp_subnet_name: "{{ (tf_outputs.stdout | from_json).gcp_subnet_name.value | default('') }}"
+        tf_gcp_firewall_name: "{{ (tf_outputs.stdout | from_json).gcp_firewall_name.value | default('') }}"
+        tf_gcp_instance_name: "{{ (tf_outputs.stdout | from_json).gcp_instance_name.value | default('') }}"
+        tf_gcp_instance_public_ip: "{{ (tf_outputs.stdout | from_json).gcp_instance_public_ip.value | default('') }}"
+        tf_gcp_inventory_host_name: "{{ (tf_outputs.stdout | from_json).gcp_inventory_host_name.value | default('') }}"
 
-    - name: Show Terraform DNS summary
+    - name: Update web0 inventory entry from Terraform outputs
+      lineinfile:
+        path: "{{ inventory_file }}"
+        regexp: "^web0\\s+"
+        line: "web0            ansible_host={{ tf_gcp_instance_public_ip }}      host_name={{ tf_gcp_inventory_host_name }}"
+      when:
+        - tf_gcp_instance_public_ip | length > 0
+        - tf_gcp_inventory_host_name | length > 0
+
+    - name: Show Terraform infrastructure summary
       debug:
         msg: |
           Domain: {{ tf_domain }}
           Preferred Pharos hostname: {{ tf_pharos_fqdn }}
+          GCP network: {{ tf_gcp_network_name }}
+          GCP subnet: {{ tf_gcp_subnet_name }}
+          GCP firewall: {{ tf_gcp_firewall_name }}
+          GCP instance: {{ tf_gcp_instance_name }} -> {{ tf_gcp_instance_public_ip }}
+          Inventory web0 host_name: {{ tf_gcp_inventory_host_name }}
           DNS records:
           {% for record in tf_dns_records %}
           - {{ record.type }} {{ record.name }} ttl={{ record.ttl }}{% if record.address is defined %} address={{ record.address }}{% endif %}{% if record.exchange is defined %} exchange={{ record.exchange }}{% endif %}{% if record.preference is defined %} preference={{ record.preference }}{% endif %}

@@ -1,12 +1,24 @@
+#user auth
+ssh_user: "devops"
+org_name: "llight"
+org_suffix: "io"
+key_domain: "{{ org_name }}.{{ org_suffix }}"
+
+#dirs
+key_dir: "{{ playbook_dir }}/keys"
+ssl_dir: "/etc/ssl/{{ org_name }}"
+ssh_dir: "{{ key_dir }}/ssh"
+csr_dir: "{{ key_dir }}/csr"
+priv_dir: "{{ key_dir }}/priv"
+site_dir: "{{ key_dir }}/site"
+
+
 # Auth
 #  - key_user: ''
 #    key_envs: ''
-
 auth_keys:
-  # ops
-  #  - key_user: 'devops-prd'
-  #    key_envs: 'removed'
-  #    key_envs: 'all'
+  #  - key_user: 'devops'
+  #    key_envs: 'removed|all'
   - key_user: "devops"
     key_envs: "all"
     key_pass: "{{ vault_all.ansible_become_password }}"

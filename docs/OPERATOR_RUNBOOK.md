@@ -51,10 +51,14 @@ apb terraform.yml -t terraform
 Expected behavior:
 
 - uses Ansible vault decryption via `ansible.cfg` and `.vault_devops` to render `tf/spaceship.auto.tfvars.json` from `tf/spaceship.auto.tfvars.json.j2`
+- renders `tf/gcp.auto.tfvars.json` from Ansible vars including `domain`, `gcp_proj_id`, `gcp_region`, and `gcp_zone`
+- exports `GOOGLE_APPLICATION_CREDENTIALS` to the Terraform service account key under `keys/tf/terraform-key.json`
 - initializes `tf/` if needed
+- if the GCP Pharos public IP is not yet present in Terraform state, performs a one-time targeted bootstrap apply that first enables `compute.googleapis.com` and then creates the GCP network, subnet, firewall, reserved IP, SSH metadata, and instance
 - runs `terraform plan -detailed-exitcode`
 - applies automatically when drift is detected
-- reads Terraform outputs and prints a DNS summary for the managed domain
+- updates the `web0` entry in `inventory/logicallight` from Terraform outputs
+- reads Terraform outputs and prints an infrastructure and DNS summary for the managed domain
 
 Use raw Terraform in `tf/` only for focused debugging or module work.
 
@@ -173,15 +177,15 @@ Use this playbook for routine package maintenance and Tailscale operations on an
 
 ### 8. Run key and certificate workflows
 
-`kymstr.yml` is the entry point for `roles/keymaster`. Most actions are intentionally gated by `never`, so combine a host limit with explicit tags.
+`keymaster.yml` is the entry point for `roles/keymaster`. Most actions are intentionally gated by `never`, so combine a host limit with explicit tags.
 
 Examples:
 
 ```bash
-apb kymstr.yml -l web0 -t ssh-auth
-apb kymstr.yml -l web0 -t ssh-key
-apb kymstr.yml -l web0 -t gen-csr
-apb kymstr.yml -l web0 -t cert
+apb keymaster.yml -l web0 -t ssh-auth
+apb keymaster.yml -l web0 -t ssh-key
+apb keymaster.yml -l web0 -t gen-csr
+apb keymaster.yml -l web0 -t cert
 ```
 
 Use [FEATURES.md](FEATURES.md) for the current task-tag inventory.

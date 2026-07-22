@@ -9,4 +9,4 @@ local ansible_connection=local
 
 ## Production Web
 [prod_web]
-web0            ansible_host=xxx.xxx.xxx.xxx      host_name=web0
+web0            ansible_host=34.169.129.168      host_name=pharos01

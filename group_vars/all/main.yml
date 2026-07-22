@@ -2,6 +2,7 @@
 local_ip: 127.0.0.1
 autobuild: true
 unattended_upgrades: true
+domain: 'llight.io'
 
 ansible_python_interpreter: auto_silent
 
@@ -29,6 +30,12 @@ email_pass: "{{vault_all.email_pass}}"
 # certbot
 certbot_admin_email: "{{admin_email}}"
 certbot_domain_type: "single"
+
+# gcp
+gcp_org_id: "{{vault_all.gcp_llight.org_id}}"
+gcp_proj_id: "{{vault_all.gcp_llight.proj_id}}"
+gcp_region: "us-west1"
+gcp_zone: "us-west1-a"
 
 #sonarqube
 monitor_ip: "{{hostvars['monitor_prd']['ansible_host']}}"

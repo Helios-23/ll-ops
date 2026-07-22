@@ -1,4 +1,4 @@
-pharos_domain: "pharos.llight.io"
+pharos_domain: "pharos.{{ domain }}"
 pharos_use_socket: false
 pharos_socket_path: "/run/pharos/pharos.sock"
 pharos_service_host: "127.0.0.1"

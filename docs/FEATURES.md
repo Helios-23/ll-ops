@@ -14,8 +14,8 @@ Use this as the quick command map. The **Complete Tag Index** and **Role Notes**
 | `deploy.yml` | `web0` | deploy either the Pharos runtime package or a single Pharos app bundle | `pharos_runtime`, `pharos_app` | `pharos_runtime`, `pharos_app` |
 | `build.yml` | `localhost` | build Pharos release artifacts on the controller via Docker Compose, optionally for one target | `pharos_build` | `pharos_build` |
 | `admin.yml` | selected hosts with `-l` required | run generic admin tasks and optional Tailscale management on a limited host set | `admin` | `update_reboot`, `tailscale`, `tailscale_machine`, `tailscale_policy` |
-| `terraform.yml` | `localhost` | decrypt vaulted Spaceship credentials via Ansible, render `tf/spaceship.auto.tfvars.json`, run the DNS-only Terraform plan/apply flow, and print the resulting DNS summary | `terraform` | none |
-| `kymstr.yml` | selected hosts | run key and certificate operations via `roles/keymaster`; most paths require explicit tags | `kymstr` | `install`, `encrypt`, `gen-ssh`, `ssh-gen`, `gen-csr`, `check-csr`, `ssh-auth`, `ssh-auth-review`, `ssh-key`, `ssh-key-report`, `cert`, `mysql`, `never` |
+| `terraform.yml` | `localhost` | decrypt vaulted Spaceship credentials, render Terraform auto tfvars for Spaceship and GCP, enable `compute.googleapis.com` and bootstrap the GCP VPC/subnet/firewall/IP/VM when the Pharos public IP is not yet in state, run the full Terraform plan/apply, update `inventory/logicallight` for `web0`, manage `pharos.llight.io` DNS in Spaceship, and print the resulting infrastructure summary | `terraform` | none |
+| `keymaster.yml` | selected hosts | run key and certificate operations via `roles/keymaster`; most paths require explicit tags | `kymstr` | `install`, `encrypt`, `gen-ssh`, `ssh-gen`, `gen-csr`, `check-csr`, `ssh-auth`, `ssh-auth-review`, `ssh-key`, `ssh-key-report`, `cert`, `mysql`, `never` |
 
 ## Examples
 
@@ -56,12 +56,12 @@ apb admin.yml -l web0 -t tailscale_policy
 apb terraform.yml -t terraform
 ```
 
-### `kymstr.yml`
+### `keymaster.yml`
 
 ```bash
-apb kymstr.yml -l web0 -t ssh-auth
-apb kymstr.yml -l web0 -t gen-csr
-apb kymstr.yml -l web0 -t cert
+apb keymaster.yml -l web0 -t ssh-auth
+apb keymaster.yml -l web0 -t gen-csr
+apb keymaster.yml -l web0 -t cert
 ```
 
 ## Role Task Areas
