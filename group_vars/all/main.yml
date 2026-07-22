@@ -3,6 +3,8 @@ local_ip: 127.0.0.1
 autobuild: true
 unattended_upgrades: true
 domain: 'llight.io'
+admin_user: "devops"
+admin_email: "{{ admin_user }}@{{ domain }}"
 
 ansible_python_interpreter: auto_silent
 
@@ -21,11 +23,6 @@ sonarqube_port: 9023
 # ssl
 ssl_dir: "/etc/ssl"
 ssl_sites_dir: "{{ssl_dir}}/epetype"
-
-# Email
-email_host: "smtp.mailgun.org"
-email_user: ""
-email_pass: "{{vault_all.email_pass}}"
 
 # certbot
 certbot_admin_email: "{{admin_email}}"

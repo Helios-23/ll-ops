@@ -3,20 +3,33 @@
     path: /etc/letsencrypt/live/{{ pharos_domain }}/fullchain.pem
   register: pharos_certbot_cert
 
-- name: Obtain Pharos TLS certificate with certbot
-  command: >
-    certbot certonly --webroot
-    --webroot-path /var/www/certbot
-    --non-interactive
-    --agree-tos
-    --email {{ pharos_certbot_email }}
-    -d {{ pharos_domain }}
-    --keep-until-expiring
+- name: Obtain Pharos TLS certificate with standalone certbot
   when: not pharos_certbot_cert.stat.exists
-  register: pharos_certbot_result
-  changed_when: >
-    'obtained' in (pharos_certbot_result.stdout | lower) or
-    'new certificate' in (pharos_certbot_result.stdout | lower)
+  block:
+    - name: Stop nginx so standalone certbot can bind to port 80
+      systemd:
+        name: nginx
+        state: stopped
+
+    - name: Request Pharos TLS certificate with standalone certbot
+      command: >
+        certbot certonly --standalone
+        --non-interactive
+        --agree-tos
+        --email {{ pharos_certbot_email }}
+        -d {{ pharos_domain }}
+        --keep-until-expiring
+      register: pharos_certbot_result
+      changed_when: >
+        'obtained' in (pharos_certbot_result.stdout | lower) or
+        'new certificate' in (pharos_certbot_result.stdout | lower)
+
+  always:
+    - name: Ensure nginx is started after standalone certbot attempt
+      systemd:
+        name: nginx
+        state: started
+        enabled: true
 
 - name: Pharos nginx vhost
   tags:

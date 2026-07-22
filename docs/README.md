@@ -10,7 +10,6 @@ Documentation root for the `ops` repo.
 
 ## Specialist docs
 
-- [EMAIL_CONFIG.md](EMAIL_CONFIG.md): email routing and mailbox setup notes
 - [infra-consulting-spec-single-machine.md](infra-consulting-spec-single-machine.md): infrastructure planning notes
 
 ## Update Rules

@@ -1,5 +1,5 @@
 # Hardening settings
-fail2ban_admin_email: "helios23@gmail.com"
+fail2ban_admin_email: "{{ admin_email }}"
 fail2ban_feature_forgejo_enabled: false
 forgejo_fail2ban_logpath: "{{ (forgejo_data_dir | default('/opt/forgejo/data')) ~ '/gitea/log/gitea.log' }}"
 forgejo_fail2ban_logdir: "{{ (forgejo_data_dir | default('/opt/forgejo/data')) ~ '/gitea/log' }}"
@@ -47,14 +47,9 @@ enable_honeypot: false
 
 # Whitelisted IPs (bypass fail2ban and iptables rate limiting)
 whitelisted_ips:
-  - "100.96.33.6"
-  - "100.72.123.112"
-  - "100.119.26.114"
-  - "100.106.28.43"
-  - "178.156.230.199"
-  - "60.47.215.84"
+  - "60.47.254.5"
 
 # Allowed SSH users (all other usernames will be rejected)
 allowed_ssh_users:
   - "devops"
-  - "j"
+  - "rp"

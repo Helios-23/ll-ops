@@ -63,8 +63,8 @@ When suggesting Ansible commands for work in `ops/`, use these local defaults un
 
 Example:
 
-- prefer `apb deploy.yml -l web0 -t lantern_app`
-- avoid `apb  deploy.yml -l web0 -t lantern_app,lantern_runtime` unless the broader play selection is specifically needed
+- prefer `apb deploy.yml -l web0 -t pharos`
+- avoid `apb deploy.yml -l web0 -t pharos,nginx` unless the broader play selection is specifically needed
 
 ## Ansible debug list formatting preference
 

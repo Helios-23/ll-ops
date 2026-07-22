@@ -1,7 +1,7 @@
-lantern_use_socket: true
+pharos_use_socket: true
 
 allowed_ssh_users:
-  - "devops"
+  - "{{ admin_user }}"
 
 sshd_password_auth: "no"
 fail2ban_feature_sshd_invalid_user_enabled: true

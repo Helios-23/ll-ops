@@ -34,6 +34,53 @@
         path: "{{ pharos_build_repo_dir }}/scripts/tools/zig"
         state: absent
 
+    - name: Check current Pharos VERSION file
+      ansible.builtin.stat:
+        path: "{{ pharos_build_repo_dir }}/VERSION"
+      register: pharos_build_version_file
+
+    - name: Read current Pharos VERSION file
+      ansible.builtin.slurp:
+        path: "{{ pharos_build_repo_dir }}/VERSION"
+      register: pharos_build_current_version_raw
+      when: pharos_build_version_file.stat.exists
+
+    - name: Set Pharos version facts for build
+      ansible.builtin.set_fact:
+        pharos_build_current_version: >-
+          {{
+            (pharos_build_current_version_raw.content | b64decode | trim)
+            if pharos_build_version_file.stat.exists
+            else ''
+          }}
+        pharos_build_requested_version: "{{ pharos_build_release_version | trim }}"
+
+    - name: Bump Pharos VERSION file from ops build setting when newer
+      ansible.builtin.copy:
+        dest: "{{ pharos_build_repo_dir }}/VERSION"
+        content: "{{ pharos_build_requested_version }}\n"
+        mode: "0644"
+      when:
+        - pharos_build_requested_version | length > 0
+        - pharos_build_current_version | length == 0 or pharos_build_requested_version is version(pharos_build_current_version, '>')
+
+    - name: Sync Doxygen project number to Pharos VERSION
+      ansible.builtin.lineinfile:
+        path: "{{ pharos_build_repo_dir }}/Doxyfile"
+        regexp: '^PROJECT_NUMBER\s*=\s*".*"$'
+        line: 'PROJECT_NUMBER         = "{{ pharos_build_requested_version if pharos_build_requested_version | length > 0 else pharos_build_current_version }}"'
+      when: (pharos_build_requested_version | length > 0) or (pharos_build_current_version | length > 0)
+
+    - name: Bootstrap host Pharos builder for packaged docs artifact
+      command: sh scripts/pharos_runtime.sh bootstrap build target/debug
+      args:
+        chdir: "{{ pharos_build_repo_dir }}"
+
+    - name: Prebuild packaged dev_docs artifact on host
+      command: target/debug/pharos build app dev_docs --build-dir dist --text
+      args:
+        chdir: "{{ pharos_build_repo_dir }}"
+
     - name: Capture pre-build checksums
       shell: |
         find {{ pharos_build_package_dir }} -type f \( -name "*.apk" -o -name "*.deb" -o -name "*.zip" -o -name "*.tar.gz" -o -name "*.msix" -o -name "*.rpm" -o -name "*.pkg" -o -name "*.pkg.tar.zst" -o -name "*.ebuild" -o -name "*.rb" \) -exec shasum -a 256 {} + > {{ pharos_build_binary_dir }}/pre_build_hashes.txt

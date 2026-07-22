@@ -3,7 +3,7 @@ ll_repo_type: pack        # pack | app
 ll_repo_keep: 2           # current + previous = 2
 ll_repo_dir: /opt/ll
 # Derived per-type directory. /opt/ll/<type>/
-#   pack  (runtime/services like the lantern deb): /opt/ll/pack
+#   pack  (runtime/services like the pharos deb): /opt/ll/pack
 #   app   (apps running under those services):    /opt/ll/app
 
 # Source path of the artifact on the controller. Caller sets this before

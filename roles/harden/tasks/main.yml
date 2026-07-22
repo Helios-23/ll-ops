@@ -84,14 +84,39 @@
     state: present
     update_cache: true
 
-- name: Allow whitelisted IPs to bypass rate limiting
+- name: Collect current managed whitelist rules from iptables-save
+  command: iptables-save -t filter
+  register: harden_iptables_filter_rules
+  changed_when: false
+
+- name: Remove previously managed whitelist rules so only whitelisted_ips remain
   iptables:
     table: filter
     chain: INPUT
     protocol: tcp
+    destination_port: "{{ item[1] }}"
+    source: "{{ item[0] }}"
+    jump: ACCEPT
+    comment: "harden_whitelist"
+    state: absent
+  loop: >-
+    {{
+      harden_iptables_filter_rules.stdout
+      | regex_findall('^-A INPUT -s ([^/ ]+)(?:/\\d+)? -p tcp -m comment --comment harden_whitelist -m tcp --dport (\\d+) -j ACCEPT$', multiline=True)
+    }}
+  when: harden_iptables_filter_rules.stdout | length > 0
+  notify: save iptables
+
+- name: Recreate whitelist rules from whitelisted_ips only
+  iptables:
+    table: filter
+    chain: INPUT
+    action: insert
+    protocol: tcp
     destination_port: "{{ item.1 }}"
     source: "{{ item.0 }}"
     jump: ACCEPT
+    comment: "harden_whitelist"
   loop: "{{ whitelisted_ips | product(([sshd_port] + (sshd_additional_protected_ports | default([]))) | unique) | list }}"
   notify: save iptables
 

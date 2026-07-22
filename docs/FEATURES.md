@@ -12,7 +12,7 @@ Use this as the quick command map. The **Complete Tag Index** and **Role Notes**
 | --- | --- | --- | --- | --- |
 | `setup_pharos.yml` | `web0` | baseline the public web host, nginx, TLS, and the Pharos edge vhost | `web_server` | `harden`, `nginx`, `certbot_tls`, `pharos`, `pharos_nginx` |
 | `deploy.yml` | `web0` | deploy either the Pharos runtime package or a single Pharos app bundle | `pharos_runtime`, `pharos_app` | `pharos_runtime`, `pharos_app` |
-| `build.yml` | `localhost` | build Pharos release artifacts on the controller via Docker Compose, optionally for one target | `pharos_build` | `pharos_build` |
+| `build.yml` | `localhost` | bump `../pharos/VERSION` from the ops-side build version when newer, prebuild the packaged `dev_docs` artifact on the controller, and build Pharos release artifacts via Docker Compose, optionally for one target | `pharos_build` | `pharos_build` |
 | `admin.yml` | selected hosts with `-l` required | run generic admin tasks and optional Tailscale management on a limited host set | `admin` | `update_reboot`, `tailscale`, `tailscale_machine`, `tailscale_policy` |
 | `terraform.yml` | `localhost` | decrypt vaulted Spaceship credentials, render Terraform auto tfvars for Spaceship and GCP, enable `compute.googleapis.com` and bootstrap the GCP VPC/subnet/firewall/IP/VM when the Pharos public IP is not yet in state, run the full Terraform plan/apply, update `inventory/logicallight` for `web0`, manage `pharos.llight.io` DNS in Spaceship, and print the resulting infrastructure summary | `terraform` | none |
 | `keymaster.yml` | selected hosts | run key and certificate operations via `roles/keymaster`; most paths require explicit tags | `kymstr` | `install`, `encrypt`, `gen-ssh`, `ssh-gen`, `gen-csr`, `check-csr`, `ssh-auth`, `ssh-auth-review`, `ssh-key`, `ssh-key-report`, `cert`, `mysql`, `never` |
@@ -39,6 +39,7 @@ apb deploy.yml -l web0 -t pharos_app -e app_id=ucal
 ```bash
 apb build.yml -t pharos_build
 apb build.yml -t pharos_build -e target=linux-aarch64-gnu
+apb build.yml -t pharos_build -e pharos_build_release_version=0.7.24
 ```
 
 ### `admin.yml`
@@ -112,9 +113,9 @@ apb keymaster.yml -l web0 -t cert
 | `roles/keymaster` | none | key and certificate workflows are documented above under Role Task Areas |
 | `roles/ll_repo` | none | stages controller-built artifacts under `/opt/ll/<type>` and supports pruning retained archives |
 | `roles/nginx` | `nginx` | base nginx installation and service management |
-| `roles/pharos` | `pharos` | deploys the `pharos.llight.io` nginx vhost, obtains the TLS cert, and maintains certbot renewal; extra tag: `pharos_nginx` |
+| `roles/pharos` | `pharos` | deploys the `pharos.llight.io` nginx vhost, obtains the TLS cert with standalone certbot while nginx is temporarily stopped for initial issuance, and maintains certbot renewal; extra tag: `pharos_nginx` |
 | `roles/pharos_app_deploy` | `pharos_app` | renders and packages a finalized app root on the controller, extracts it into `/srv/pharos/apps/<app_id>`, and prunes old staged bundles |
-| `roles/pharos_build` | `pharos_build` | builds Pharos release artifacts through `pharos/cross/docker`; default target is `all`, override with `-e target=<name>` |
+| `roles/pharos_build` | `pharos_build` | bumps `../pharos/VERSION` when `pharos_build_release_version` is newer, syncs the Doxygen project number, prebuilds `dev_docs` on the controller for Debian packaging, and builds release artifacts through `pharos/cross/docker`; default target is `all`, override with `-e target=<name>` |
 | `roles/pharos_deploy` | `pharos_runtime` | resolves the newest staged `pharos_*.deb`, installs it on the target host, restarts services, and prunes older runtime packages |
 | `roles/tailscale_admin` | `tailscale`, `tailscale_machine`, `tailscale_policy` | `tailscale_machine` manages host enrollment/runtime settings; `tailscale_policy` pushes tailnet policy |
 

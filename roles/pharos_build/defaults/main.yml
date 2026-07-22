@@ -2,6 +2,10 @@
 pharos_build_repo_dir: "{{ playbook_dir }}/../pharos"
 pharos_build_epytype_repo_dir: "{{ playbook_dir }}/../epytype"
 pharos_build_target: "{{ target | default('all') }}"
+pharos_major: 0
+pharos_minor: 7
+pharos_revision: 23
+pharos_build_release_version: "{{ pharos_major }}.{{ pharos_minor }}.{{ pharos_revision }}"
 pharos_build_compose_dir: "{{ pharos_build_repo_dir }}/cross/docker"
 pharos_build_all_targets:
   - linux-x86_64-gnu

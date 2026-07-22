@@ -10,9 +10,10 @@ server {
     listen 80;
     server_name {{ pharos_domain }};
 
-    location ~ ^/\.well-known/acme-challenge/(.+)$ {
-        alias /var/www/certbot/.well-known/acme-challenge/$1;
+    location ^~ /.well-known/acme-challenge/ {
+        root /var/www/certbot;
         default_type text/plain;
+        try_files $uri =404;
     }
 
     location / {

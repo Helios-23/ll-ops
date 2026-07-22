@@ -6,7 +6,6 @@ Consolidated SOP for the current `ops/` repo. Use this as the top-level workflow
 
 - workstation bootstrap: [SETUP_GUIDE.md](SETUP_GUIDE.md)
 - automation inventory and tags: [FEATURES.md](FEATURES.md)
-- email routing notes: [EMAIL_CONFIG.md](EMAIL_CONFIG.md)
 - docs index: [README.md](README.md)
 
 ## Environment and source of truth
@@ -86,6 +85,7 @@ Verification:
 - the `pharos.llight.io` vhost files exist under `/etc/nginx/sites-available/` and `/etc/nginx/sites-enabled/`
 - the TLS certificate exists under `/etc/letsencrypt/live/pharos.llight.io/`
 - nginx access/error logs exist at the configured Pharos log paths
+- note that initial certificate issuance now uses standalone certbot with nginx temporarily stopped so certbot can bind port 80 directly
 
 ### 4. Build Pharos artifacts on the controller
 
@@ -105,6 +105,9 @@ Notes:
 
 - the build role runs from `ops/` on the controller
 - source checkout is expected at `../pharos`
+- the ops-side build version is `pharos_build_release_version` and defaults to `0.7.23`
+- when `pharos_build_release_version` is newer than `../pharos/VERSION`, the role bumps `../pharos/VERSION` before building
+- the role prebuilds `dev_docs` on the host so Debian packaging does not require `doxygen` inside the cross-build container
 - Docker Compose orchestration lives under `../pharos/cross/docker`
 - packaged artifacts are emitted under `../pharos/dist/packages`
 

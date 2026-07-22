@@ -5,4 +5,4 @@ pharos_service_host: "127.0.0.1"
 pharos_service_port: 7323
 pharos_access_log: "/var/log/nginx/pharos.access.log"
 pharos_error_log: "/var/log/nginx/pharos.error.log"
-pharos_certbot_email: "{{ vault.pharos_certbot_email | default('helios23@gmail.com') }}"
+pharos_certbot_email: "{{ admin_email | default('helios23@gmail.com') }}"

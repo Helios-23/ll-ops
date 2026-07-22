@@ -1,7 +1,7 @@
 pharos_deploy_package_src: ""
 # Staged-archive repository (managed by roles/ll_repo).
 # ll_repo_type values: pack (runtime/services) | app (apps under services).
-# Lantern deb is a runtime/service artifact, so type is pack.
+# Pharos deb is a runtime/service artifact, so type is pack.
 ll_repo_type: pack
 # Define how many versions to keep; minimum 2 (current + previous for rollback).
 ll_repo_keep: 2
