@@ -7,7 +7,6 @@ When you edit files anywhere under `ops/`, treat the docs set under `ops/docs/` 
 - `ops/docs/FEATURES.md`
 - `ops/docs/OPERATOR_RUNBOOK.md`
 - `ops/docs/README.md`
-- `ops/docs/AI_SERVER.md`
 
 Before finishing any `ops/` edit:
 
@@ -19,8 +18,7 @@ Before finishing any `ops/` edit:
 2. Update `ops/docs/FEATURES.md` for playbook, role, or tag inventory changes.
 3. Update `ops/docs/OPERATOR_RUNBOOK.md` when operator workflow, prerequisites, verification, or recovery guidance changed.
 4. Keep `ops/docs/README.md` aligned with the docs set when you add or rename operator docs.
-5. If you change `ops/roles/ai_rig/defaults/main.yml`, keep the model inventory in `ops/docs/AI_SERVER.md` in sync.
-6. Run the local guard:
+5. Run the local guard:
    - from repo root: `python3 ops/bin/check_features_sync.py`
    - or from `ops/`: `python3 bin/check_features_sync.py`
 7. If the guard fails, fix the relevant docs before ending your turn.
@@ -38,7 +36,6 @@ Apply this guard only to changes in `ops/`. Do not require it for unrelated part
 - role directories in `ops/roles/`
 - presence of the required docs set under `ops/docs/`
 - that `ops/README.md` links the runbook and features docs
-- that `ops/docs/AI_SERVER.md` stays aligned with the configured `ai_models` and `ai_models_remove` lists
 
 ## Final response expectation
 

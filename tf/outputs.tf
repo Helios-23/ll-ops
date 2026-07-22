@@ -1,84 +1,14 @@
-output "network_id" {
-  description = "ID of the Hetzner Cloud network."
-  value       = module.hetzner_vpc.network_id
+output "domain" {
+  description = "Domain managed by Spaceship DNS."
+  value       = var.domain
 }
 
-output "network_name" {
-  description = "Name of the Hetzner Cloud network."
-  value       = module.hetzner_vpc.network_name
-}
-
-output "subnet_id" {
-  description = "ID of the primary subnet."
-  value       = module.hetzner_vpc.subnet_id
-}
-
-output "ssh_key_id" {
-  description = "ID of the registered devops SSH key."
-  value       = module.hetzner_vpc.ssh_key_id
-}
-
-output "server_id" {
-  description = "ID of the provisioned server."
-  value       = module.hetzner_vpc.server_id
-}
-
-output "server_name" {
-  description = "Name of the provisioned server."
-  value       = var.server_name
-}
-
-output "server_inventory_name" {
-  description = "Inventory hostname for the provisioned cloud server."
-  value       = "${var.server_name}0"
-}
-
-output "server_ipv4" {
-  description = "Public IPv4 address of the provisioned server."
-  value       = module.hetzner_vpc.server_ipv4
-}
-
-output "server_private_ip" {
-  description = "Private IP address of the provisioned cloud server."
-  value       = module.hetzner_vpc.server_private_ip
-}
-
-output "web_server_id" {
-  description = "ID of the provisioned web server."
-  value       = module.hetzner_vpc.web_server_id
-}
-
-output "web_server_name" {
-  description = "Name of the provisioned web server."
-  value       = var.web_server_name
-}
-
-output "web_server_inventory_name" {
-  description = "Inventory hostname for the provisioned web server."
-  value       = "${var.web_server_name}0"
-}
-
-output "web_server_ipv4" {
-  description = "Public IPv4 address of the provisioned web server."
-  value       = module.hetzner_vpc.web_server_ipv4
-}
-
-output "web_server_private_ip" {
-  description = "Private IP address of the provisioned web server."
-  value       = module.hetzner_vpc.web_server_private_ip
-}
-
-output "dedicated_server" {
-  description = "Metadata for the existing dedicated server expected in the same subnet."
-  value       = module.hetzner_vpc.dedicated_server
+output "pharos_fqdn" {
+  description = "Preferred hostname for the future VPC/public IP anchor."
+  value       = "pharos.${var.domain}"
 }
 
 output "dns_records" {
-  description = "IDs of managed Cloudflare DNS records."
-  value       = module.cloudflare_dns.record_ids
-}
-
-output "dns_record_values" {
-  description = "DNS records with their names and values for inventory mapping."
-  value       = local.effective_cloudflare_dns_records
+  description = "DNS records configured for the domain."
+  value       = local.spaceship_dns_records
 }

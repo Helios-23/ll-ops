@@ -7,9 +7,41 @@
     - terraform
   vars:
     tf_dir: "{{ playbook_dir }}/tf"
-    inventory_file: "{{ playbook_dir }}/inventory/logicallight"
 
   tasks:
+    - name: Check Ansible vault password file exists for vaulted Terraform credentials
+      stat:
+        path: "{{ playbook_dir }}/.vault_devops"
+      register: terraform_vault_password_file
+
+    - name: Fail when Ansible vault password file is missing
+      fail:
+        msg: >-
+          missing Ansible vault password file at {{ playbook_dir }}/.vault_devops;
+          this playbook relies on ansible.cfg vault_password_file to decrypt
+          group_vars/all/vault.yml before rendering tf/spaceship.auto.tfvars.json
+      when: not terraform_vault_password_file.stat.exists
+
+    - name: Validate Spaceship vaulted credentials are available
+      assert:
+        that:
+          - vault_all.spaceship.api_key is defined
+          - vault_all.spaceship.api_secret is defined
+          - (vault_all.spaceship.api_key | string | length) > 0
+          - (vault_all.spaceship.api_secret | string | length) > 0
+        fail_msg: >-
+          Spaceship API credentials are missing from decrypted vault data.
+          Expected vault_all.spaceship.api_key and vault_all.spaceship.api_secret
+          in group_vars/all/vault.yml.
+      no_log: true
+
+    - name: Render Spaceship Terraform auto tfvars from decrypted Ansible vault data
+      template:
+        src: "{{ tf_dir }}/spaceship.auto.tfvars.json.j2"
+        dest: "{{ tf_dir }}/spaceship.auto.tfvars.json"
+        mode: "0600"
+      no_log: true
+
     - name: Check Terraform is initialized
       stat:
         path: "{{ tf_dir }}/.terraform"
@@ -56,74 +88,18 @@
       register: tf_outputs
       changed_when: false
 
-    - name: Parse server details from outputs
+    - name: Parse DNS details from outputs
       set_fact:
-        tf_server_name: "{{ (tf_outputs.stdout | from_json).server_name.value | default('') }}"
-        tf_server_inventory_name: "{{ (tf_outputs.stdout | from_json).server_inventory_name.value | default('') }}"
-        tf_server_ipv4: "{{ (tf_outputs.stdout | from_json).server_ipv4.value | default('') }}"
-        tf_server_private_ip: "{{ (tf_outputs.stdout | from_json).server_private_ip.value | default('') }}"
-        tf_web_server_name: "{{ (tf_outputs.stdout | from_json).web_server_name.value | default('') }}"
-        tf_web_server_inventory_name: "{{ (tf_outputs.stdout | from_json).web_server_inventory_name.value | default('') }}"
-        tf_web_server_ipv4: "{{ (tf_outputs.stdout | from_json).web_server_ipv4.value | default('') }}"
-        tf_web_server_private_ip: "{{ (tf_outputs.stdout | from_json).web_server_private_ip.value | default('') }}"
-        tf_dedicated_server: "{{ (tf_outputs.stdout | from_json).dedicated_server.value | default({}) }}"
-        tf_dns_records: "{{ (tf_outputs.stdout | from_json).dns_record_values.value | default({}) }}"
+        tf_domain: "{{ (tf_outputs.stdout | from_json).domain.value | default('') }}"
+        tf_pharos_fqdn: "{{ (tf_outputs.stdout | from_json).pharos_fqdn.value | default('') }}"
+        tf_dns_records: "{{ (tf_outputs.stdout | from_json).dns_records.value | default([]) }}"
 
-    - name: Read current inventory
-      slurp:
-        src: "{{ inventory_file }}"
-      register: inventory_raw
-
-    - name: Parse inventory lines
-      set_fact:
-        inventory_lines: "{{ (inventory_raw.content | b64decode).split('\n') }}"
-
-    - name: Check if cloud server exists in inventory
-      set_fact:
-        server_in_inventory: >-
-          {{ inventory_lines | select('search', '^\\s*' + tf_server_inventory_name + '\\s') | list | length > 0 }}
-
-    - name: Remove stale generated cloud server inventory alias
-      lineinfile:
-        path: "{{ inventory_file }}"
-        regexp: "^{{ tf_server_name }}1\\s+"
-        state: absent
-      when:
-        - tf_server_name | length > 0
-        - tf_server_inventory_name != (tf_server_name ~ '1')
-
-    - name: Add or update cloud server in prod group
-      lineinfile:
-        path: "{{ inventory_file }}"
-        insertafter: "\\[prod\\]"
-        regexp: "^{{ tf_server_inventory_name }}\\s+"
-        line: "{{ tf_server_inventory_name }}            ansible_host={{ tf_server_ipv4 }}      host_name={{ tf_server_inventory_name }}"
-      when: tf_server_inventory_name | length > 0
-
-    - name: Ensure prod_web group exists in inventory
-      lineinfile:
-        path: "{{ inventory_file }}"
-        line: "[prod_web]"
-        insertafter: EOF
-      when: tf_web_server_name | length > 0
-
-    - name: Check if web server exists in inventory
-      set_fact:
-        web_server_in_inventory: >-
-          {{ inventory_lines | select('search', '^\\s*' + tf_web_server_inventory_name + '\\s') | list | length > 0 }}
-
-    - name: Add or update web server in prod_web group
-      lineinfile:
-        path: "{{ inventory_file }}"
-        insertafter: "\\[prod_web\\]"
-        regexp: "^{{ tf_web_server_inventory_name }}\\s+"
-        line: "{{ tf_web_server_inventory_name }}            ansible_host={{ tf_web_server_ipv4 }}      host_name={{ tf_web_server_inventory_name }}"
-      when: tf_web_server_inventory_name | length > 0
-
-    - name: Show inventory sync result
+    - name: Show Terraform DNS summary
       debug:
         msg: |
-          Server: {{ tf_server_inventory_name }} -> {{ tf_server_ipv4 }} (private: {{ tf_server_private_ip }})
-          Web server: {{ tf_web_server_inventory_name }} -> {{ tf_web_server_ipv4 }} (private: {{ tf_web_server_private_ip }})
-          {% if tf_dedicated_server %}Dedicated: {{ tf_dedicated_server.name }} -> {{ tf_dedicated_server.public_ip }} (private: {{ tf_dedicated_server.private_ip }}){% endif %}
-          {% if tf_dns_records %}DNS records: {{ tf_dns_records | to_json }}{% endif %}
+          Domain: {{ tf_domain }}
+          Preferred Pharos hostname: {{ tf_pharos_fqdn }}
+          DNS records:
+          {% for record in tf_dns_records %}
+          - {{ record.type }} {{ record.name }} ttl={{ record.ttl }}{% if record.address is defined %} address={{ record.address }}{% endif %}{% if record.exchange is defined %} exchange={{ record.exchange }}{% endif %}{% if record.preference is defined %} preference={{ record.preference }}{% endif %}
+          {% endfor %}
