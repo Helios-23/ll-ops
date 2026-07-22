@@ -164,6 +164,12 @@ Expected behavior:
 - verifies `pharos.app.json` exists and preserves relocatable `app_root` metadata
 - prunes older retained app bundles
 
+Recommended live verification from `ops/` after a runtime or app deploy:
+
+```bash
+python3 ../pharos/scripts/live_site_smoke.py -url https://pharos.llight.io/ucal -o
+```
+
 ### 7. Run administrative maintenance
 
 `admin.yml` always requires a host limit.
