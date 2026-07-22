@@ -19,12 +19,18 @@
       set_fact:
         pharos_app_deploy_archive_stamp: "{{ lookup('pipe', 'date +%Y%m%d-%H%M%S') }}"
 
+    - name: Build host-native Pharos binary required for dynamic app packaging
+      ansible.builtin.command:
+        cmd: >-
+          sh scripts/pharos_runtime.sh native build-target macos-universal {{ pharos_app_deploy_repo_dir }}/dist/native
+        chdir: "{{ pharos_app_deploy_repo_dir }}"
+
     - name: Render finalized {{ app_id }} app root on controller before packaging
       ansible.builtin.command:
         cmd: >-
           sh scripts/pharos_runtime.sh build app {{ app_id }}
-          --app-dir {{ pharos_app_deploy_repo_dir }}/apps/{{ app_id }}
           --build-dir {{ pharos_app_deploy_repo_dir }}/dist
+          --packaging
           --text
         chdir: "{{ pharos_app_deploy_repo_dir }}"
 
@@ -79,11 +85,11 @@
     - "{{ pharos_app_deploy_remote_root }}"
     - "{{ pharos_app_deploy_remote_app_dir }}"
 
-- name: Stage {{ app_id }} bundle in epytype_repo
+- name: Stage {{ app_id }} bundle in ll_repo
   vars:
-    epytype_repo_artifact_src: "{{ pharos_app_deploy_archive_path }}"
-    epytype_repo_type: app
-  import_role: { name: epytype_repo }
+    ll_repo_artifact_src: "{{ pharos_app_deploy_archive_path }}"
+    ll_repo_type: app
+  import_role: { name: ll_repo }
 
 - name: Optionally clean Pharos app directory on target host before extraction
   shell: |
@@ -96,7 +102,7 @@
 
 - name: Extract Pharos app bundle on target host
   unarchive:
-    src: "{{ epytype_repo }}/{{ pharos_app_deploy_archive_basename }}"
+    src: "{{ ll_repo }}/{{ pharos_app_deploy_archive_basename }}"
     dest: "{{ pharos_app_deploy_remote_app_dir }}"
     remote_src: true
     owner: "{{ pharos_app_deploy_owner }}"
@@ -117,7 +123,6 @@
   args:
     executable: /bin/sh
   become: true
-  become_user: "{{ pharos_app_deploy_owner }}"
 
 - name: Prune older {{ app_id }} bundles
   vars:

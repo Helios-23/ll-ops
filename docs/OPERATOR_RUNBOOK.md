@@ -108,6 +108,7 @@ Notes:
 - the ops-side build version is `pharos_build_release_version` and defaults to `0.7.23`
 - when `pharos_build_release_version` is newer than `../pharos/VERSION`, the role bumps `../pharos/VERSION` before building
 - the role prebuilds `dev_docs` on the host so Debian packaging does not require `doxygen` inside the cross-build container
+- app packaging now runs through `pharos build app --packaging`, which isolates temporary sqlite and runtime-state paths inside the controller build tree so dynamic app builds do not touch live `/var/lib/pharos` or `/var/state/pharos`
 - Docker Compose orchestration lives under `../pharos/cross/docker`
 - packaged artifacts are emitted under `../pharos/dist/packages`
 

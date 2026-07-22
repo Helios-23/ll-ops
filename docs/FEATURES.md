@@ -114,7 +114,7 @@ apb keymaster.yml -l web0 -t cert
 | `roles/ll_repo` | none | stages controller-built artifacts under `/opt/ll/<type>` and supports pruning retained archives |
 | `roles/nginx` | `nginx` | base nginx installation and service management |
 | `roles/pharos` | `pharos` | deploys the `pharos.llight.io` nginx vhost, obtains the TLS cert with standalone certbot while nginx is temporarily stopped for initial issuance, and maintains certbot renewal; extra tag: `pharos_nginx` |
-| `roles/pharos_app_deploy` | `pharos_app` | renders and packages a finalized app root on the controller, extracts it into `/srv/pharos/apps/<app_id>`, and prunes old staged bundles |
+| `roles/pharos_app_deploy` | `pharos_app` | builds a finalized app root on the controller with `pharos build app --packaging`, extracts it into `/srv/pharos/apps/<app_id>`, and prunes old staged bundles |
 | `roles/pharos_build` | `pharos_build` | bumps `../pharos/VERSION` when `pharos_build_release_version` is newer, syncs the Doxygen project number, prebuilds `dev_docs` on the controller for Debian packaging, and builds release artifacts through `pharos/cross/docker`; default target is `all`, override with `-e target=<name>` |
 | `roles/pharos_deploy` | `pharos_runtime` | resolves the newest staged `pharos_*.deb`, installs it on the target host, restarts services, and prunes older runtime packages |
 | `roles/tailscale_admin` | `tailscale`, `tailscale_machine`, `tailscale_policy` | `tailscale_machine` manages host enrollment/runtime settings; `tailscale_policy` pushes tailnet policy |

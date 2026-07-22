@@ -71,13 +71,13 @@
         line: 'PROJECT_NUMBER         = "{{ pharos_build_requested_version if pharos_build_requested_version | length > 0 else pharos_build_current_version }}"'
       when: (pharos_build_requested_version | length > 0) or (pharos_build_current_version | length > 0)
 
-    - name: Bootstrap host Pharos builder for packaged docs artifact
-      command: sh scripts/pharos_runtime.sh bootstrap build target/debug
+    - name: Install host-native Pharos binary in bin for packaged docs artifact
+      command: sh scripts/pharos_runtime.sh bootstrap install bin
       args:
         chdir: "{{ pharos_build_repo_dir }}"
 
     - name: Prebuild packaged dev_docs artifact on host
-      command: target/debug/pharos build app dev_docs --build-dir dist --text
+      command: bin/pharos build app dev_docs --build-dir dist --text
       args:
         chdir: "{{ pharos_build_repo_dir }}"
 
