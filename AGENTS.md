@@ -64,7 +64,9 @@ When suggesting Ansible commands for work in `ops/`, use these local defaults un
 Example:
 
 - prefer `apb deploy.yml -l web0 -t pharos`
-- avoid `apb deploy.yml -l web0 -t pharos,nginx` unless the broader play selection is specifically needed
+- prefer `apb deploy.yml -l web0 -t pharos,nginx` unless the broader play selection is specifically needed
+- the `roles/pharos_build` host-native `dev_docs` prebuild may reuse an existing `../pharos/bin/pharos` when the docs-renderer build inputs are unchanged, but local validation workflows should still rebuild the native binary explicitly before testing changed runtime behavior
+- when manual testing reveals a new Pharos interaction bug, extend `../pharos/scripts/live_site_smoke.py` coverage for it as part of the follow-up work
 
 ## Ansible debug list formatting preference
 

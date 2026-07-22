@@ -29,3 +29,8 @@ tf/gcp.auto.tfvars.json
 
 # Build artifacts
 dist/
+
+# Test CASES
+*_Live_Site_SmokeTest_PASS.md
+*_Live_Site_SmokeTest_FAIL.md
+*_Live_Site_SmokeTest.tmp.md

@@ -71,10 +71,76 @@
         line: 'PROJECT_NUMBER         = "{{ pharos_build_requested_version if pharos_build_requested_version | length > 0 else pharos_build_current_version }}"'
       when: (pharos_build_requested_version | length > 0) or (pharos_build_current_version | length > 0)
 
+    - name: Check for existing host-native Pharos docs renderer
+      ansible.builtin.stat:
+        path: "{{ pharos_build_repo_dir }}/bin/pharos"
+      register: pharos_build_docs_renderer_bin
+
+    - name: Compute docs-renderer build input fingerprint
+      ansible.builtin.shell: |
+        {
+          find src/native_runtime -type f
+          printf '%s\n' scripts/pharos_runtime.sh
+        } | LC_ALL=C sort | xargs shasum -a 256 | shasum -a 256 | awk '{print $1}'
+      args:
+        chdir: "{{ pharos_build_repo_dir }}"
+      register: pharos_build_docs_renderer_fingerprint
+      changed_when: false
+
+    - name: Check saved docs-renderer fingerprint
+      ansible.builtin.stat:
+        path: "{{ pharos_build_repo_dir }}/dist/.dev_docs_renderer_fingerprint"
+      register: pharos_build_docs_renderer_fingerprint_file
+
+    - name: Read saved docs-renderer fingerprint
+      ansible.builtin.slurp:
+        path: "{{ pharos_build_repo_dir }}/dist/.dev_docs_renderer_fingerprint"
+      register: pharos_build_saved_docs_renderer_fingerprint_raw
+      when: pharos_build_docs_renderer_fingerprint_file.stat.exists
+
+    - name: Decide whether host-native docs renderer must rebuild
+      ansible.builtin.set_fact:
+        pharos_build_saved_docs_renderer_fingerprint: >-
+          {{
+            (pharos_build_saved_docs_renderer_fingerprint_raw.content | b64decode | trim)
+            if pharos_build_docs_renderer_fingerprint_file.stat.exists
+            else ''
+          }}
+        pharos_build_rebuild_docs_renderer: >-
+          {{
+            (not pharos_build_docs_renderer_bin.stat.exists)
+            or (
+              (pharos_build_docs_renderer_fingerprint.stdout | trim)
+              !=
+              (
+                (pharos_build_saved_docs_renderer_fingerprint_raw.content | b64decode | trim)
+                if pharos_build_docs_renderer_fingerprint_file.stat.exists
+                else ''
+              )
+            )
+          }}
+
     - name: Install host-native Pharos binary in bin for packaged docs artifact
       command: sh scripts/pharos_runtime.sh bootstrap install bin
       args:
         chdir: "{{ pharos_build_repo_dir }}"
+      when: pharos_build_rebuild_docs_renderer
+
+    - name: Save current docs-renderer fingerprint after rebuild
+      ansible.builtin.copy:
+        dest: "{{ pharos_build_repo_dir }}/dist/.dev_docs_renderer_fingerprint"
+        content: "{{ pharos_build_docs_renderer_fingerprint.stdout | trim }}\n"
+        mode: "0644"
+      when: pharos_build_rebuild_docs_renderer
+
+    - name: Show docs renderer reuse decision
+      ansible.builtin.debug:
+        msg: >-
+          {{
+            'Rebuilt host-native Pharos docs renderer for dev_docs.'
+            if pharos_build_rebuild_docs_renderer
+            else 'Reusing existing host-native Pharos docs renderer for dev_docs.'
+          }}
 
     - name: Prebuild packaged dev_docs artifact on host
       command: bin/pharos build app dev_docs --build-dir dist --text
