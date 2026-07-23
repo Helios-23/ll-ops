@@ -19,11 +19,104 @@
       set_fact:
         pharos_app_deploy_archive_stamp: "{{ lookup('pipe', 'date +%Y%m%d-%H%M%S') }}"
 
+    - name: Check for existing host-native Pharos docs renderer for app packaging
+      ansible.builtin.stat:
+        path: "{{ pharos_app_deploy_repo_dir }}/bin/pharos"
+      register: pharos_app_deploy_docs_renderer_bin
+
+    - name: Compute docs-renderer binary fingerprint for app packaging
+      ansible.builtin.shell: |
+        python3 - <<'PY'
+        from pathlib import Path
+        import hashlib
+
+        repo = Path('.').resolve()
+        digest = hashlib.sha256()
+        source_path = repo / 'src/native_runtime/c/pharos_runtime.c'
+        source_text = source_path.read_text(encoding='utf-8')
+
+        def extract_function(signature: str) -> str:
+            start = source_text.find(signature)
+            if start < 0:
+                raise SystemExit(f'missing docs renderer signature: {signature}')
+            brace = source_text.find('{', start)
+            if brace < 0:
+                raise SystemExit(f'missing opening brace for: {signature}')
+            depth = 0
+            for index in range(brace, len(source_text)):
+                char = source_text[index]
+                if char == '{':
+                    depth += 1
+                elif char == '}':
+                    depth -= 1
+                    if depth == 0:
+                        return source_text[start:index + 1]
+            raise SystemExit(f'missing closing brace for: {signature}')
+
+        for signature in (
+            'static const char *dev_docs_directory_index_html_native(void) {',
+            'static int build_dev_docs_directory_native(const char *app_root, const char *artifact_dir) {'
+        ):
+            digest.update(signature.encode('utf-8'))
+            digest.update(b'\0')
+            digest.update(extract_function(signature).encode('utf-8'))
+            digest.update(b'\0')
+        print(digest.hexdigest())
+        PY
+      args:
+        chdir: "{{ pharos_app_deploy_repo_dir }}"
+      register: pharos_app_deploy_docs_renderer_fingerprint
+      changed_when: false
+
+    - name: Check saved docs-renderer fingerprint for app packaging
+      ansible.builtin.stat:
+        path: "{{ pharos_app_deploy_repo_dir }}/dist/.dev_docs_renderer_fingerprint"
+      register: pharos_app_deploy_docs_renderer_fingerprint_file
+
+    - name: Read saved docs-renderer fingerprint for app packaging
+      ansible.builtin.slurp:
+        path: "{{ pharos_app_deploy_repo_dir }}/dist/.dev_docs_renderer_fingerprint"
+      register: pharos_app_deploy_saved_docs_renderer_fingerprint_raw
+      when: pharos_app_deploy_docs_renderer_fingerprint_file.stat.exists
+
+    - name: Decide whether host-native Pharos docs renderer must rebuild for app packaging
+      ansible.builtin.set_fact:
+        pharos_app_deploy_rebuild_docs_renderer: >-
+          {{
+            (not pharos_app_deploy_docs_renderer_bin.stat.exists)
+            or (
+              (pharos_app_deploy_docs_renderer_fingerprint.stdout | trim)
+              !=
+              (
+                (pharos_app_deploy_saved_docs_renderer_fingerprint_raw.content | b64decode | trim)
+                if pharos_app_deploy_docs_renderer_fingerprint_file.stat.exists
+                else ''
+              )
+            )
+          }}
+
     - name: Build host-native Pharos binary required for dynamic app packaging
       ansible.builtin.command:
         cmd: >-
-          sh scripts/pharos_runtime.sh native build-target macos-universal {{ pharos_app_deploy_repo_dir }}/dist/native
+          sh scripts/build_native.sh build-target macos-universal {{ pharos_app_deploy_repo_dir }}/dist/native
         chdir: "{{ pharos_app_deploy_repo_dir }}"
+      when: pharos_app_deploy_rebuild_docs_renderer
+
+    - name: Save current docs-renderer fingerprint after app-packaging rebuild
+      ansible.builtin.copy:
+        dest: "{{ pharos_app_deploy_repo_dir }}/dist/.dev_docs_renderer_fingerprint"
+        content: "{{ pharos_app_deploy_docs_renderer_fingerprint.stdout | trim }}\n"
+        mode: "0644"
+      when: pharos_app_deploy_rebuild_docs_renderer
+
+    - name: Show docs renderer reuse decision for app packaging
+      ansible.builtin.debug:
+        msg: >-
+          {{
+            'Rebuilt host-native Pharos docs renderer for app packaging.'
+            if pharos_app_deploy_rebuild_docs_renderer
+            else 'Reusing existing host-native Pharos docs renderer for app packaging.'
+          }}
 
     - name: Render finalized {{ app_id }} app root on controller before packaging
       ansible.builtin.command:

@@ -76,16 +76,50 @@
         path: "{{ pharos_build_repo_dir }}/bin/pharos"
       register: pharos_build_docs_renderer_bin
 
-    - name: Compute docs-renderer build input fingerprint
+    - name: Compute docs-renderer binary fingerprint
       ansible.builtin.shell: |
-        {
-          find src/native_runtime -type f
-          printf '%s\n' scripts/pharos_runtime.sh
-        } | LC_ALL=C sort | xargs shasum -a 256 | shasum -a 256 | awk '{print $1}'
+        python3 - <<'PY'
+        from pathlib import Path
+        import hashlib
+
+        repo = Path('.').resolve()
+        digest = hashlib.sha256()
+        source_path = repo / 'src/native_runtime/c/pharos_runtime.c'
+        source_text = source_path.read_text(encoding='utf-8')
+
+        def extract_function(signature: str) -> str:
+            start = source_text.find(signature)
+            if start < 0:
+                raise SystemExit(f'missing docs renderer signature: {signature}')
+            brace = source_text.find('{', start)
+            if brace < 0:
+                raise SystemExit(f'missing opening brace for: {signature}')
+            depth = 0
+            for index in range(brace, len(source_text)):
+                char = source_text[index]
+                if char == '{':
+                    depth += 1
+                elif char == '}':
+                    depth -= 1
+                    if depth == 0:
+                        return source_text[start:index + 1]
+            raise SystemExit(f'missing closing brace for: {signature}')
+
+        for signature in (
+            'static const char *dev_docs_directory_index_html_native(void) {',
+            'static int build_dev_docs_directory_native(const char *app_root, const char *artifact_dir) {'
+        ):
+            digest.update(signature.encode('utf-8'))
+            digest.update(b'\0')
+            digest.update(extract_function(signature).encode('utf-8'))
+            digest.update(b'\0')
+        print(digest.hexdigest())
+        PY
       args:
         chdir: "{{ pharos_build_repo_dir }}"
       register: pharos_build_docs_renderer_fingerprint
       changed_when: false
+      tags: compute_render
 
     - name: Check saved docs-renderer fingerprint
       ansible.builtin.stat:

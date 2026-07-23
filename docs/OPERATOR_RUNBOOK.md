@@ -108,7 +108,7 @@ Notes:
 - the ops-side build version is `pharos_build_release_version` and defaults to `0.7.23`
 - when `pharos_build_release_version` is newer than `../pharos/VERSION`, the role bumps `../pharos/VERSION` before building
 - the role prebuilds `dev_docs` on the host so Debian packaging does not require `doxygen` inside the cross-build container
-- that host-native `bin/pharos` prebuild is now reused when the docs-renderer build inputs are unchanged, and rebuilt automatically only when the tracked renderer inputs change or the binary is missing
+- that host-native `bin/pharos` prebuild is now reused when the docs-renderer binary inputs are unchanged, and rebuilt automatically only when the native docs-renderer implementation changes or the binary itself is missing
 - app packaging now runs through `pharos build app --packaging`, which isolates temporary sqlite and runtime-state paths inside the controller build tree so dynamic app builds do not touch live `/var/lib/pharos` or `/var/state/pharos`
 - Docker Compose orchestration lives under `../pharos/cross/docker`
 - packaged artifacts are emitted under `../pharos/dist/packages`
@@ -158,6 +158,7 @@ apb deploy.yml -l web0 -t pharos_app -e app_id=ucal -e clean_app=true
 Expected behavior:
 
 - optionally syncs the `../pharos` repo when `update_repo=true`
+- reuses the existing host-native Pharos docs renderer when the native `dev_docs` renderer fingerprint matches, and rebuilds it automatically only when those renderer inputs changed or the binary is missing
 - renders the finalized app root on the controller
 - packages it into a tarball under `../pharos/dist/release/app`
 - stages the bundle via `roles/ll_repo`
