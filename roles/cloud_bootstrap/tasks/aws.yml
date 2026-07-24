@@ -1,0 +1,95 @@
+---
+# AWS Bootstrap Tasks
+#
+# Creates an IAM user (or role), attaches the required managed policies,
+# and generates access keys for Terraform usage.
+#
+# Mirrors the GCP bootstrap flow:
+#   1. Verify AWS credentials and account access
+#   2. Create IAM user for Terraform
+#   3. Attach required managed policies
+#   4. Generate access key pair
+
+- name: AWS | Validate required variables
+  ansible.builtin.assert:
+    that:
+      - aws_service_account_name | length > 0
+      - aws_region | length > 0
+    fail_msg: >-
+      aws_service_account_name and aws_region must be set
+      when cloud_bootstrap_provider is aws.
+
+- name: AWS | Compute derived facts
+  ansible.builtin.set_fact:
+    aws_key_dir: "{{ playbook_dir }}/{{ aws_access_key_dir }}"
+    aws_key_file: "{{ playbook_dir }}/{{ aws_access_key_dir }}/access_key.json"
+
+# Step 1: Verify AWS credentials
+- name: AWS | Verify AWS CLI is available
+  ansible.builtin.command: aws --version
+  changed_when: false
+
+- name: AWS | Verify caller identity
+  amazon.aws.sts_caller_identity:
+  register: aws_identity
+  no_log: true
+
+- name: AWS | Show authenticated account
+  ansible.builtin.debug:
+    msg: "AWS Account: {{ aws_identity.account }} ARN: {{ aws_identity.arn }}"
+
+# Step 2: Create IAM user (idempotent)
+- name: AWS | Create IAM user for Terraform
+  amazon.aws.iam_user:
+    name: "{{ aws_service_account_name }}"
+    path: "{{ aws_service_account_path }}"
+    state: present
+    purge_policy: false
+
+# Step 3: Attach managed policies (idempotent)
+- name: AWS | Attach managed policies to IAM user
+  amazon.aws.iam_user_policy_attachment:
+    user: "{{ aws_service_account_name }}"
+    policy_arn: "{{ item }}"
+  loop: "{{ aws_bootstrap_policies }}"
+  register: aws_policy_attach
+  until: aws_policy_attach is not failed
+  retries: 3
+  delay: 5
+
+# Step 4: Generate access key (only when key file is missing)
+- name: AWS | Check if access key file already exists locally
+  ansible.builtin.stat:
+    path: "{{ aws_key_file }}"
+  register: aws_key_file_stat
+
+- name: AWS | Create access key for IAM user
+  when:
+    - not aws_key_file_stat.stat.exists
+    - aws_create_access_key | bool
+  block:
+    - name: AWS | Generate access key pair
+      amazon.aws.iam_access_key:
+        user_name: "{{ aws_service_account_name }}"
+        state: present
+      register: aws_access_key
+      no_log: true
+
+    - name: AWS | Write access key file
+      ansible.builtin.copy:
+        content: |
+          {
+            "AccessKeyId": "{{ aws_access_key.access_key.access_key_id }}",
+            "SecretAccessKey": "{{ aws_access_key.access_key.secret_access_key }}"
+          }
+        dest: "{{ aws_key_file }}"
+        mode: "0600"
+      no_log: true
+
+- name: AWS | Report status
+  ansible.builtin.debug:
+    msg: |
+      AWS Bootstrap Complete
+      Account: {{ aws_identity.account }}
+      IAM User: {{ aws_service_account_name }}
+      Key File: {{ aws_key_file }}{% if aws_key_file_stat.stat.exists %} (already exists, skipped){% endif %}

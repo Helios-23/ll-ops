@@ -61,7 +61,31 @@ Expected behavior:
 
 Use raw Terraform in `tf/` only for focused debugging or module work.
 
-### 3. Baseline the public web host and Pharos edge
+### 3. Bootstrap cloud provider credentials
+
+For initial Terraform credential setup on a new workstation or project:
+
+```bash
+apb cloud_bootstrap.yml -e cloud_bootstrap_provider=gcp
+apb cloud_bootstrap.yml -e cloud_bootstrap_provider=aws
+apb cloud_bootstrap.yml -e cloud_bootstrap_provider=azure
+```
+
+Expected behavior:
+
+- validates required variables for the selected provider
+- enables foundational cloud APIs (GCP)
+- creates the service account or IAM user and assigns the required roles
+- generates a local JSON key or access key file under `keys/tf/`
+- skips key creation when the local key file already exists
+
+Verification:
+
+- GCP: `GOOGLE_APPLICATION_CREDENTIALS=keys/tf/terraform-key.json gcloud auth activate-service-account --key-file=keys/tf/terraform-key.json`
+- AWS: check that `keys/tf/aws/access_key.json` exists
+- Azure: check that `keys/tf/azure/credentials.json` exists
+
+### 4. Baseline the public web host and Pharos edge
 
 Run the baseline playbook against `web0`:
 
@@ -87,7 +111,7 @@ Verification:
 - nginx access/error logs exist at the configured Pharos log paths
 - note that initial certificate issuance now uses standalone certbot with nginx temporarily stopped so certbot can bind port 80 directly
 
-### 4. Build Pharos artifacts on the controller
+### 5. Build Pharos artifacts on the controller
 
 Build all supported targets:
 
@@ -118,7 +142,7 @@ Verification:
 - the play prints the packaged artifacts whose checksums changed during the run
 - the expected package format appears in `../pharos/dist/packages`
 
-### 5. Deploy the Pharos runtime package
+### 6. Deploy the Pharos runtime package
 
 Install the newest staged Pharos package on `web0`:
 
@@ -141,7 +165,7 @@ Verification:
 - `systemctl status pharos.service pharos-ha.service`
 - confirm the expected package is present under the staged artifact root and installed on the host
 
-### 6. Deploy a Pharos app bundle
+### 7. Deploy a Pharos app bundle
 
 Deploy one app bundle to `web0`:
 
@@ -172,7 +196,7 @@ Recommended live verification from `ops/` after a runtime or app deploy:
 python3 ../pharos/scripts/live_site_smoke.py -url https://pharos.llight.io/ucal -o
 ```
 
-### 7. Run administrative maintenance
+### 8. Run administrative maintenance
 
 `admin.yml` always requires a host limit.
 
@@ -187,7 +211,7 @@ apb admin.yml -l web0 -t tailscale_policy
 
 Use this playbook for routine package maintenance and Tailscale operations on an explicitly limited host set.
 
-### 8. Run key and certificate workflows
+### 9. Run key and certificate workflows
 
 `keymaster.yml` is the entry point for `roles/keymaster`. Most actions are intentionally gated by `never`, so combine a host limit with explicit tags.
 

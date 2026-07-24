@@ -1,0 +1,59 @@
+# cloud_bootstrap role defaults
+#
+# Set cloud_bootstrap_provider to select the target cloud, then
+# fill in the provider-specific variables below before running.
+
+# Provider selector: aws | gcp | azure
+cloud_bootstrap_provider: "gcp"
+
+# Shared key output directory (relative to playbook_dir)
+cloud_bootstrap_key_dir: "keys/tf"
+
+# -----------------------------------------------------------------------------
+# GCP
+# -----------------------------------------------------------------------------
+gcp_project_id: "{{ gcp_proj_id | default('') }}"
+gcp_owner_email: "{{ gcp_owner }}"
+gcp_sa_name: "{{ admin_name }}"
+gcp_sa_display_name: "DevOps Service Admin Account"
+gcp_org_constraint: "iam.managed.disableServiceAccountKeyCreation"
+gcp_org_policy_wait_seconds: 60
+gcp_create_key: true
+
+gcp_bootstrap_apis:
+  - cloudresourcemanager.googleapis.com
+  - serviceusage.googleapis.com
+  - compute.googleapis.com
+
+gcp_bootstrap_roles:
+  - roles/compute.admin
+  - roles/compute.networkAdmin
+  - roles/iam.serviceAccountUser
+  - roles/serviceusage.serviceUsageAdmin
+  - roles/resourcemanager.projectIamAdmin
+
+# -----------------------------------------------------------------------------
+# AWS
+# -----------------------------------------------------------------------------
+aws_region: "us-east-1"
+aws_service_account_name: "{{ admin_name }}"
+aws_service_account_path: "/devops/terraform"
+aws_create_access_key: true
+aws_access_key_dir: "{{ cloud_bootstrap_key_dir }}/aws"
+
+aws_bootstrap_policies:
+  - arn:aws:iam::aws:policy/AmazonEC2FullAccess
+  - arn:aws:iam::aws:policy/AmazonVPCFullAccess
+  - arn:aws:iam::aws:policy/IAMFullAccess
+  - arn:aws:iam::aws:policy/AmazonSSMFullAccess
+
+# -----------------------------------------------------------------------------
+# Azure
+# -----------------------------------------------------------------------------
+azure_subscription_id: "{{ azure_sub_id | default('') }}"
+azure_resource_group: "devops-rg"
+azure_service_principal_name: "{{ admin_name }}"
+azure_create_key: true
+azure_key_dir: "{{ cloud_bootstrap_key_dir }}/azure"
+azure_role: "Owner"
+azure_location: "eastus"

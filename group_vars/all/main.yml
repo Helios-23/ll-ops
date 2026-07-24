@@ -29,6 +29,8 @@ certbot_admin_email: "{{admin_email}}"
 certbot_domain_type: "single"
 
 # gcp
+gcp_owner: "rp@lligt.io"
+gcp_sa: "{{ admin_email }}"
 gcp_org_id: "{{vault_all.gcp_llight.org_id}}"
 gcp_proj_id: "{{vault_all.gcp_llight.proj_id}}"
 gcp_region: "us-west1"

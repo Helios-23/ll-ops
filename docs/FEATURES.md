@@ -16,6 +16,7 @@ Use this as the quick command map. The **Complete Tag Index** and **Role Notes**
 | `admin.yml` | selected hosts with `-l` required | run generic admin tasks and optional Tailscale management on a limited host set | `admin` | `update_reboot`, `tailscale`, `tailscale_machine`, `tailscale_policy` |
 | `terraform.yml` | `localhost` | decrypt vaulted Spaceship credentials, render Terraform auto tfvars for Spaceship and GCP, enable `compute.googleapis.com` and bootstrap the GCP VPC/subnet/firewall/IP/VM when the Pharos public IP is not yet in state, run the full Terraform plan/apply, update `inventory/logicallight` for `web0`, manage `pharos.llight.io` DNS in Spaceship, and print the resulting infrastructure summary | `terraform` | none |
 | `keymaster.yml` | selected hosts | run key and certificate operations via `roles/keymaster`; most paths require explicit tags | `kymstr` | `install`, `encrypt`, `gen-ssh`, `ssh-gen`, `gen-csr`, `check-csr`, `ssh-auth`, `ssh-auth-review`, `ssh-key`, `ssh-key-report`, `cert`, `mysql`, `never` |
+| `cloud_bootstrap.yml` | `localhost` | bootstrap cloud provider service accounts, roles, and credentials for Terraform; supports GCP, AWS, and Azure via `cloud_bootstrap_provider` | `cloud_bootstrap` | `cloud_bootstrap`, `cloud_gcp`, `cloud_aws`, `cloud_azure` |
 
 ## Examples
 
@@ -65,6 +66,14 @@ apb keymaster.yml -l web0 -t gen-csr
 apb keymaster.yml -l web0 -t cert
 ```
 
+### `cloud_bootstrap.yml`
+
+```bash
+apb cloud_bootstrap.yml -e cloud_bootstrap_provider=gcp
+apb cloud_bootstrap.yml -e cloud_bootstrap_provider=aws
+apb cloud_bootstrap.yml -e cloud_bootstrap_provider=azure
+```
+
 ## Role Task Areas
 
 ### `roles/keymaster`
@@ -82,31 +91,45 @@ apb keymaster.yml -l web0 -t cert
 | certificate deployment | `cert`, `never` | copy certs and private keys to remote SSL paths | use only after local material is ready |
 | MySQL helper tasks | `mysql`, `never` | run the MySQL-specific keymaster include | see `roles/keymaster/tasks/mysql.yml` |
 
+### `roles/cloud_bootstrap`
+
+| Task area | Tags | Purpose | Notes |
+| --- | --- | --- | --- |
+| provider validation | `cloud_bootstrap` | validate `cloud_bootstrap_provider` and required variables | |
+| GCP API enablement | `cloud_bootstrap`, `cloud_gcp` | enable foundational GCP APIs (cloudresourcemanager, serviceusage, compute) | idempotent via `google.cloud.gcp_serviceusage_service` |
+| GCP org policy override | `cloud_bootstrap`, `cloud_gcp` | disable org policy blocking SA key creation | command-based, only when key creation is needed |
+| GCP service account | `cloud_bootstrap`, `cloud_gcp` | create Terraform service account | idempotent via `google.cloud.gcp_iam_service_account` |
+| GCP IAM role assignment | `cloud_bootstrap`, `cloud_gcp` | assign required roles to the service account | idempotent via `google.cloud.gcp_resourcemanager_project_iam_member` |
+| GCP key generation | `cloud_bootstrap`, `cloud_gcp` | generate JSON key for Terraform | only when local key file is missing |
+| AWS IAM user and policies | `cloud_bootstrap`, `cloud_aws` | create IAM user, attach managed policies, generate access key | uses `amazon.aws.iam_user` and `amazon.aws.iam_user_policy_attachment` |
+| Azure service principal | `cloud_bootstrap`, `cloud_azure` | create service principal, assign role, save credentials | uses `azure.azcollection.azure_rm_resourcegroup` |
+
 ## Complete Tag Index
 
 ### Play-level tags
 
 | Tags |
 | --- |
-| `admin`, `kymstr`, `pharos_app`, `pharos_runtime`, `terraform`, `web_server` |
+| `admin`, `cloud_bootstrap`, `kymstr`, `pharos_app`, `pharos_runtime`, `terraform`, `web_server` |
 
 ### Role-level tags
 
 | Tags |
 | --- |
-| `certbot_tls`, `harden`, `nginx`, `pharos`, `pharos_app`, `pharos_build`, `pharos_nginx`, `pharos_runtime`, `tailscale`, `tailscale_machine`, `tailscale_policy` |
+| `certbot_tls`, `cloud_bootstrap`, `cloud_gcp`, `cloud_aws`, `cloud_azure`, `harden`, `nginx`, `pharos`, `pharos_app`, `pharos_build`, `pharos_nginx`, `pharos_runtime`, `tailscale`, `tailscale_machine`, `tailscale_policy` |
 
 ### Task-level tags
 
 | Tags |
 | --- |
-| `always`, `cert`, `check-csr`, `compute_render`, `encrypt`, `fail2ban`, `fail2ban_sshd_invalid_user`, `gen-csr`, `gen-ssh`, `install`, `ipv4-forward`, `mysql`, `never`, `reverse_proxy_fail2ban`, `ssh-auth`, `ssh-auth-review`, `ssh-gen`, `ssh-key`, `ssh-key-report`, `update_reboot` |
+| `always`, `cert`, `check-csr`, `cloud_aws`, `cloud_azure`, `cloud_bootstrap`, `cloud_gcp`, `compute_render`, `encrypt`, `fail2ban`, `fail2ban_sshd_invalid_user`, `gen-csr`, `gen-ssh`, `install`, `ipv4-forward`, `mysql`, `never`, `reverse_proxy_fail2ban`, `ssh-auth`, `ssh-auth-review`, `ssh-gen`, `ssh-key`, `ssh-key-report`, `update_reboot` |
 
 ## Role Notes
 
 | Role | Main tags | Extra tags / notes |
 | --- | --- | --- |
 | `roles/admin` | none | task tag: `update_reboot` |
+| `roles/cloud_bootstrap` | `cloud_bootstrap` | extra tags: `cloud_gcp`, `cloud_aws`, `cloud_azure`; provider-specific bootstrap for Terraform service accounts and credentials; controller-side only |
 | `roles/certbot_tls` | `certbot_tls` | ACME/TLS issuance and renewal support for nginx-hosted services |
 | `roles/docker_engine` | none | installs Docker Engine and Compose prerequisites on build-capable hosts |
 | `roles/harden` | `harden` | extra tags: `fail2ban`, `fail2ban_sshd_invalid_user`, `ipv4-forward`, `reverse_proxy_fail2ban` |

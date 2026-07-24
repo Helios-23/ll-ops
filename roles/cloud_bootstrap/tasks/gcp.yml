@@ -1,0 +1,162 @@
+---
+# GCP Bootstrap Tasks
+#
+# Maps to the workflow in bin/gcp_bootstrap.sh:
+#   Step 1 - Verify authentication as Owner
+#   Step 2 - Enable foundational APIs
+#   Step 3 - Disable org policy blocking SA key creation
+#   Step 4 - Create service account
+#   Step 5 - Assign required roles
+#   Step 6 - Generate JSON key
+#
+# Uses native google.cloud collection modules where available.
+# Falls back to command module for org policies (no native module exists).
+
+- name: GCP | Validate required variables
+  ansible.builtin.assert:
+    that:
+      - gcp_project_id | length > 0
+      - gcp_owner_email | length > 0
+      - gcp_sa_name | length > 0
+    fail_msg: >-
+      gcp_project_id, gcp_owner_email, and gcp_sa_name must all be set
+      when cloud_bootstrap_provider is gcp.
+
+- name: GCP | Compute derived facts
+  ansible.builtin.set_fact:
+    gcp_sa_email: "{{ gcp_sa_name }}@{{ gcp_project_id }}.iam.gserviceaccount.com"
+    gcp_key_file: "{{ playbook_dir }}/{{ cloud_bootstrap_key_dir }}/terraform-key.json"
+
+# Step 1: Verify authentication
+- name: GCP | Verify gcloud CLI is available
+  ansible.builtin.command: gcloud --version
+  changed_when: false
+
+- name: GCP | Verify application-default credentials are configured
+  ansible.builtin.command: gcloud auth application-default print-access-token
+  register: gcp_adc_check
+  changed_when: false
+  failed_when: gcp_adc_check.rc != 0
+
+- name: GCP | Verify project access
+  ansible.builtin.command: >-
+    gcloud projects describe {{ gcp_project_id }} --format=value(projectId)
+  register: gcp_project_check
+  changed_when: false
+  failed_when: gcp_project_check.rc != 0
+
+# Step 2: Enable foundational APIs
+- name: GCP | Enable foundational APIs
+  google.cloud.gcp_serviceusage_service:
+    service: "{{ item }}"
+    project: "{{ gcp_project_id }}"
+    auth_kind: application
+    state: enabled
+  loop: "{{ gcp_bootstrap_apis }}"
+  register: gcp_api_enable
+  until: gcp_api_enable is not failed
+  retries: 3
+  delay: 10
+
+# Step 3: Disable org policy for SA key creation (only when key creation is needed)
+- name: GCP | Disable org policy for SA key creation
+  when: gcp_create_key | bool
+  block:
+    - name: GCP | Read current org policy enforcement state
+      ansible.builtin.shell:
+        cmd: |
+          set -euo pipefail
+          gcloud org-policies describe {{ gcp_org_constraint }} \
+            --project={{ gcp_project_id }} --format=json 2>/dev/null \
+          | python3 -c "import sys,json; d=json.load(sys.stdin); \
+              rules=d.get('spec',{}).get('rules',[]); \
+              print('false' if any(not r.get('enforce',True) for r in rules) else 'true')"
+        executable: /bin/bash
+      register: gcp_org_policy_enforce
+      changed_when: false
+      failed_when: false
+
+    - name: GCP | Apply org policy override to allow SA key creation
+      when:
+        - gcp_org_policy_enforce.rc != 0 or gcp_org_policy_enforce.stdout | trim | bool
+      block:
+        - name: GCP | Write org policy override file
+          ansible.builtin.copy:
+            content: |
+              name: projects/{{ gcp_project_id }}/policies/{{ gcp_org_constraint }}
+              spec:
+                rules:
+                - enforce: false
+            dest: /tmp/gcp_org_policy_override.yaml
+            mode: "0600"
+
+        - name: GCP | Apply org policy override
+          ansible.builtin.command: >-
+            gcloud org-policies set-policy /tmp/gcp_org_policy_override.yaml
+            --project={{ gcp_project_id }} --quiet
+          register: gcp_org_policy_apply
+          changed_when: true
+
+        - name: GCP | Remove temporary policy file
+          ansible.builtin.file:
+            path: /tmp/gcp_org_policy_override.yaml
+            state: absent
+
+        - name: GCP | Wait for org policy propagation
+          ansible.builtin.pause:
+            seconds: "{{ gcp_org_policy_wait_seconds }}"
+
+# Step 4: Create service account (idempotent)
+- name: GCP | Create service account
+  google.cloud.gcp_iam_service_account:
+    name: "{{ gcp_sa_email }}"
+    display_name: "{{ gcp_sa_display_name }}"
+    project: "{{ gcp_project_id }}"
+    auth_kind: application
+    state: present
+
+# Step 5: Assign required roles (idempotent per binding)
+- name: GCP | Assign IAM roles to service account
+  google.cloud.gcp_resourcemanager_project_iam_member:
+    project: "{{ gcp_project_id }}"
+    role: "{{ item }}"
+    member: "serviceAccount:{{ gcp_sa_email }}"
+    auth_kind: application
+    state: present
+  loop: "{{ gcp_bootstrap_roles }}"
+  register: gcp_role_assign
+  until: gcp_role_assign is not failed
+  retries: 3
+  delay: 5
+
+# Step 6: Generate key (only when local key file is missing)
+- name: GCP | Check if key file already exists locally
+  ansible.builtin.stat:
+    path: "{{ gcp_key_file }}"
+  register: gcp_key_file_stat
+
+- name: GCP | Generate service account JSON key
+  when:
+    - not gcp_key_file_stat.stat.exists
+    - gcp_create_key | bool
+  block:
+    - name: GCP | Create SA key via gcloud
+      ansible.builtin.command: >-
+        gcloud iam service-accounts keys create {{ gcp_key_file }}
+        --iam-account={{ gcp_sa_email }}
+        --project={{ gcp_project_id }}
+      register: gcp_key_create
+      changed_when: true
+
+    - name: GCP | Set key file permissions
+      ansible.builtin.file:
+        path: "{{ gcp_key_file }}"
+        mode: "0600"
+
+- name: GCP | Report key file status
+  ansible.builtin.debug:
+    msg: |
+      GCP Bootstrap Complete
+      Project: {{ gcp_project_id }}
+      Service Account: {{ gcp_sa_email }}
+      Key File: {{ gcp_key_file }}{% if gcp_key_file_stat.stat.exists %} (already exists, skipped){% endif %}

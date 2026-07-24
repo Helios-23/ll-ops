@@ -1,0 +1,144 @@
+---
+# Azure Bootstrap Tasks
+#
+# Creates a service principal, assigns the specified role, and saves
+# credentials for Terraform usage.
+#
+# Mirrors the GCP bootstrap flow:
+#   1. Verify Azure CLI credentials and subscription
+#   2. Create resource group if it does not exist
+#   3. Create service principal
+#   4. Assign role to service principal
+#   5. Save credentials to local key file
+
+- name: Azure | Validate required variables
+  ansible.builtin.assert:
+    that:
+      - azure_subscription_id | length > 0
+      - azure_service_principal_name | length > 0
+      - azure_resource_group | length > 0
+    fail_msg: >-
+      azure_subscription_id, azure_service_principal_name, and
+      azure_resource_group must all be set when cloud_bootstrap_provider is azure.
+
+- name: Azure | Compute derived facts
+  ansible.builtin.set_fact:
+    azure_key_dir: "{{ playbook_dir }}/{{ azure_key_dir }}"
+    azure_key_file: "{{ playbook_dir }}/{{ azure_key_dir }}/credentials.json"
+
+# Step 1: Verify Azure credentials
+- name: Azure | Verify Azure CLI is available
+  ansible.builtin.command: az version
+  changed_when: false
+
+- name: Azure | Verify subscription access
+  ansible.builtin.command: >-
+    az account show --subscription {{ azure_subscription_id }}
+    --output json
+  register: azure_account_check
+  changed_when: false
+
+# Step 2: Create resource group (idempotent)
+- name: Azure | Ensure resource group exists
+  azure.azcollection.azure_rm_resourcegroup:
+    name: "{{ azure_resource_group }}"
+    location: "{{ azure_location }}"
+    state: present
+
+# Step 3: Create service principal (idempotent check)
+- name: Azure | Check if service principal already exists
+  ansible.builtin.command: >-
+    az ad sp show --id {{ azure_service_principal_name }}
+    --output json
+  register: azure_sp_check
+  changed_when: false
+  failed_when: false
+
+- name: Azure | Create service principal
+  when: azure_sp_check.rc != 0
+  block:
+    - name: Azure | Create service principal with role assignment
+      ansible.builtin.command: >-
+        az ad sp create-for-rbac
+        --name {{ azure_service_principal_name }}
+        --role {{ azure_role }}
+        --scopes /subscriptions/{{ azure_subscription_id }}
+        --output json
+      register: azure_sp_create
+      changed_when: true
+      no_log: true
+
+# Step 4: Assign role to existing service principal (idempotent)
+- name: Azure | Assign role to existing service principal
+  when: azure_sp_check.rc == 0
+  block:
+    - name: Azure | Get service principal object ID
+      ansible.builtin.command: >-
+        az ad sp show --id {{ azure_service_principal_name }}
+        --query id --output tsv
+      register: azure_sp_id
+      changed_when: false
+
+    - name: Azure | Check if role assignment already exists
+      ansible.builtin.command: >-
+        az role assignment list
+        --assignee {{ azure_sp_id.stdout }}
+        --role {{ azure_role }}
+        --scope /subscriptions/{{ azure_subscription_id }}
+        --output json
+      register: azure_role_check
+      changed_when: false
+      failed_when: false
+
+    - name: Azure | Create role assignment
+      ansible.builtin.command: >-
+        az role assignment create
+        --assignee {{ azure_sp_id.stdout }}
+        --role {{ azure_role }}
+        --scope /subscriptions/{{ azure_subscription_id }}
+        --output json
+      register: azure_role_create
+      changed_when: true
+      when: azure_role_check.stdout | trim | length == 2 or
+            (azure_role_check.stdout | from_json | length) == 0
+
+# Step 5: Save credentials (only when key file is missing)
+- name: Azure | Check if credentials file already exists locally
+  ansible.builtin.stat:
+    path: "{{ azure_key_file }}"
+  register: azure_key_file_stat
+
+- name: Azure | Write credentials file
+  when:
+    - not azure_key_file_stat.stat.exists
+    - azure_sp_check.rc != 0
+  block:
+    - name: Azure | Ensure key directory exists
+      ansible.builtin.file:
+        path: "{{ azure_key_dir }}"
+        state: directory
+        mode: "0700"
+
+    - name: Azure | Write service principal credentials
+      ansible.builtin.copy:
+        content: |
+          {
+            "clientId": "{{ (azure_sp_create.stdout | from_json).appId }}",
+            "clientSecret": "{{ (azure_sp_create.stdout | from_json).password }}",
+            "subscriptionId": "{{ azure_subscription_id }}",
+            "tenantId": "{{ (azure_sp_create.stdout | from_json).tenant }}",
+            "resourceGroup": "{{ azure_resource_group }}"
+          }
+        dest: "{{ azure_key_file }}"
+        mode: "0600"
+      no_log: true
+
+- name: Azure | Report status
+  ansible.builtin.debug:
+    msg: |
+      Azure Bootstrap Complete
+      Subscription: {{ azure_subscription_id }}
+      Service Principal: {{ azure_service_principal_name }}
+      Resource Group: {{ azure_resource_group }}{% if not azure_key_file_stat.stat.exists and azure_sp_check.rc != 0 %}
+      Key File: {{ azure_key_file }}{% else %}
+      Key File: (already exists or SP pre-existing, check credentials){% endif %}

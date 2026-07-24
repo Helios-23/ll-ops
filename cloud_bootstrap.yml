@@ -1,0 +1,31 @@
+---
+- name: Bootstrap cloud provider service account and credentials for Terraform
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tags:
+    - cloud_bootstrap
+
+  vars:
+    key_dir: "{{ playbook_dir }}/keys/tf"
+
+  tasks:
+    - name: Validate cloud provider is selected
+      ansible.builtin.assert:
+        that:
+          - cloud_bootstrap_provider is defined
+          - cloud_bootstrap_provider in ['aws', 'gcp', 'azure']
+        fail_msg: >-
+          Pass cloud_bootstrap_provider as an extra var:
+          apb cloud_bootstrap.yml -e cloud_bootstrap_provider=gcp
+
+    - name: Ensure key output directory exists
+      ansible.builtin.file:
+        path: "{{ key_dir }}"
+        state: directory
+        mode: "0700"
+
+    - name: Include cloud bootstrap role
+      ansible.builtin.include_role:
+        name: cloud_bootstrap

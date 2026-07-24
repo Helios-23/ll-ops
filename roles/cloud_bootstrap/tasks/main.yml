@@ -1,0 +1,39 @@
+---
+# Cloud Bootstrap - main entry point
+# Validates the provider selector and dispatches to the provider-specific
+# task file.  Every provider file is idempotent and safe to re-run.
+
+- name: Validate cloud_bootstrap_provider
+  ansible.builtin.assert:
+    that:
+      - cloud_bootstrap_provider in ['aws', 'gcp', 'azure']
+    fail_msg: >-
+      cloud_bootstrap_provider must be one of: aws, gcp, azure.
+      Got '{{ cloud_bootstrap_provider }}'.
+
+- name: Ensure key output directory exists
+  ansible.builtin.file:
+    path: "{{ playbook_dir }}/{{ cloud_bootstrap_key_dir }}"
+    state: directory
+    mode: "0700"
+
+- name: Run GCP bootstrap
+  ansible.builtin.include_tasks: gcp.yml
+  when: cloud_bootstrap_provider == 'gcp'
+  tags:
+    - cloud_bootstrap
+    - cloud_gcp
+
+- name: Run AWS bootstrap
+  ansible.builtin.include_tasks: aws.yml
+  when: cloud_bootstrap_provider == 'aws'
+  tags:
+    - cloud_bootstrap
+    - cloud_aws
+
+- name: Run Azure bootstrap
+  ansible.builtin.include_tasks: azure.yml
+  when: cloud_bootstrap_provider == 'azure'
+  tags:
+    - cloud_bootstrap
+    - cloud_azure
