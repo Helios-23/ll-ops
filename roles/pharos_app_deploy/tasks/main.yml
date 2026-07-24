@@ -54,8 +54,8 @@
             raise SystemExit(f'missing closing brace for: {signature}')
 
         for signature in (
-            'static const char *dev_docs_directory_index_html_native(void) {',
-            'static int build_dev_docs_directory_native(const char *app_root, const char *artifact_dir) {'
+            'static const char *dev_docs_directory_index_html(void) {',
+            'static int build_dev_docs_directory(const char *app_root, const char *artifact_dir) {'
         ):
             digest.update(signature.encode('utf-8'))
             digest.update(b'\0')
@@ -121,8 +121,8 @@
     - name: Render finalized {{ app_id }} app root on controller before packaging
       ansible.builtin.command:
         cmd: >-
-          sh scripts/pharos_runtime.sh build app {{ app_id }}
-          --build-dir {{ pharos_app_deploy_repo_dir }}/dist
+          bin/pharos build app {{ app_id }}
+          --build-dir dist
           --packaging
           --text
         chdir: "{{ pharos_app_deploy_repo_dir }}"

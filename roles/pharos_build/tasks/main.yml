@@ -106,8 +106,8 @@
             raise SystemExit(f'missing closing brace for: {signature}')
 
         for signature in (
-            'static const char *dev_docs_directory_index_html_native(void) {',
-            'static int build_dev_docs_directory_native(const char *app_root, const char *artifact_dir) {'
+            'static const char *dev_docs_directory_index_html(void) {',
+            'static int build_dev_docs_directory(const char *app_root, const char *artifact_dir) {'
         ):
             digest.update(signature.encode('utf-8'))
             digest.update(b'\0')
@@ -155,7 +155,7 @@
           }}
 
     - name: Install host-native Pharos binary in bin for packaged docs artifact
-      command: sh scripts/pharos_runtime.sh bootstrap install bin
+      command: sh scripts/build_native.sh install bin
       args:
         chdir: "{{ pharos_build_repo_dir }}"
       when: pharos_build_rebuild_docs_renderer
