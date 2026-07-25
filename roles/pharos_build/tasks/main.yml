@@ -76,6 +76,15 @@
         path: "{{ pharos_build_repo_dir }}/bin/pharos"
       register: pharos_build_docs_renderer_bin
 
+    - name: Check whether existing host-native Pharos docs renderer is runnable
+      ansible.builtin.command: bin/pharos --version
+      args:
+        chdir: "{{ pharos_build_repo_dir }}"
+      register: pharos_build_docs_renderer_version_check
+      changed_when: false
+      failed_when: false
+      when: pharos_build_docs_renderer_bin.stat.exists
+
     - name: Compute docs-renderer binary fingerprint
       ansible.builtin.shell: |
         python3 - <<'PY'
@@ -144,6 +153,9 @@
           {{
             (not pharos_build_docs_renderer_bin.stat.exists)
             or (
+              (pharos_build_docs_renderer_version_check.rc | default(1)) != 0
+            )
+            or (
               (pharos_build_docs_renderer_fingerprint.stdout | trim)
               !=
               (
@@ -173,7 +185,7 @@
           {{
             'Rebuilt host-native Pharos docs renderer for dev_docs.'
             if pharos_build_rebuild_docs_renderer
-            else 'Reusing existing host-native Pharos docs renderer for dev_docs.'
+            else 'Reusing existing runnable host-native Pharos docs renderer for dev_docs.'
           }}
 
     - name: Prebuild packaged dev_docs artifact on host
