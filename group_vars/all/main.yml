@@ -3,6 +3,7 @@ local_ip: 127.0.0.1
 autobuild: true
 unattended_upgrades: true
 domain: 'llight.io'
+fqdn: "pharos.{{ domain }}"
 admin_user: "devops"
 admin_email: "{{ admin_user }}@{{ domain }}"
 
@@ -22,7 +23,7 @@ sonarqube_port: 9023
 
 # ssl
 ssl_dir: "/etc/ssl"
-ssl_sites_dir: "{{ssl_dir}}/epetype"
+ssl_sites_dir: "{{ssl_dir}}/logicallight"
 
 # certbot
 certbot_admin_email: "{{admin_email}}"
@@ -35,6 +36,13 @@ gcp_org_id: "{{vault_all.gcp_llight.org_id}}"
 gcp_proj_id: "{{vault_all.gcp_llight.proj_id}}"
 gcp_region: "us-west1"
 gcp_zone: "us-west1-a"
+
+# smtp email
+smtp_server: "smtp-relay.brevo.com"
+smtp_mail_from: "pharos_noreply@llight.io"
+smtp_login: "{{ vault_all.smtp.user }}"
+smtp_pass: "{{ vault_all.smtp.pass }}"
+
 
 #sonarqube
 monitor_ip: "{{hostvars['monitor_prd']['ansible_host']}}"

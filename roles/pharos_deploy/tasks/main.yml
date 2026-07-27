@@ -49,11 +49,29 @@
   shell: |
     set -e
     deb="{{ ll_repo }}/$(ls -1t {{ ll_repo }}/pharos_*.deb | head -1 | xargs -n1 basename)"
-    dpkg -i "$deb" || (apt-get -f install -y && dpkg -i "$deb")
+    dpkg --force-confnew -i "$deb" || (apt-get -f install -y && dpkg --force-confnew -i "$deb")
   args:
     executable: /bin/sh
   register: pharos_deploy_install
   notify: Restart Pharos services
+
+- name: Update configuration to enalble smtp email
+  ansible.builtin.lineinfile:
+    path: /etc/pharos/{{ item.fname }}
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.new_line }}"
+    state: present
+  loop:
+    - { fname: 'pharos.conf', regexp: '^#?\s*base_url=app.example.com', new_line: 'base_url={{ fqdn }}' }
+    - { fname: 'pharos.conf', regexp: '^#?\s*smtp_server=<your_smtp_server>', new_line: 'smtp_server={{ smtp_server }}' }
+    - { fname: 'pharos.conf', regexp: '^#?\s*smtp_port=587', new_line: 'smtp_port=587' }
+    - { fname: 'pharos.conf', regexp: '^#?\s*smtp_mail_from=noreply@example.com', new_line: 'smtp_mail_from={{ smtp_mail_from }}' }
+    - { fname: 'pharos.conf', regexp: '^#?\s*smtp_login=<your_smtp_login>', new_line: 'smtp_login={{ smtp_login }}' }
+    - { fname: 'pharos.conf', regexp: '^#?\s*smtp_pass=PHAROS_SMTP_PASS', new_line: 'smtp_pass=PHAROS_SMTP_PASS' }
+    - { fname: 'pharos.conf', regexp: '^#?\ssmtp_encryption=STARTTLS', new_line: 'smtp_encryption=STARTTLS' }
+    - { fname: 'pharos.conf', regexp: '^#?\s*smtp_timeout_seconds=15', new_line: 'smtp_timeout_seconds=15' }
+    - { fname: 'pharos.conf', regexp: '^#?\s*smtp_max_message_bytes=1048576', new_line: 'smtp_max_message_bytes=1048576' }
+    - { fname: 'pharos.env', regexp: 'PHAROS_SMTP_PASS=', new_line: 'PHAROS_SMTP_PASS={{ smtp_pass }}' }
 
 - name: Prune older Pharos runtime packages
   vars:
