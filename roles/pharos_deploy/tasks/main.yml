@@ -68,7 +68,7 @@
     - { fname: 'pharos.conf', regexp: '^#?\s*smtp_mail_from=noreply@example.com', new_line: 'smtp_mail_from={{ smtp_mail_from }}' }
     - { fname: 'pharos.conf', regexp: '^#?\s*smtp_login=<your_smtp_login>', new_line: 'smtp_login={{ smtp_login }}' }
     - { fname: 'pharos.conf', regexp: '^#?\s*smtp_pass=PHAROS_SMTP_PASS', new_line: 'smtp_pass=PHAROS_SMTP_PASS' }
-    - { fname: 'pharos.conf', regexp: '^#?\ssmtp_encryption=STARTTLS', new_line: 'smtp_encryption=STARTTLS' }
+    - { fname: 'pharos.conf', regexp: '^#?\s*smtp_encryption=STARTTLS', new_line: 'smtp_encryption=STARTTLS' }
     - { fname: 'pharos.conf', regexp: '^#?\s*smtp_timeout_seconds=15', new_line: 'smtp_timeout_seconds=15' }
     - { fname: 'pharos.conf', regexp: '^#?\s*smtp_max_message_bytes=1048576', new_line: 'smtp_max_message_bytes=1048576' }
     - { fname: 'pharos.env', regexp: 'PHAROS_SMTP_PASS=', new_line: 'PHAROS_SMTP_PASS={{ smtp_pass }}' }
