@@ -18,4 +18,5 @@ run_playbook() {
 # Sequential execution logic (type commands exactly like the command line)
 run_playbook apb build.yml -t pharos_build -e target=linux-x86_64-gnu && \
 run_playbook apb deploy.yml -t pharos_runtime -l web0 && \
-run_playbook apb deploy.yml -t pharos_app -l web0 && \
+run_playbook apb deploy.yml -t pharos_app -l web0 -e app_id=ucal -e clean_app=true && \
+run_playbook apb deploy.yml -t pharos_app -l web0 -e app_id=dev_docs -e clean_app=true && \
