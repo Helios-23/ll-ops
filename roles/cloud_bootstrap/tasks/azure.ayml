@@ -1,4 +1,3 @@
----
 # Azure Bootstrap Tasks
 #
 # Creates a service principal, assigns the specified role, and saves
