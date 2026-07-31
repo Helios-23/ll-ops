@@ -28,7 +28,18 @@ failregex = ^%(__prefix_line)s(?:error: PAM: )?Authentication failure(?: for inv
 
 __prefix_line = \s*(?:\S+ )?(?:kernel: \[\d+\.\d+\] )?(?:@vserver_\S+ )?(?:\[sshd\]\s*)?(?:\[pid \d+\])?(?:\[\d+\])? (?:\S+ )?ssh(d)?(?:\[\d+\])?:?
 
+# Ignore authentication failures for whitelisted users so that legitimate
+# users with many SSH keys loaded (sshd tries each key in turn, producing
+# several "Failed publickey" lines before the correct key is accepted)
+# don't trigger a ban on their source IP.
+{% set wl_users = fail2ban_whitelisted_users | default([]) %}
+{% if wl_users | length > 0 %}
+ignoreregex = ^%(__prefix_line)s(?:error: PAM: )?Authentication failure for (?:{{ wl_users | map('regex_escape') | join('|') }}) from <HOST>.*$
+            ^%(__prefix_line)sFailed (?:password|publickey) for (?:{{ wl_users | map('regex_escape') | join('|') }}) from <HOST>.*$
+            ^.*pam_unix\(sshd:auth\): authentication failure; .* rhost=<HOST>(?:\s+user=(?:{{ wl_users | map('regex_escape') | join('|') }}))?\s*$
+{% else %}
 ignoreregex =
+{% endif %}
 
 [Init]
 journalmatch = _SYSTEMD_UNIT=ssh.service

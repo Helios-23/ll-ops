@@ -1,0 +1,177 @@
+- name: Install fail2ban
+  apt:
+    name: fail2ban
+    state: present
+    update_cache: true
+  tags:
+    - fail2ban
+
+- name: Prepare reverse proxy fail2ban feature
+  when: fail2ban_feature_reverse_proxy_enabled | bool
+  tags:
+    - reverse_proxy_fail2ban
+  block:
+    - name: Validate reverse proxy fail2ban inputs
+      assert:
+        that:
+          - reverse_proxy_fail2ban_logpath | length > 0
+          - reverse_proxy_fail2ban_statuses | length > 0
+        fail_msg: >-
+          reverse_proxy_fail2ban_logpath and reverse_proxy_fail2ban_statuses
+          must be set when fail2ban_feature_reverse_proxy_enabled is true.
+
+- name: Prepare sshd invalid-user fail2ban feature
+  when: fail2ban_feature_sshd_invalid_user_enabled | bool
+  tags:
+    - fail2ban
+    - fail2ban_sshd_invalid_user
+  block:
+    - name: Validate sshd invalid-user fail2ban inputs
+      assert:
+        that:
+          - fail2ban_sshd_invalid_user_names | length > 0
+          - fail2ban_sshd_invalid_user_logpath | length > 0
+        fail_msg: >-
+          fail2ban_sshd_invalid_user_names and
+          fail2ban_sshd_invalid_user_logpath must be set when
+          fail2ban_feature_sshd_invalid_user_enabled is true.
+
+- name: Configure fail2ban for SSH
+  template:
+    src: jail.local.j2
+    dest: /etc/fail2ban/jail.local
+    owner: root
+    group: root
+    mode: "0644"
+  notify: reload fail2ban
+  tags:
+    - fail2ban
+
+- name: Deploy reverse proxy fail2ban filter
+  template:
+    src: nginx-auth-proxy.conf.j2
+    dest: /etc/fail2ban/filter.d/nginx-auth-proxy.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: fail2ban_feature_reverse_proxy_enabled | bool
+  notify: reload fail2ban
+  tags:
+    - fail2ban
+    - reverse_proxy_fail2ban
+
+- name: Deploy sshd invalid-user fail2ban filter
+  template:
+    src: sshd-invalid-user.conf.j2
+    dest: /etc/fail2ban/filter.d/sshd-invalid-user.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: fail2ban_feature_sshd_invalid_user_enabled | bool
+  notify: reload fail2ban
+  tags:
+    - fail2ban
+    - fail2ban_sshd_invalid_user
+
+- name: Ensure Forgejo fail2ban log directory exists
+  file:
+    path: "{{ forgejo_fail2ban_logdir }}"
+    state: directory
+    owner: "{{ forgejo_fail2ban_uid }}"
+    group: "{{ forgejo_fail2ban_gid }}"
+    mode: "0755"
+  when: fail2ban_feature_forgejo_enabled | bool
+  tags:
+    - fail2ban
+
+- name: Ensure Forgejo fail2ban log file exists
+  file:
+    path: "{{ forgejo_fail2ban_logpath }}"
+    state: touch
+    owner: "{{ forgejo_fail2ban_uid }}"
+    group: "{{ forgejo_fail2ban_gid }}"
+    mode: "0644"
+  when: fail2ban_feature_forgejo_enabled | bool
+  tags:
+    - fail2ban
+
+- name: Fix fail2ban socket permissions
+  file:
+    path: /var/run/fail2ban
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags:
+    - fail2ban
+
+- name: Ensure fail2ban socket has correct permissions
+  lineinfile:
+    path: /etc/fail2ban/fail2ban.conf
+    regexp: '^#?socket'
+    line: 'socket = /var/run/fail2ban/fail2ban.sock'
+  notify: restart fail2ban
+  tags:
+    - fail2ban
+
+- name: Deploy sshd-ddos filter for Ubuntu 24
+  template:
+    src: sshd-ddos.conf.j2
+    dest: /etc/fail2ban/filter.d/sshd-ddos.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: reload fail2ban
+  tags:
+    - fail2ban
+
+- name: Deploy custom sshd filter with PAM support
+  template:
+    src: sshd-custom.conf.j2
+    dest: /etc/fail2ban/filter.d/sshd-custom.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: reload fail2ban
+  tags:
+    - fail2ban
+
+- name: Deploy Forgejo fail2ban filter
+  template:
+    src: forgejo.conf.j2
+    dest: /etc/fail2ban/filter.d/forgejo.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: fail2ban_feature_forgejo_enabled | bool
+  notify: reload fail2ban
+  tags:
+    - fail2ban
+
+- name: Ensure fail2ban is enabled and started
+  systemd:
+    name: fail2ban
+    enabled: true
+    state: started
+  tags:
+    - fail2ban
+
+- name: Install jail status script
+  template:
+    src: fail2ban-status.sh.j2
+    dest: /root/fail2ban-status.sh
+    owner: root
+    group: root
+    mode: "0700"
+  tags:
+    - fail2ban
+
+- name: Install fail2ban unban script
+  template:
+    src: unban.sh.j2
+    dest: /root/unban.sh
+    owner: root
+    group: root
+    mode: "0700"
+  tags:
+    - fail2ban

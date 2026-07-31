@@ -5,6 +5,8 @@
   roles:
     - role: harden
       tags: harden
+    - role: fail2ban
+      tags: fail2ban
     - role: nginx
       tags: nginx
     - role: certbot_tls

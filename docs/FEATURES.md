@@ -116,7 +116,7 @@ apb cloud_bootstrap.yml -e cloud_bootstrap_provider=azure
 
 | Tags |
 | --- |
-| `certbot_tls`, `cloud_bootstrap`, `cloud_gcp`, `cloud_aws`, `cloud_azure`, `harden`, `nginx`, `pharos`, `pharos_app`, `pharos_build`, `pharos_nginx`, `pharos_runtime`, `tailscale`, `tailscale_machine`, `tailscale_policy` |
+| `certbot_tls`, `cloud_bootstrap`, `cloud_gcp`, `cloud_aws`, `cloud_azure`, `fail2ban`, `harden`, `nginx`, `pharos`, `pharos_app`, `pharos_build`, `pharos_nginx`, `pharos_runtime`, `tailscale`, `tailscale_machine`, `tailscale_policy` |
 
 ### Task-level tags
 
@@ -132,7 +132,8 @@ apb cloud_bootstrap.yml -e cloud_bootstrap_provider=azure
 | `roles/cloud_bootstrap` | `cloud_bootstrap` | extra tags: `cloud_gcp`, `cloud_aws`, `cloud_azure`; provider-specific bootstrap for Terraform service accounts and credentials; controller-side only |
 | `roles/certbot_tls` | `certbot_tls` | ACME/TLS issuance and renewal support for nginx-hosted services |
 | `roles/docker_engine` | none | installs Docker Engine and Compose prerequisites on build-capable hosts |
-| `roles/harden` | `harden` | extra tags: `fail2ban`, `fail2ban_sshd_invalid_user`, `ipv4-forward`, `reverse_proxy_fail2ban` |
+| `roles/fail2ban` | `fail2ban` | extra tags: `fail2ban_sshd_invalid_user`, `reverse_proxy_fail2ban`; configure jails, filters, and helper scripts; run immediately after `harden` |
+| `roles/harden` | `harden` | extra tags: `ipv4-forward` |
 | `roles/keymaster` | none | key and certificate workflows are documented above under Role Task Areas |
 | `roles/ll_repo` | none | stages controller-built artifacts under `/opt/ll/<type>` and supports pruning retained archives |
 | `roles/nginx` | `nginx` | base nginx installation and service management |

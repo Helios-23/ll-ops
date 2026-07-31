@@ -3,18 +3,6 @@
     name: ssh
     state: restarted
 
-- name: restart fail2ban
-  systemd:
-    name: fail2ban
-    state: restarted
-    enabled: true
-
-- name: reload fail2ban
-  systemd:
-    name: fail2ban
-    state: restarted
-    enabled: true
-
 - name: restart knockd
   systemd:
     name: knockd
