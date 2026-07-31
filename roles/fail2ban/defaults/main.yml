@@ -1,13 +1,6 @@
 # Fail2ban settings
 fail2ban_admin_email: "{{ admin_email }}"
 fail2ban_feature_forgejo_enabled: false
-forgejo_fail2ban_logpath: "{{ (forgejo_data_dir | default('/opt/forgejo/data')) ~ '/gitea/log/gitea.log' }}"
-forgejo_fail2ban_logdir: "{{ (forgejo_data_dir | default('/opt/forgejo/data')) ~ '/gitea/log' }}"
-forgejo_fail2ban_uid: 1000
-forgejo_fail2ban_gid: 1000
-forgejo_fail2ban_maxretry: 10
-forgejo_fail2ban_findtime: 3600
-forgejo_fail2ban_bantime: 900
 fail2ban_feature_sshd_invalid_user_enabled: false
 fail2ban_sshd_invalid_user_names:
   - root
