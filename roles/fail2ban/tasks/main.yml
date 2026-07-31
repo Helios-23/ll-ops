@@ -3,8 +3,6 @@
     name: fail2ban
     state: present
     update_cache: true
-  tags:
-    - fail2ban
 
 - name: Prepare reverse proxy fail2ban feature
   when: fail2ban_feature_reverse_proxy_enabled | bool
@@ -22,9 +20,7 @@
 
 - name: Prepare sshd invalid-user fail2ban feature
   when: fail2ban_feature_sshd_invalid_user_enabled | bool
-  tags:
-    - fail2ban
-    - fail2ban_sshd_invalid_user
+  tags:  fail2ban_sshd_invalid_user
   block:
     - name: Validate sshd invalid-user fail2ban inputs
       assert:
@@ -44,8 +40,6 @@
     group: root
     mode: "0644"
   notify: reload fail2ban
-  tags:
-    - fail2ban
 
 - name: Deploy reverse proxy fail2ban filter
   template:
@@ -56,9 +50,7 @@
     mode: "0644"
   when: fail2ban_feature_reverse_proxy_enabled | bool
   notify: reload fail2ban
-  tags:
-    - fail2ban
-    - reverse_proxy_fail2ban
+  tags: reverse_proxy_fail2ban
 
 - name: Deploy sshd invalid-user fail2ban filter
   template:
@@ -69,9 +61,7 @@
     mode: "0644"
   when: fail2ban_feature_sshd_invalid_user_enabled | bool
   notify: reload fail2ban
-  tags:
-    - fail2ban
-    - fail2ban_sshd_invalid_user
+  tags: fail2ban_sshd_invalid_user
 
 - name: Ensure Forgejo fail2ban log directory exists
   file:
@@ -81,8 +71,6 @@
     group: "{{ forgejo_fail2ban_gid }}"
     mode: "0755"
   when: fail2ban_feature_forgejo_enabled | bool
-  tags:
-    - fail2ban
 
 - name: Ensure Forgejo fail2ban log file exists
   file:
@@ -92,8 +80,6 @@
     group: "{{ forgejo_fail2ban_gid }}"
     mode: "0644"
   when: fail2ban_feature_forgejo_enabled | bool
-  tags:
-    - fail2ban
 
 - name: Fix fail2ban socket permissions
   file:
@@ -111,8 +97,6 @@
     regexp: '^#?socket'
     line: 'socket = /var/run/fail2ban/fail2ban.sock'
   notify: restart fail2ban
-  tags:
-    - fail2ban
 
 - name: Deploy sshd-ddos filter for Ubuntu 24
   template:
@@ -122,8 +106,6 @@
     group: root
     mode: "0644"
   notify: reload fail2ban
-  tags:
-    - fail2ban
 
 - name: Deploy custom sshd filter with PAM support
   template:
@@ -133,8 +115,6 @@
     group: root
     mode: "0644"
   notify: reload fail2ban
-  tags:
-    - fail2ban
 
 - name: Deploy Forgejo fail2ban filter
   template:
@@ -145,16 +125,12 @@
     mode: "0644"
   when: fail2ban_feature_forgejo_enabled | bool
   notify: reload fail2ban
-  tags:
-    - fail2ban
 
 - name: Ensure fail2ban is enabled and started
   systemd:
     name: fail2ban
     enabled: true
     state: started
-  tags:
-    - fail2ban
 
 - name: Install jail status script
   template:
@@ -163,8 +139,6 @@
     owner: root
     group: root
     mode: "0700"
-  tags:
-    - fail2ban
 
 - name: Install fail2ban unban script
   template:
@@ -173,5 +147,3 @@
     owner: root
     group: root
     mode: "0700"
-  tags:
-    - fail2ban
