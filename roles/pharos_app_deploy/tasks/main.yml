@@ -92,10 +92,16 @@
             else 'Reusing existing host-native Pharos docs renderer for app packaging.'
           }}
 
+    - name: Set --clean based on CLI parameter
+      set_fact:
+        dist_clean: "--clean"
+        when: clean_dist
+
+
     - name: Render finalized {{ app_id }} app root on controller before packaging
       ansible.builtin.command:
         cmd: >-
-          bin/pharos build app {{ app_id }} --build-dir dist --packaging
+          bin/pharos build app {{ app_id }} {{ dist_clean }} --packaging
         chdir: "{{ pharos_app_deploy_repo_dir }}"
 
     - name: Verify finalized {{ app_id }} app root exists on controller
@@ -162,7 +168,7 @@
     find "$app_dir" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
   args:
     executable: /bin/sh
-  when: clean_app | bool
+  when: clean_dest | bool
 
 - name: Extract Pharos app bundle on target host
   unarchive:

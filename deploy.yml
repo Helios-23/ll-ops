@@ -16,7 +16,8 @@
     - pharos_app
   vars:
     app_id: ucal
-    clean_app: false
+    clean_dest: false
+    clean_dist: false
     # Update repositories on the controller before building when true
     update_repo: false
   roles:

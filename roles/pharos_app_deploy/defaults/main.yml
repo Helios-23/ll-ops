@@ -47,3 +47,5 @@ pharos_app_deploy_directory_mode: "0755"
 pharos_app_deploy_services:
   - pharos.service
   - pharos-ha.service
+
+dist_clean: ""
