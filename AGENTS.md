@@ -27,6 +27,16 @@ Before finishing any `ops/` edit:
 
 Apply this guard only to changes in `ops/`. Do not require it for unrelated parts of the repository.
 
+## Destructive and apply operations guard
+
+Never run apply or destructive operations without explicit user approval:
+
+- NEVER run `terraform apply`, an auto-applying playbook, or any command that can create, destroy, or replace infrastructure or remote state without first showing the user what it will do and getting explicit approval to apply.
+- ALWAYS run a plan or dry-run first (`terraform plan`, `ansible-playbook --check`, and so on) and report the planned changes back before any apply step.
+- Playbooks must default to plan-only or check mode. Any apply step must be opt-in through an explicit variable the user passes deliberately (for example `terraform_apply: true`). Never default apply to on.
+- Never run auto-approved applies (`-auto-approve`) as part of a routine run.
+- When a task involves a playbook or command that can change infrastructure, ask the user before running it unless the user already explicitly requested the apply.
+
 ## What the guard checks
 
 `ops/bin/check_features_sync.py` verifies that `ops/docs/FEATURES.md` stays in sync with:

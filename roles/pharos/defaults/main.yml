@@ -1,4 +1,11 @@
 pharos_domain: "{{ fqdn }}"
+domain_list:
+  - name: "{{ pharos_domain }}"
+    root_url: "/dev_docs"
+  - name: "{{ domain }}"
+    root_url: "/static_app"
+  - name: "www.{{ domain }}"
+    root_url: "/static_app"
 pharos_use_socket: false
 pharos_socket_path: "/run/pharos/pharos.sock"
 pharos_service_host: "127.0.0.1"

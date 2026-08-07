@@ -47,16 +47,24 @@ For normal Terraform-driven changes, use:
 apb terraform.yml -t terraform
 ```
 
+This runs in plan-only mode. To actually apply the planned changes, pass the opt-in flag explicitly:
+
+```bash
+apb terraform.yml -t terraform -e terraform_apply=true
+```
+
 Expected behavior:
 
 - uses Ansible vault decryption via `ansible.cfg` and `.vault_devops` to render `tf/spaceship.auto.tfvars.json` from `tf/spaceship.auto.tfvars.json.j2`
 - renders `tf/gcp.auto.tfvars.json` from Ansible vars including `domain`, `gcp_proj_id`, `gcp_region`, and `gcp_zone`
 - exports `GOOGLE_APPLICATION_CREDENTIALS` to the Terraform service account key under `keys/tf/terraform-key.json`
 - initializes `tf/` if needed
-- if the GCP Pharos public IP is not yet present in Terraform state, performs a one-time targeted bootstrap apply that first enables `compute.googleapis.com` and then creates the GCP network, subnet, firewall, reserved IP, SSH metadata, and instance
-- runs `terraform plan -detailed-exitcode`
-- applies automatically when drift is detected
+- when the GCP Pharos public IP is not yet present in Terraform state, plans a one-time targeted bootstrap that enables `compute.googleapis.com` and creates the GCP network, subnet, firewall, reserved IP, SSH metadata, and instance; the bootstrap applies only when `terraform_apply=true` is passed
+- runs `terraform plan -detailed-exitcode` and reports the result
+- applies drift changes only when `terraform_apply=true` is passed; otherwise it prints a warning that planned changes were left unapplied
+- protects the GCP network, subnet, firewall, reserved IP, and instance in `tf/main.tf` with `lifecycle { prevent_destroy = true }`, so an apply can never delete and recreate existing infrastructure
 - updates the `web0` entry in `inventory/logicallight` from Terraform outputs
+- manages the Spaceship DNS record set: A records for the root domain (`@`), `www`, and `pharos` all point at the Pharos public IP, alongside the configured MX records
 - reads Terraform outputs and prints an infrastructure and DNS summary for the managed domain
 
 Use raw Terraform in `tf/` only for focused debugging or module work.
@@ -107,7 +115,8 @@ Verification:
 
 - `nginx -t` succeeds on the target
 - the `pharos.llight.io` vhost files exist under `/etc/nginx/sites-available/` and `/etc/nginx/sites-enabled/`
-- the TLS certificate exists under `/etc/letsencrypt/live/pharos.llight.io/`
+- the vhost serves one TLS server block per entry in the pharos `domain_list`, each redirecting `/` to its configured `root_url`
+- a TLS certificate exists under `/etc/letsencrypt/live/<name>/` for every entry in the pharos `domain_list`
 - nginx access/error logs exist at the configured Pharos log paths
 - note that initial certificate issuance now uses standalone certbot with nginx temporarily stopped so certbot can bind port 80 directly
 
@@ -230,4 +239,6 @@ Use [FEATURES.md](FEATURES.md) for the current task-tag inventory.
 
 - If the docs guard fails after an `ops/` edit, update the docs inventory before finishing.
 - If Terraform state needs local cleanup because infrastructure was already removed out of band, prefer updating `tf/` and pruning local state rather than forcing remote destroys.
+- Core GCP resources in `tf/main.tf` (network, subnet, firewall, reserved IP, instance) carry `lifecycle { prevent_destroy = true }`. A planned destroy of any of them is a red flag: do not force it, investigate the plan instead. Removing a resource on purpose requires deleting its lifecycle guard first, then a plan-only run to review.
 - When in doubt, narrow Ansible runs with `-l` and the smallest useful `-t` selection.
+- The Ansible remote tmp dir is per connection user: `remote_tmp = ~/.ansible/tmp` expands `~` to the remote user's home, so `devops` runs use `/home/devops/.ansible/tmp` and root runs use `/root/.ansible/tmp` and never collide. The temp dir is created as the connection user before `become` elevates to root, so root task privileges do not help if that user cannot write the path. If a run ever fails with `Failed to create temporary directory`, check ownership of the offending path; the legacy shared `/tmp/ansible-remote` (root-owned mode 700 from an old root run) can simply be removed on the host: `rm -rf /tmp/ansible-remote`.

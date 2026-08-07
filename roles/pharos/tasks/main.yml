@@ -1,10 +1,20 @@
-- name: Check if Pharos TLS certificate already exists
+- name: Check which Pharos TLS certificates already exist per domain_list entry
   stat:
-    path: /etc/letsencrypt/live/{{ pharos_domain }}/fullchain.pem
-  register: pharos_certbot_cert
+    path: /etc/letsencrypt/live/{{ item.name }}/fullchain.pem
+  loop: "{{ domain_list }}"
+  register: pharos_certbot_cert_results
+  tags: pharos_domains
 
-- name: Obtain Pharos TLS certificate with standalone certbot
-  when: not pharos_certbot_cert.stat.exists
+- name: Collect missing Pharos certificate domains from domain_list
+  set_fact:
+    pharos_certbot_domains: "{{ pharos_certbot_domains | default([]) + [item.item.name] }}"
+  loop: "{{ pharos_certbot_cert_results.results }}"
+  when: not item.stat.exists
+  tags: pharos_domains
+
+- name: Obtain missing Pharos TLS certificates with standalone certbot
+  when: pharos_certbot_domains | default([]) | length > 0
+  tags: pharos_domains
   block:
     - name: Stop nginx so standalone certbot can bind to port 80
       systemd:
@@ -12,17 +22,17 @@
         state: stopped
 
     - name: Request Pharos TLS certificate with standalone certbot
-      command: >
-        certbot certonly --standalone
-        --non-interactive
-        --agree-tos
-        --email {{ pharos_certbot_email }}
-        -d {{ pharos_domain }}
-        --keep-until-expiring
+      command:
+        cmd: >-
+          certbot certonly --standalone
+          --non-interactive
+          --agree-tos
+          --email {{ pharos_certbot_email }}
+          -d {{ item }}
+          --keep-until-expiring
+        creates: /etc/letsencrypt/live/{{ item }}/fullchain.pem
+      loop: "{{ pharos_certbot_domains }}"
       register: pharos_certbot_result
-      changed_when: >
-        'obtained' in (pharos_certbot_result.stdout | lower) or
-        'new certificate' in (pharos_certbot_result.stdout | lower)
 
   always:
     - name: Ensure nginx is started after standalone certbot attempt

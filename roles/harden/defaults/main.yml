@@ -16,9 +16,16 @@ knock_ports: "7000,8000,9000"
 # Honeypot (optional - set enable_honeypot to true to enable)
 enable_honeypot: false
 
+# Enable Login Banner
+enable_banner: false
+
+# Enable Unattended Upgrades
+enable_unattended: true
+
 # Whitelisted IPs (bypass fail2ban and iptables rate limiting)
 whitelisted_ips:
   - "60.47.254.5"
+  - "136.24.94.7"
 
 # Allowed SSH users (all other usernames will be rejected)
 allowed_ssh_users:

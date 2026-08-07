@@ -9,6 +9,9 @@
     tf_dir: "{{ playbook_dir }}/tf"
     inventory_file: "{{ playbook_dir }}/inventory/logicallight"
     gcp_credentials_file: "{{ playbook_dir }}/keys/tf/terraform-key.json"
+    # Apply is strictly opt-in. The playbook always plans and reports; it only
+    # applies when the operator explicitly passes -e terraform_apply=true.
+    terraform_apply: false
 
   tasks:
     - name: Check Ansible vault password file exists for vaulted Terraform credentials
@@ -121,7 +124,15 @@
       environment:
         GOOGLE_APPLICATION_CREDENTIALS: "{{ gcp_credentials_file }}"
       register: tf_bootstrap_apply
-      when: tf_gcp_bootstrap_needed
+      when: tf_gcp_bootstrap_needed and terraform_apply | bool
+
+    - name: Warn that GCP bootstrap would apply but apply was not requested
+      debug:
+        msg: >-
+          GCP resources are missing from Terraform state, but terraform_apply
+          is not enabled; bootstrap apply skipped. Re-run with
+          -e terraform_apply=true to create them.
+      when: tf_gcp_bootstrap_needed and not (terraform_apply | bool)
 
     - name: Show Terraform bootstrap apply output
       debug:
@@ -145,15 +156,24 @@
           {% if tf_plan.rc == 0 %}No infrastructure changes detected.
           {% elif tf_plan.rc == 2 %}Changes planned. Review above.
           {% endif %}
+          Apply mode: {{ 'ENABLED (terraform_apply=true)' if terraform_apply | bool else 'DISABLED (plan only; pass -e terraform_apply=true to apply)' }}
 
-    - name: Apply Terraform changes
+    - name: Apply Terraform changes when explicitly requested
       command: terraform apply -auto-approve
       args:
         chdir: "{{ tf_dir }}"
       environment:
         GOOGLE_APPLICATION_CREDENTIALS: "{{ gcp_credentials_file }}"
       register: tf_apply
-      when: tf_plan.rc == 2
+      when: tf_plan.rc == 2 and terraform_apply | bool
+
+    - name: Warn that planned changes were not applied
+      debug:
+        msg: |
+          Terraform plan detected changes, but apply was not requested, so
+          nothing was changed. Review the plan output above, then re-run with
+          -e terraform_apply=true to apply.
+      when: tf_plan.rc == 2 and not (terraform_apply | bool)
 
     - name: Show Terraform apply output
       debug:
@@ -202,5 +222,5 @@
           Inventory web0 host_name: {{ tf_gcp_inventory_host_name }}
           DNS records:
           {% for record in tf_dns_records %}
-          - {{ record.type }} {{ record.name }} ttl={{ record.ttl }}{% if record.address is defined %} address={{ record.address }}{% endif %}{% if record.exchange is defined %} exchange={{ record.exchange }}{% endif %}{% if record.preference is defined %} preference={{ record.preference }}{% endif %}
+          - {{ record.type }} {{ record.name }} ttl={{ record.ttl }}{{ (' address=' ~ record.address) if record.address is defined else '' }}{{ (' exchange=' ~ record.exchange) if record.exchange is defined else '' }}{{ (' preference=' ~ record.preference) if record.preference is defined else '' }}
           {% endfor %}

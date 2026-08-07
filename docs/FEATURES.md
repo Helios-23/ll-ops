@@ -14,7 +14,7 @@ Use this as the quick command map. The **Complete Tag Index** and **Role Notes**
 | `deploy.yml` | `web0` | deploy either the Pharos runtime package or a single Pharos app bundle | `pharos_runtime`, `pharos_app` | `pharos_runtime`, `pharos_app` |
 | `build.yml` | `localhost` | bump `../pharos/VERSION` from the ops-side build version when newer, reuse or rebuild the host-native `dev_docs` renderer on the controller only when the native docs-renderer implementation changes or the binary is missing, and build Pharos release artifacts via Docker Compose, optionally for one target | `pharos_build` | `pharos_build` |
 | `admin.yml` | selected hosts with `-l` required | run generic admin tasks and optional Tailscale management on a limited host set | `admin` | `update_reboot`, `tailscale`, `tailscale_machine`, `tailscale_policy` |
-| `terraform.yml` | `localhost` | decrypt vaulted Spaceship credentials, render Terraform auto tfvars for Spaceship and GCP, enable `compute.googleapis.com` and bootstrap the GCP VPC/subnet/firewall/IP/VM when the Pharos public IP is not yet in state, run the full Terraform plan/apply, update `inventory/logicallight` for `web0`, manage `pharos.llight.io` DNS in Spaceship, and print the resulting infrastructure summary | `terraform` | none |
+| `terraform.yml` | `localhost` | decrypt vaulted Spaceship credentials, render Terraform auto tfvars for Spaceship and GCP, plan the GCP VPC/subnet/firewall/IP/VM bootstrap when the Pharos public IP is not yet in state plus all other Terraform changes, update `inventory/logicallight` for `web0`, manage Spaceship DNS in `tf/main.tf` (configured MX records plus A records for the root domain, `www`, and `pharos` all pointing at the Pharos public IP), and print the resulting infrastructure summary; apply runs only when `terraform_apply=true` is passed explicitly; core GCP resources in `tf/main.tf` (network, subnet, firewall, reserved IP, instance) carry `lifecycle { prevent_destroy = true }` so an apply can never delete and recreate existing infrastructure | `terraform` | none |
 | `keymaster.yml` | selected hosts | run key and certificate operations via `roles/keymaster`; most paths require explicit tags | `kymstr` | `install`, `encrypt`, `gen-ssh`, `ssh-gen`, `gen-csr`, `check-csr`, `ssh-auth`, `ssh-auth-review`, `ssh-key`, `ssh-key-report`, `cert`, `mysql`, `never` |
 | `cloud_bootstrap.yml` | `localhost` | bootstrap cloud provider service accounts, roles, and credentials for Terraform; supports GCP, AWS, and Azure via `cloud_bootstrap_provider` | `cloud_bootstrap` | `cloud_bootstrap`, `cloud_gcp`, `cloud_aws`, `cloud_azure` |
 
@@ -56,6 +56,7 @@ apb admin.yml -l web0 -t tailscale_policy
 
 ```bash
 apb terraform.yml -t terraform
+apb terraform.yml -t terraform -e terraform_apply=true
 ```
 
 ### `keymaster.yml`
@@ -122,7 +123,7 @@ apb cloud_bootstrap.yml -e cloud_bootstrap_provider=azure
 
 | Tags |
 | --- |
-| `always`, `cert`, `check-csr`, `cloud_aws`, `cloud_azure`, `cloud_bootstrap`, `cloud_gcp`, `compute_render`, `encrypt`, `fail2ban`, `fail2ban_sshd_invalid_user`, `gen-csr`, `gen-ssh`, `install`, `ipv4-forward`, `mysql`, `never`, `reverse_proxy_fail2ban`, `ssh-auth`, `ssh-auth-review`, `ssh-gen`, `ssh-key`, `ssh-key-report`, `update_reboot` |
+| `always`, `cert`, `check-csr`, `cloud_aws`, `cloud_azure`, `cloud_bootstrap`, `cloud_gcp`, `compute_render`, `encrypt`, `fail2ban`, `fail2ban_sshd_invalid_user`, `gen-csr`, `gen-ssh`, `install`, `ipv4-forward`, `mysql`, `never`, `pharos_domains`, `port_knock`, `reverse_proxy_fail2ban`, `ssh-auth`, `ssh-auth-review`, `ssh-gen`, `ssh-key`, `ssh-key-report`, `update_reboot` |
 
 ## Role Notes
 
@@ -133,11 +134,11 @@ apb cloud_bootstrap.yml -e cloud_bootstrap_provider=azure
 | `roles/certbot_tls` | `certbot_tls` | ACME/TLS issuance and renewal support for nginx-hosted services |
 | `roles/docker_engine` | none | installs Docker Engine and Compose prerequisites on build-capable hosts |
 | `roles/fail2ban` | `fail2ban` | extra tags: `fail2ban_sshd_invalid_user`, `reverse_proxy_fail2ban`; configure jails, filters, and helper scripts; run immediately after `harden` |
-| `roles/harden` | `harden` | extra tags: `ipv4-forward` |
+| `roles/harden` | `harden` | extra tags: `ipv4-forward`, `port_knock` |
 | `roles/keymaster` | none | key and certificate workflows are documented above under Role Task Areas |
 | `roles/ll_repo` | none | stages controller-built artifacts under `/opt/ll/<type>` and supports pruning retained archives |
 | `roles/nginx` | `nginx` | base nginx installation and service management |
-| `roles/pharos` | `pharos` | deploys the `pharos.llight.io` nginx vhost, obtains the TLS cert with standalone certbot while nginx is temporarily stopped for initial issuance, and maintains certbot renewal; extra tag: `pharos_nginx` |
+| `roles/pharos` | `pharos` | deploys an nginx vhost with a TLS server block per entry in `domain_list` (each redirecting `/` to its `root_url` and using its own certificate), obtains a standalone certbot cert for each `domain_list` entry missing one while nginx is temporarily stopped, and maintains certbot renewal; extra tags: `pharos_nginx`, `pharos_domains` |
 | `roles/pharos_app_deploy` | `pharos_app` | builds a finalized app root on the controller with `pharos build app --packaging`, reuses or reinstalls the host-native `bin/pharos` docs-renderer CLI only when the native `dev_docs` renderer inputs changed or the binary is missing or unrunnable, extracts the bundle into `/srv/pharos/apps/<app_id>`, and prunes old staged bundles |
 | `roles/pharos_build` | `pharos_build` | bumps `../pharos/VERSION` when `pharos_build_release_version` is newer, syncs the Doxygen project number, reuses or rebuilds the host-native `bin/pharos` for `dev_docs` only when the native docs-renderer implementation changes or the binary is missing, and builds release artifacts through `pharos/cross/docker`; default target is `all`, override with `-e target=<name>` |
 | `roles/pharos_deploy` | `pharos_runtime` | resolves the newest staged `pharos_*.deb`, installs it on the target host, restarts services, and prunes older runtime packages |

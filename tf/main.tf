@@ -19,6 +19,18 @@ locals {
     [
       {
         type    = "A"
+        name    = "@"
+        ttl     = var.dns_ttl
+        address = local.pharos_public_ipv4
+      },
+      {
+        type    = "A"
+        name    = "www"
+        ttl     = var.dns_ttl
+        address = local.pharos_public_ipv4
+      },
+      {
+        type    = "A"
         name    = "pharos"
         ttl     = var.dns_ttl
         address = local.pharos_public_ipv4
@@ -38,6 +50,10 @@ resource "google_compute_network" "ll_vpc_west" {
   auto_create_subnetworks = false
 
   depends_on = [google_project_service.compute_api]
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "google_compute_subnetwork" "ll_pharos_subnet" {
@@ -47,6 +63,10 @@ resource "google_compute_subnetwork" "ll_pharos_subnet" {
   network       = google_compute_network.ll_vpc_west.id
 
   depends_on = [google_project_service.compute_api]
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "google_compute_firewall" "allow_ssh_http" {
@@ -62,6 +82,10 @@ resource "google_compute_firewall" "allow_ssh_http" {
   }
 
   depends_on = [google_project_service.compute_api]
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "google_compute_address" "pharos" {
@@ -69,6 +93,10 @@ resource "google_compute_address" "pharos" {
   region = var.gcp_region
 
   depends_on = [google_project_service.compute_api]
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "google_compute_project_metadata_item" "devops_ssh_key" {
@@ -103,6 +131,10 @@ resource "google_compute_instance" "pharos" {
 
   metadata = {
     ssh-keys = "devops:${trimspace(file(var.devops_ssh_public_key_path))}"
+  }
+
+  lifecycle {
+    prevent_destroy = true
   }
 }
 
