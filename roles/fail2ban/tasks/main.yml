@@ -63,23 +63,6 @@
   notify: reload fail2ban
   tags: fail2ban_sshd_invalid_user
 
-- name: Ensure Forgejo fail2ban log directory exists
-  file:
-    path: "{{ forgejo_fail2ban_logdir }}"
-    state: directory
-    owner: "{{ forgejo_fail2ban_uid }}"
-    group: "{{ forgejo_fail2ban_gid }}"
-    mode: "0755"
-  when: fail2ban_feature_forgejo_enabled | bool
-
-- name: Ensure Forgejo fail2ban log file exists
-  file:
-    path: "{{ forgejo_fail2ban_logpath }}"
-    state: touch
-    owner: "{{ forgejo_fail2ban_uid }}"
-    group: "{{ forgejo_fail2ban_gid }}"
-    mode: "0644"
-  when: fail2ban_feature_forgejo_enabled | bool
 
 - name: Fix fail2ban socket permissions
   file:
@@ -114,16 +97,6 @@
     owner: root
     group: root
     mode: "0644"
-  notify: reload fail2ban
-
-- name: Deploy Forgejo fail2ban filter
-  template:
-    src: forgejo.conf.j2
-    dest: /etc/fail2ban/filter.d/forgejo.conf
-    owner: root
-    group: root
-    mode: "0644"
-  when: fail2ban_feature_forgejo_enabled | bool
   notify: reload fail2ban
 
 - name: Ensure fail2ban is enabled and started
