@@ -1,0 +1,9 @@
+# Historical plaintext findings that predate vault enforcement.
+# These exact commit/path/rule/line fingerprints are baselined so new findings still fail.
+# Remove after affected credentials are rotated and Git history is cleaned.
+e9c9ad771e6b74c4cf026db7cb6bbff53f65b600:group_vars/all/vault.yml:generic-api-key:7
+e9c9ad771e6b74c4cf026db7cb6bbff53f65b600:group_vars/all/vault.yml:generic-api-key:12
+e9c9ad771e6b74c4cf026db7cb6bbff53f65b600:group_vars/all/vault.yml:generic-api-key:13
+f08a76f388a9b1d66b028a197e1e769a2dbb9163:group_vars/all/vault.yml:generic-api-key:7
+f08a76f388a9b1d66b028a197e1e769a2dbb9163:group_vars/all/vault.yml:generic-api-key:12
+f08a76f388a9b1d66b028a197e1e769a2dbb9163:group_vars/all/vault.yml:generic-api-key:13

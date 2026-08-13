@@ -14,9 +14,8 @@ ansible.log
 keepass/*.kdbx
 kpxc/
 
-# SSH private keys (keep *.pub only)
+# Credential material
 keys/*
-!keys/ssh/*.pub
 
 # Terraform
 tf/.terraform/
@@ -26,6 +25,10 @@ tf/terraform.tfstate.backup
 tf/.terraform.lock.hcl
 tf/spaceship.auto.tfvars.json
 tf/gcp.auto.tfvars.json
+
+# Python caches
+__pycache__/
+*.py[cod]
 
 # Build artifacts
 dist/

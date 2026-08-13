@@ -1,0 +1,2 @@
+# Tracked files matching these repository-relative globs must be Ansible Vault ciphertext.
+group_vars/**/vault.yml
