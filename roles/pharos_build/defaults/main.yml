@@ -12,9 +12,11 @@ pharos_build_all_targets:
   - linux-x86_64-musl
   - linux-aarch64-gnu
   - linux-riscv64-gnu
-  - macos-universal
   - windows-x86_64-msvc
   - windows-arm64-msvc
+pharos_build_disabled_targets:
+  - macos-universal
+pharos_build_known_targets: "{{ pharos_build_all_targets + pharos_build_disabled_targets }}"
 pharos_build_selected_targets: >-
   {{
     pharos_build_all_targets
@@ -40,3 +42,6 @@ pharos_build_release_artifacts:
   - "*.tgz"
   - "*.msix"
   - "*.zip"
+
+# gets set to "--release" when release is true
+release_flag: ""

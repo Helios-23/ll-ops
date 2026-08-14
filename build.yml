@@ -6,5 +6,7 @@
   vars:
     # Update repositories on the controller before building when true
     update_repo: false
+    # rub build with release flag --release when true
+    release: false
   roles:
     - role: pharos_build

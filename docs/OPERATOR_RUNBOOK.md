@@ -169,10 +169,11 @@ Notes:
 - source checkout is expected at `../pharos`
 - the ops-side build version is `pharos_build_release_version` and defaults to `0.7.23`
 - when `pharos_build_release_version` is newer than `../pharos/VERSION`, the role bumps `../pharos/VERSION` before building
-- the role prebuilds `dev_docs` on the host so Debian packaging does not require `doxygen` inside the cross-build container
+- the role prebuilds the Rustdoc-backed `dev_docs` assets on the host so Debian packaging uses the current docs flow without requiring a Doxygen step inside the cross-build container
 - that host-native `bin/pharos` prebuild is now reused when the docs-renderer binary inputs are unchanged, and reinstalled automatically only when the native docs-renderer implementation changes or the binary is missing or not runnable
 - app packaging now runs through `pharos build app --packaging`, which isolates temporary sqlite and runtime-state paths inside the controller build tree so dynamic app builds do not touch live `/var/lib/pharos` or `/var/state/pharos`
 - Docker Compose orchestration lives under `../pharos/cross/docker`
+- the default `all` target list currently excludes `macos-universal`; the current cross image ships an invalid `/opt/pharos-db/postgresql/macos-universal/lib/libpq.a` with ELF objects, so ops now fails fast if you explicitly request that target
 - packaged artifacts are emitted under `../pharos/dist/packages`
 
 Verification:

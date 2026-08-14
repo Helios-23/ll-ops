@@ -5,10 +5,22 @@
       fail:
         msg: >-
           Unknown Pharos build target '{{ pharos_build_target }}'.
-          Valid: all, or one of {{ pharos_build_all_targets | join(', ') }}.
+          Valid: all, or one of {{ pharos_build_known_targets | join(', ') }}.
       when:
         - pharos_build_target != 'all'
-        - pharos_build_target not in pharos_build_all_targets
+        - pharos_build_target not in pharos_build_known_targets
+
+    - name: Fail fast on known-broken Pharos build targets
+      fail:
+        msg: >-
+          Pharos build target '{{ pharos_build_target }}' is temporarily disabled in ops.
+          The current cross image ships an invalid macOS PostgreSQL archive under
+          /opt/pharos-db/postgresql/macos-universal/lib/libpq.a, where libpq.a contains
+          ELF x86_64 objects instead of Mach-O objects, so the macos-universal build fails.
+          The default all-target build now skips macos-universal until that cross image is fixed.
+      when:
+        - pharos_build_target != 'all'
+        - pharos_build_target in pharos_build_disabled_targets
 
     # Repo Clone
     - name: Create Pharos build output directories
@@ -64,12 +76,6 @@
         - pharos_build_requested_version | length > 0
         - pharos_build_current_version | length == 0 or pharos_build_requested_version is version(pharos_build_current_version, '>')
 
-    - name: Sync Doxygen project number to Pharos VERSION
-      ansible.builtin.lineinfile:
-        path: "{{ pharos_build_repo_dir }}/Doxyfile"
-        regexp: '^PROJECT_NUMBER\s*=\s*".*"$'
-        line: 'PROJECT_NUMBER         = "{{ pharos_build_requested_version if pharos_build_requested_version | length > 0 else pharos_build_current_version }}"'
-      when: (pharos_build_requested_version | length > 0) or (pharos_build_current_version | length > 0)
 
     - name: Check for existing host-native Pharos docs renderer
       ansible.builtin.stat:
@@ -86,7 +92,28 @@
       when: pharos_build_docs_renderer_bin.stat.exists
 
     - name: Compute docs-renderer binary fingerprint
-      ansible.builtin.command: python3 scripts/compute_docs_renderer_fingerprint.py
+      ansible.builtin.shell: |
+        set -eu
+        input_list_file="$(mktemp)"
+        cleanup() {
+          rm -f "$input_list_file"
+        }
+        trap cleanup EXIT
+
+        {
+          printf '%s\n' \
+            Cargo.toml \
+            Cargo.lock \
+            scripts/build_docs.sh \
+            scripts/build_native.sh
+          find src -type f -name '*.rs' ! -path '*/target/*' ! -path '*/.cargo/*' -print
+        } | LC_ALL=C sort -u > "$input_list_file"
+
+        if command -v sha256sum >/dev/null 2>&1; then
+          xargs sha256sum < "$input_list_file" | sha256sum | awk '{print $1}'
+        else
+          xargs shasum -a 256 < "$input_list_file" | shasum -a 256 | awk '{print $1}'
+        fi
       args:
         chdir: "{{ pharos_build_repo_dir }}"
       register: pharos_build_docs_renderer_fingerprint
@@ -129,8 +156,14 @@
             )
           }}
 
+    - name: Set --clean based on CLI parameter
+      set_fact:
+        release_flag: "--release"
+        when: release
+
+
     - name: Install host-native Pharos binary in bin for packaged docs artifact
-      command: sh scripts/build_native.sh install bin
+      command: sh scripts/build_native.sh install {{ release_flag }}
       args:
         chdir: "{{ pharos_build_repo_dir }}"
       when: pharos_build_rebuild_docs_renderer
