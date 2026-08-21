@@ -172,6 +172,8 @@ Notes:
 - the role prebuilds the Rustdoc-backed `dev_docs` assets on the host so Debian packaging uses the current docs flow without requiring a Doxygen step inside the cross-build container
 - that host-native `bin/pharos` prebuild is now reused when the docs-renderer binary inputs are unchanged, and reinstalled automatically only when the native docs-renderer implementation changes or the binary is missing or not runnable
 - app packaging now runs through `pharos build app --packaging`, which isolates temporary sqlite and runtime-state paths inside the controller build tree so dynamic app builds do not touch live `/var/lib/pharos` or `/var/state/pharos`
+- app deployment computes the host-native renderer fingerprint directly from `Cargo.toml`, `Cargo.lock`, the native/docs build scripts, and sorted Rust sources; it does not depend on a repository-local fingerprint helper script
+- packaged app bundles retain their app-local `app.conf`; deployment installs that runtime configuration as `pharos:pharos` with mode `0640` before restarting the shared runtime
 - Docker Compose orchestration lives under `../pharos/cross/docker`
 - the default `all` target list currently excludes `macos-universal`; the current cross image ships an invalid `/opt/pharos-db/postgresql/macos-universal/lib/libpq.a` with ELF objects, so ops now fails fast if you explicitly request that target
 - packaged artifacts are emitted under `../pharos/dist/packages`

@@ -93,7 +93,7 @@
 
     - name: Compute docs-renderer binary fingerprint
       ansible.builtin.shell: |
-        set -eu
+        set -euo pipefail
         input_list_file="$(mktemp)"
         cleanup() {
           rm -f "$input_list_file"
@@ -116,6 +116,7 @@
         fi
       args:
         chdir: "{{ pharos_build_repo_dir }}"
+        executable: /bin/bash
       register: pharos_build_docs_renderer_fingerprint
       changed_when: false
       tags: compute_render

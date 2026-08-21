@@ -34,9 +34,31 @@
       when: pharos_app_deploy_docs_renderer_bin.stat.exists
 
     - name: Compute docs-renderer binary fingerprint for app packaging
-      ansible.builtin.command: python3 scripts/compute_docs_renderer_fingerprint.py
+      ansible.builtin.shell: |
+        set -euo pipefail
+        input_list_file="$(mktemp)"
+        cleanup() {
+          rm -f "$input_list_file"
+        }
+        trap cleanup EXIT
+
+        {
+          printf '%s\n' \
+            Cargo.toml \
+            Cargo.lock \
+            scripts/build_docs.sh \
+            scripts/build_native.sh
+          find src -type f -name '*.rs' ! -path '*/target/*' ! -path '*/.cargo/*' -print
+        } | LC_ALL=C sort -u > "$input_list_file"
+
+        if command -v sha256sum >/dev/null 2>&1; then
+          xargs sha256sum < "$input_list_file" | sha256sum | awk '{print $1}'
+        else
+          xargs shasum -a 256 < "$input_list_file" | shasum -a 256 | awk '{print $1}'
+        fi
       args:
         chdir: "{{ pharos_app_deploy_repo_dir }}"
+        executable: /bin/bash
       register: pharos_app_deploy_docs_renderer_fingerprint
       changed_when: false
 
@@ -109,11 +131,18 @@
         path: "{{ pharos_app_deploy_controller_app_root }}/pharos.app.json"
       register: pharos_app_deploy_controller_manifest
 
+    - name: Verify finalized {{ app_id }} runtime configuration exists on controller
+      ansible.builtin.stat:
+        path: "{{ pharos_app_deploy_controller_app_root }}/app.conf"
+      register: pharos_app_deploy_controller_config
+
     - name: Fail when finalized {{ app_id }} app root was not emitted on controller
       ansible.builtin.fail:
         msg: >-
-          expected finalized app root at {{ pharos_app_deploy_controller_app_root }} but pharos.app.json was not emitted
-      when: not pharos_app_deploy_controller_manifest.stat.exists
+          expected finalized app root at {{ pharos_app_deploy_controller_app_root }} but pharos.app.json or app.conf was not emitted
+      when: >-
+        not pharos_app_deploy_controller_manifest.stat.exists
+        or not pharos_app_deploy_controller_config.stat.exists
 
     - name: Package finalized Pharos app root archive on controller
       shell: |
@@ -181,6 +210,14 @@
       - --no-same-owner
   register: pharos_app_deploy_extract
   notify: Restart Pharos services
+
+- name: Secure deployed {{ app_id }} runtime configuration
+  ansible.builtin.file:
+    path: "{{ pharos_app_deploy_remote_app_dir }}/app.conf"
+    state: file
+    owner: "{{ pharos_app_deploy_owner }}"
+    group: "{{ pharos_app_deploy_group }}"
+    mode: "0640"
 
 
 - name: Verify deployed {{ app_id }} packaged manifest exists and preserves relocatable app_root

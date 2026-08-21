@@ -45,6 +45,27 @@
     ll_repo_artifact_src: "{{ pharos_deploy_package_src }}"
   import_role: { name: ll_repo }
 
+- name: Ensure Pharos systemd override directory exists
+  ansible.builtin.file:
+    path: /etc/systemd/system/pharos.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Make the Pharos runtime socket inherit the nginx group after every restart
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/pharos.service.d/socket-policy.conf
+    owner: root
+    group: root
+    mode: '0644'
+    content: |
+      [Service]
+      UMask=0007
+      ExecStartPre=
+      ExecStartPre=/usr/bin/install -d -o pharos -g www-data -m 2750 /run/pharos
+  notify: Restart Pharos services
+
 - name: Install Pharos package from staged repository
   shell: |
     set -e
@@ -72,6 +93,15 @@
     - { fname: 'pharos.conf', regexp: '^#?\s*smtp_timeout_seconds=15', new_line: 'smtp_timeout_seconds=15' }
     - { fname: 'pharos.conf', regexp: '^#?\s*smtp_max_message_bytes=1048576', new_line: 'smtp_max_message_bytes=1048576' }
     - { fname: 'pharos.env', regexp: 'PHAROS_SMTP_PASS=', new_line: 'PHAROS_SMTP_PASS={{ smtp_pass }}' }
+  no_log: true
+
+- name: Restrict Pharos environment secrets to the service account
+  ansible.builtin.file:
+    path: /etc/pharos/pharos.env
+    state: file
+    owner: "{{ pharos_deploy_owner }}"
+    group: "{{ pharos_deploy_group }}"
+    mode: '0640'
 
 - name: Prune older Pharos runtime packages
   vars:

@@ -36,9 +36,27 @@ server {
 
     client_max_body_size 128M;
 
+{% if domain.root_url != '/' %}
     location = / {
         return 301 {{ domain.root_url }};
     }
+{% endif %}
+
+{% if domain.legacy_root_url is defined %}
+    location = {{ domain.legacy_root_url }} {
+        return 301 /;
+    }
+
+    location = {{ domain.legacy_root_url }}/ {
+        return 301 /;
+    }
+{% endif %}
+
+{% if domain.favicon_url is defined %}
+    location = /favicon.ico {
+        return 302 {{ domain.favicon_url }};
+    }
+{% endif %}
 
     location / {
         proxy_pass http://pharos_app;
