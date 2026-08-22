@@ -34,31 +34,13 @@
       when: pharos_app_deploy_docs_renderer_bin.stat.exists
 
     - name: Compute docs-renderer binary fingerprint for app packaging
-      ansible.builtin.shell: |
-        set -euo pipefail
-        input_list_file="$(mktemp)"
-        cleanup() {
-          rm -f "$input_list_file"
-        }
-        trap cleanup EXIT
-
-        {
-          printf '%s\n' \
-            Cargo.toml \
-            Cargo.lock \
-            scripts/build_docs.sh \
-            scripts/build_native.sh
-          find src -type f -name '*.rs' ! -path '*/target/*' ! -path '*/.cargo/*' -print
-        } | LC_ALL=C sort -u > "$input_list_file"
-
-        if command -v sha256sum >/dev/null 2>&1; then
-          xargs sha256sum < "$input_list_file" | sha256sum | awk '{print $1}'
-        else
-          xargs shasum -a 256 < "$input_list_file" | shasum -a 256 | awk '{print $1}'
-        fi
+      ansible.builtin.command:
+        argv:
+          - python3
+          - "{{ playbook_dir }}/bin/compute_pharos_docs_renderer_fingerprint.py"
+          - "{{ pharos_app_deploy_repo_dir }}"
       args:
-        chdir: "{{ pharos_app_deploy_repo_dir }}"
-        executable: /bin/bash
+        chdir: "{{ playbook_dir }}"
       register: pharos_app_deploy_docs_renderer_fingerprint
       changed_when: false
 
