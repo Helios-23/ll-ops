@@ -9,12 +9,14 @@ from pathlib import Path
 from typing import Protocol
 
 
-FINGERPRINT_VERSION = "v2"
+FINGERPRINT_VERSION = "v3"
 MAX_INPUT_FILES = 1_000
 MAX_INPUT_BYTES = 64 * 1024 * 1024
 WHOLE_FILE_INPUTS = (
+    "Cargo.lock",
+    "Cargo.toml",
+    "rust-toolchain.toml",
     "scripts/build_docs.sh",
-    "scripts/build_native.sh",
     "src/runtime/docs.rs",
 )
 DIRECTORY_INPUTS = ("src/crates/pharos_runtime_docs",)

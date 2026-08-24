@@ -45,6 +45,9 @@ class DocsRendererFingerprintTests(unittest.TestCase):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.repo = Path(self.temp_dir.name)
         inputs = {
+            "Cargo.lock": "version = 4\n",
+            "Cargo.toml": "[workspace]\n",
+            "rust-toolchain.toml": "[toolchain]\nchannel = 'stable'\n",
             "scripts/build_docs.sh": "build docs\n",
             "scripts/build_native.sh": "build native\n",
             "src/runtime/docs.rs": "pub use docs::*;\n",
@@ -66,7 +69,7 @@ class DocsRendererFingerprintTests(unittest.TestCase):
 
     def test_fingerprint_is_stable(self) -> None:
         self.assertEqual(self.fingerprint(), self.fingerprint())
-        self.assertTrue(self.fingerprint().startswith("v2:"))
+        self.assertTrue(self.fingerprint().startswith("v3:"))
 
     def test_unrelated_rust_file_does_not_change_fingerprint(self) -> None:
         before = self.fingerprint()
@@ -85,6 +88,18 @@ class DocsRendererFingerprintTests(unittest.TestCase):
             encoding="utf-8",
         )
         self.assertEqual(before, self.fingerprint())
+
+    def test_native_release_orchestration_does_not_change_fingerprint(self) -> None:
+        before = self.fingerprint()
+        build_native = self.repo / "scripts/build_native.sh"
+        build_native.write_text("build native with new release target\n", encoding="utf-8")
+        self.assertEqual(before, self.fingerprint())
+
+    def test_root_build_manifest_change_updates_fingerprint(self) -> None:
+        before = self.fingerprint()
+        cargo_manifest = self.repo / "Cargo.toml"
+        cargo_manifest.write_text("[workspace]\nmembers = ['docs']\n", encoding="utf-8")
+        self.assertNotEqual(before, self.fingerprint())
 
     def test_docs_crate_change_updates_fingerprint(self) -> None:
         before = self.fingerprint()
