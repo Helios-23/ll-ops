@@ -55,6 +55,15 @@ End completed chats with a commit message that summarizes the full change set.
 That commit message must not contain single quotes, double quotes, backticks, or tildes.
 When work under `ops/` changes the repo, always return one concise commit message the user can use directly to commit the full `ops/` change set.
 
+## Local Build Asset Policy
+
+- All ops build, validation, packaging, documentation-rendering, and deployment-preparation flows must use assets available in the local workspace by default.
+- Prefer local checked-out repositories, locally built Pharos binaries, local package inputs, local toolchains, local caches, and locally available container images.
+- Do not dispatch, trigger, depend on, or download GitHub Actions builds, artifacts, caches, packages, or test results unless the user explicitly directs GitHub Actions use for that specific task.
+- Do not silently substitute a hosted artifact or remote validation result for a local build or check. If a required local asset is unavailable, stop and report the missing prerequisite instead of changing build authority.
+- An explicit GitHub Actions instruction must identify the intended workflow or hosted operation and may override this local-first default only for that task.
+- When GitHub Actions use is explicitly authorized, retain local source and checksum identity checks and record the workflow, run, or artifact used.
+
 ## Local Ansible command preferences
 
 New YAML files created under `ops/` must use the `.yml` extension. Do not introduce new `.yaml` files.
