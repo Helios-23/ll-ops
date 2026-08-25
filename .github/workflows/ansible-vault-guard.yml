@@ -2,6 +2,11 @@ name: Ansible Vault guard
 
 on:
   workflow_dispatch:
+  # Automatic pull-request and push triggers disabled; uncomment this block to restore them.
+  # pull_request:
+  # push:
+  #   branches:
+  #     - main
 
 permissions:
   contents: read
