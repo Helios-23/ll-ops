@@ -71,6 +71,13 @@ When work under `ops/` changes the repo, always return one concise commit messag
 - For a cross-platform runtime package, validate the exact local target package and verify its binary/package identity before installing it remotely. A successful Ansible package transfer is not validation.
 - Any `502`, failed service startup, contract/ownership error, or relevant smoke failure blocks deployment. If local validation cannot run, stop and report it instead of applying remotely.
 
+## Mandatory Scope Discipline
+
+- Do not deploy a runtime package during an app-only or declarative UI task unless the user explicitly approves the runtime deployment.
+- Treat unrelated smoke failures as separate work: report them and stop instead of widening the active deployment scope.
+- Before changing deployment tags, package inputs, services, inventories, or app sets, state the additional impact and obtain explicit approval.
+- If an agent deployment causes an outage, stop forward changes and restore the previous retained package or bundle first.
+
 ## Local Ansible command preferences
 
 New YAML files created under `ops/` must use the `.yml` extension. Do not introduce new `.yaml` files.
