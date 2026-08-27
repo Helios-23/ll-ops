@@ -170,7 +170,7 @@ Notes:
 - the ops-side build version is `pharos_build_release_version` and defaults to `0.7.23`
 - when `pharos_build_release_version` is newer than `../pharos/VERSION`, the role bumps `../pharos/VERSION` before building
 - the role prebuilds the Rustdoc-backed `dev_docs` assets on the host so Debian packaging uses the current docs flow without requiring a Doxygen step inside the cross-build container
-- that host-native `bin/pharos` prebuild is reused when the shared narrow fingerprint of the Rust docs crate, app-build entry regions, and relevant build scripts is unchanged; unrelated Rust runtime changes no longer reinstall it
+- that host-native `bin/pharos` prebuild is reused when the shared narrow fingerprint of the Rust docs crate, app-build entry regions, and relevant docs build scripts is unchanged; unrelated dependency manifests, lockfile updates, toolchain metadata, native release orchestration, and Rust runtime changes do not reinstall it
 - app packaging now runs through `pharos build app --packaging`, which isolates temporary sqlite and runtime-state paths inside the controller build tree so dynamic app builds do not touch live `/var/lib/pharos` or `/var/state/pharos`
 - build and app deployment call the same ops-owned fingerprint helper, which fails closed if required inputs or source-region markers are missing and does not depend on mutable file ordering or platform-specific checksum tools
 - packaged app bundles retain their app-local `app.conf`; deployment installs that runtime configuration as `pharos:pharos` with mode `0640` before restarting the shared runtime
@@ -223,7 +223,7 @@ apb deploy.yml -l web0 -t pharos_app -e app_id=ucal -e clean_app=true
 Expected behavior:
 
 - optionally syncs the `../pharos` repo when `update_repo=true`
-- reuses the existing host-native Pharos docs renderer when the shared narrow `dev_docs` renderer fingerprint matches, and rebuilds it automatically only when the docs crate, app-build entry regions, or build scripts changed or the binary is missing
+- reuses the existing host-native Pharos docs renderer when the shared narrow `dev_docs` renderer fingerprint matches, and rebuilds it automatically only when the docs crate, app-build entry regions, or relevant docs build scripts changed or the binary is missing; root dependency manifests, lockfiles, and toolchain metadata are explicitly excluded
 - renders the finalized app root on the controller
 - packages it into a tarball under `../pharos/dist/release/app`
 - stages the bundle via `roles/ll_repo`

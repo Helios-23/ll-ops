@@ -67,9 +67,39 @@ class DocsRendererFingerprintTests(unittest.TestCase):
     def fingerprint(self) -> str:
         return MODULE.compute_fingerprint(self.repo)
 
+    def test_fingerprint_contract_pins_allowed_inputs(self) -> None:
+        self.assertEqual(
+            MODULE.WHOLE_FILE_INPUTS,
+            (
+                "scripts/build_docs.sh",
+                "src/runtime/docs.rs",
+            ),
+        )
+        self.assertEqual(
+            MODULE.DIRECTORY_INPUTS,
+            ("src/crates/pharos_runtime_docs",),
+        )
+        self.assertEqual(
+            tuple(label for label, _, _ in MODULE.RUNTIME_REGIONS),
+            (
+                "app-build-command-entry",
+                "app-build-render-entry",
+                "dev-docs-renderer",
+            ),
+        )
+        disallowed_inputs = {
+            "Cargo.lock",
+            "Cargo.toml",
+            "rust-toolchain.toml",
+            "scripts/build_native.sh",
+            "src/runtime/features.rs",
+        }
+        configured_inputs = set(MODULE.WHOLE_FILE_INPUTS) | set(MODULE.DIRECTORY_INPUTS)
+        self.assertTrue(disallowed_inputs.isdisjoint(configured_inputs))
+
     def test_fingerprint_is_stable(self) -> None:
         self.assertEqual(self.fingerprint(), self.fingerprint())
-        self.assertTrue(self.fingerprint().startswith("v3:"))
+        self.assertTrue(self.fingerprint().startswith("v4:"))
 
     def test_unrelated_rust_file_does_not_change_fingerprint(self) -> None:
         before = self.fingerprint()
@@ -95,10 +125,21 @@ class DocsRendererFingerprintTests(unittest.TestCase):
         build_native.write_text("build native with new release target\n", encoding="utf-8")
         self.assertEqual(before, self.fingerprint())
 
-    def test_root_build_manifest_change_updates_fingerprint(self) -> None:
+    def test_unrelated_build_metadata_does_not_change_fingerprint(self) -> None:
         before = self.fingerprint()
-        cargo_manifest = self.repo / "Cargo.toml"
-        cargo_manifest.write_text("[workspace]\nmembers = ['docs']\n", encoding="utf-8")
+        changes = {
+            "Cargo.lock": "version = 4\n[[package]]\nname = 'unrelated'\n",
+            "Cargo.toml": "[workspace]\nmembers = ['unrelated']\n",
+            "rust-toolchain.toml": "[toolchain]\nchannel = 'nightly'\n",
+        }
+        for relative_path, content in changes.items():
+            (self.repo / relative_path).write_text(content, encoding="utf-8")
+        self.assertEqual(before, self.fingerprint())
+
+    def test_docs_build_script_change_updates_fingerprint(self) -> None:
+        before = self.fingerprint()
+        build_docs = self.repo / "scripts/build_docs.sh"
+        build_docs.write_text("build docs with new renderer\n", encoding="utf-8")
         self.assertNotEqual(before, self.fingerprint())
 
     def test_docs_crate_change_updates_fingerprint(self) -> None:
@@ -114,6 +155,18 @@ class DocsRendererFingerprintTests(unittest.TestCase):
             runtime.read_text(encoding="utf-8").replace(
                 "    render_docs();",
                 "    render_docs_changed();",
+            ),
+            encoding="utf-8",
+        )
+        self.assertNotEqual(before, self.fingerprint())
+
+    def test_app_build_entry_region_change_updates_fingerprint(self) -> None:
+        before = self.fingerprint()
+        runtime = self.repo / "src/runtime/mod.rs"
+        runtime.write_text(
+            runtime.read_text(encoding="utf-8").replace(
+                "    build_app_from_root();",
+                "    build_app_from_root_changed();",
             ),
             encoding="utf-8",
         )

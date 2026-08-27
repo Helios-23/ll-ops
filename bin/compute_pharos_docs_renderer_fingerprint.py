@@ -9,13 +9,10 @@ from pathlib import Path
 from typing import Protocol
 
 
-FINGERPRINT_VERSION = "v3"
+FINGERPRINT_VERSION = "v4"
 MAX_INPUT_FILES = 1_000
 MAX_INPUT_BYTES = 64 * 1024 * 1024
 WHOLE_FILE_INPUTS = (
-    "Cargo.lock",
-    "Cargo.toml",
-    "rust-toolchain.toml",
     "scripts/build_docs.sh",
     "src/runtime/docs.rs",
 )
