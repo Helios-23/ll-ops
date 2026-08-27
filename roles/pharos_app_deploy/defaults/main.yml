@@ -1,4 +1,4 @@
-# ... (lines 1-19 keep existing)
+
 pharos_app_deploy_repo_dir: "{{ playbook_dir }}/../pharos"
 pharos_app_deploy_repo_url: git@github.com:Helios-23/pharos.git
 pharos_app_deploy_repo_version: HEAD
@@ -28,7 +28,6 @@ pharos_app_deploy_bundle_exclude_exact_paths:
 pharos_app_deploy_bundle_exclude_names:
   - .DS_Store
   - .archives
-  - .gitkeep
 pharos_app_deploy_bundle_exclude_suffixes:
   - .tar
   - .tar.gz

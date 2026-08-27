@@ -62,7 +62,14 @@ When work under `ops/` changes the repo, always return one concise commit messag
 - Do not dispatch, trigger, depend on, or download GitHub Actions builds, artifacts, caches, packages, or test results unless the user explicitly directs GitHub Actions use for that specific task.
 - Do not silently substitute a hosted artifact or remote validation result for a local build or check. If a required local asset is unavailable, stop and report the missing prerequisite instead of changing build authority.
 - An explicit GitHub Actions instruction must identify the intended workflow or hosted operation and may override this local-first default only for that task.
-- When GitHub Actions use is explicitly authorized, retain local source and checksum identity checks and record the workflow, run, or artifact used.
+- When GitHub Actions use is explicitly authorized, retain local source and checksum identity checks and record which remote workflow, run, or artifact supplied the input.
+
+## Mandatory QA Deployment Gate
+
+- Do not run a QA or production deployment until the final local source and generated package have passed the Pharos local green gate.
+- The gate must run before the apply step: non-release compile/check and targeted tests, a fresh native runtime validation in an isolated temp tree, and the relevant health/readiness and authenticated smoke checks.
+- For a cross-platform runtime package, validate the exact local target package and verify its binary/package identity before installing it remotely. A successful Ansible package transfer is not validation.
+- Any `502`, failed service startup, contract/ownership error, or relevant smoke failure blocks deployment. If local validation cannot run, stop and report it instead of applying remotely.
 
 ## Local Ansible command preferences
 
