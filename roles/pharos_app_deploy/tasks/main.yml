@@ -248,6 +248,8 @@
       - "{{ pharos_app_deploy_runtime_backend }}"
   environment:
     PHAROS_CONFIG: "{{ pharos_app_deploy_runtime_conf_path }}"
+  become: true
+  become_user: "{{ pharos_app_deploy_owner }}"
   register: pharos_app_deploy_migrate_apply
   changed_when: false
   when: pharos_app_deploy_manifest.host_profile | default('') == 'dynamic-app'
