@@ -40,6 +40,16 @@ server {
     location = / {
         return 301 {{ domain.root_url }};
     }
+
+{% if not domain.root_url.endswith('/') %}
+    location = {{ domain.root_url }} {
+        return 301 {{ domain.root_url }}/;
+    }
+{% else %}
+    location = {{ domain.root_url[:-1] }} {
+        return 301 {{ domain.root_url }};
+    }
+{% endif %}
 {% endif %}
 
 {% if domain.legacy_root_url is defined %}

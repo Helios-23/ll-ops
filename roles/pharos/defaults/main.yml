@@ -1,7 +1,7 @@
 pharos_domain: "{{ fqdn }}"
 domain_list:
   - name: "{{ pharos_domain }}"
-    root_url: "/dev_docs"
+    root_url: "/dev_docs/"
   - name: "{{ domain }}"
     root_url: "/"
     legacy_root_url: "/llight"
