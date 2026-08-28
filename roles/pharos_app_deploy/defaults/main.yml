@@ -43,6 +43,8 @@ pharos_app_deploy_bundle_exclude_suffixes:
 pharos_app_deploy_owner: pharos
 pharos_app_deploy_group: pharos
 pharos_app_deploy_directory_mode: "0755"
+pharos_app_deploy_runtime_binary_path: /usr/bin/pharos
+pharos_app_deploy_runtime_conf_path: /etc/pharos/pharos.conf
 pharos_app_deploy_services:
   - pharos.service
   - pharos-ha.service

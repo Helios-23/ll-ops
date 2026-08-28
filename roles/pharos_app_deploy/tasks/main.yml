@@ -201,6 +201,56 @@
     group: "{{ pharos_app_deploy_group }}"
     mode: "0640"
 
+- name: Read deployed {{ app_id }} packaged manifest
+  ansible.builtin.slurp:
+    path: "{{ pharos_app_deploy_remote_app_dir }}/pharos.app.json"
+  register: pharos_app_deploy_manifest_raw
+
+- name: Parse deployed {{ app_id }} packaged manifest
+  ansible.builtin.set_fact:
+    pharos_app_deploy_manifest: >-
+      {{ pharos_app_deploy_manifest_raw.content | b64decode | from_json }}
+
+- name: Read deployed {{ app_id }} runtime app config
+  ansible.builtin.slurp:
+    path: "{{ pharos_app_deploy_remote_app_dir }}/app.conf"
+  register: pharos_app_deploy_app_conf_raw
+  when: pharos_app_deploy_manifest.host_profile | default('') == 'dynamic-app'
+
+- name: Derive deployed {{ app_id }} runtime backend
+  ansible.builtin.set_fact:
+    pharos_app_deploy_runtime_backend: >-
+      {{
+        (
+          pharos_app_deploy_app_conf_raw.content
+          | b64decode
+          | regex_search('(?m)^db_backend=([^\\n]+)$', '\\1')
+          | first
+        )
+        | default('sqlite', true)
+        | trim
+      }}
+  when: pharos_app_deploy_manifest.host_profile | default('') == 'dynamic-app'
+
+- name: Apply deployed {{ app_id }} migrations for dynamic app runtime
+  ansible.builtin.command:
+    argv:
+      - "{{ pharos_app_deploy_runtime_binary_path }}"
+      - migrate
+      - apply
+      - app
+      - "{{ app_id }}"
+      - --conf
+      - "{{ pharos_app_deploy_runtime_conf_path }}"
+      - --app-dir
+      - "{{ pharos_app_deploy_remote_app_dir }}"
+      - --backend
+      - "{{ pharos_app_deploy_runtime_backend }}"
+  environment:
+    PHAROS_CONFIG: "{{ pharos_app_deploy_runtime_conf_path }}"
+  register: pharos_app_deploy_migrate_apply
+  changed_when: false
+  when: pharos_app_deploy_manifest.host_profile | default('') == 'dynamic-app'
 
 - name: Verify deployed {{ app_id }} packaged manifest exists and preserves relocatable app_root
   ansible.builtin.shell: |

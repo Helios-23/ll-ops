@@ -228,6 +228,7 @@ Expected behavior:
 - packages it into a tarball under `../pharos/dist/release/app`
 - stages the bundle via `roles/ll_repo`
 - extracts it into `/srv/pharos/apps/<app_id>`
+- when the deployed `pharos.app.json` host profile is `dynamic-app`, runs `pharos migrate apply app` on the target against `/srv/pharos/apps/<app_id>` using `/etc/pharos/pharos.conf` and the deployed `app.conf` backend
 - verifies `pharos.app.json` exists and preserves relocatable `app_root` metadata
 - preserves generated ownership sentinels such as `media/.gitkeep`, which are required by runtime artifact verification
 - prunes older retained app bundles
