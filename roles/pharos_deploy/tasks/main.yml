@@ -103,6 +103,56 @@
     group: "{{ pharos_deploy_group }}"
     mode: '0640'
 
+- name: Find bundled packaged app manifests installed by the runtime package
+  ansible.builtin.find:
+    paths: /srv/pharos/apps
+    patterns: pharos.app.json
+    file_type: file
+    recurse: true
+  register: pharos_deploy_packaged_manifests
+
+- name: Read bundled packaged app manifests installed by the runtime package
+  ansible.builtin.slurp:
+    path: "{{ item.path }}"
+  loop: "{{ pharos_deploy_packaged_manifests.files }}"
+  register: pharos_deploy_packaged_manifest_raw
+
+- name: Build bundled packaged app metadata for post-install migration
+  ansible.builtin.set_fact:
+    pharos_deploy_packaged_apps: "{{ (pharos_deploy_packaged_apps | default([])) + [ {'app_id': parsed_manifest.app_id, 'host_profile': (parsed_manifest.host_profile | default(parsed_manifest.runtime.host_profile | default(''))), 'app_dir': (item.item.path | dirname)} ] }}"
+  vars:
+    parsed_manifest: "{{ item.content | b64decode | from_json }}"
+  loop: "{{ pharos_deploy_packaged_manifest_raw.results }}"
+
+- name: Read bundled dynamic-app configs before runtime restart
+  ansible.builtin.slurp:
+    path: "{{ item.app_dir }}/app.conf"
+  loop: "{{ pharos_deploy_packaged_apps | default([]) }}"
+  register: pharos_deploy_packaged_app_conf_raw
+  when: item.host_profile == 'dynamic-app'
+
+- name: Apply bundled dynamic-app migrations before runtime restart
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/pharos
+      - migrate
+      - apply
+      - app
+      - "{{ item.item.app_id }}"
+      - --conf
+      - /etc/pharos/pharos.conf
+      - --app-dir
+      - "{{ item.item.app_dir }}"
+      - --backend
+      - "{{ ((item.content | b64decode).splitlines() | select('match', '^db_backend=') | map('regex_replace', '^db_backend=', '') | list | first | default('sqlite')) }}"
+  environment:
+    PHAROS_CONFIG: /etc/pharos/pharos.conf
+  become_user: "{{ pharos_deploy_owner }}"
+  loop: "{{ pharos_deploy_packaged_app_conf_raw.results | default([]) }}"
+  when:
+    - item.skipped is not defined or not item.skipped
+  notify: Restart Pharos services
+
 - name: Prune older Pharos runtime packages
   vars:
     ll_repo_type: pack
