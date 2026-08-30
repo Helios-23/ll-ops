@@ -19,6 +19,10 @@ ll_repo_keep: 2
 
 pharos_app_deploy_remote_root: /srv/pharos/apps
 pharos_app_deploy_remote_app_dir: "{{ pharos_app_deploy_remote_root }}/{{ app_id }}"
+pharos_app_deploy_remote_stage_root: /srv/pharos/.deploy-stage
+pharos_app_deploy_remote_backup_root: /srv/pharos/.deploy-backup
+pharos_app_deploy_remote_stage_dir: "{{ pharos_app_deploy_remote_stage_root }}/{{ app_id }}-{{ pharos_app_deploy_archive_stamp }}"
+pharos_app_deploy_remote_backup_dir: "{{ pharos_app_deploy_remote_backup_root }}/{{ app_id }}-{{ pharos_app_deploy_archive_stamp }}"
 pharos_app_deploy_bundle_exclude_prefixes:
   - var/db/
   - var/backups/
@@ -26,20 +30,7 @@ pharos_app_deploy_bundle_exclude_exact_paths:
   - var/runtime-state.json
   - .deployed-archive
 pharos_app_deploy_bundle_exclude_names:
-  - .DS_Store
   - .archives
-pharos_app_deploy_bundle_exclude_suffixes:
-  - .tar
-  - .tar.gz
-  - .tgz
-  - .zip
-  - .gz
-  - .bz2
-  - .xz
-  - .zst
-  - .deb
-  - .rpm
-  - .apk
 pharos_app_deploy_owner: pharos
 pharos_app_deploy_group: pharos
 pharos_app_deploy_directory_mode: "0755"

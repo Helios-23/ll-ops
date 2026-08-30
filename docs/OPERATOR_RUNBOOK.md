@@ -228,10 +228,12 @@ Expected behavior:
 - only when `app_id=dev_docs`, prebuilds the Rustdoc-backed `dev_docs` artifact on the controller before packaging that app
 - renders the finalized app root on the controller
 - packages it into a tarball under `../pharos/dist/release/app`
+- preserves app-owned payload files and ownership-tracked app files in the built artifact, including private archives such as `private/downloads/*.zip` and any generated `.DS_Store` entries still present in the built app root
 - stages the bundle via `roles/ll_repo`
-- extracts it into `/srv/pharos/apps/<app_id>`
-- when the deployed `pharos.app.json` host profile is `dynamic-app`, runs `pharos migrate apply app` on the target against `/srv/pharos/apps/<app_id>` using `/etc/pharos/pharos.conf` and the deployed `app.conf` backend
-- verifies `pharos.app.json` exists and preserves relocatable `app_root` metadata
+- extracts it into a hidden staging directory outside `/srv/pharos/apps`
+- when the staged `pharos.app.json` host profile is `dynamic-app`, runs `pharos migrate apply app` on the target against the staged app root using `/etc/pharos/pharos.conf` and the staged `app.conf` backend before the app becomes visible to the shared runtime
+- verifies the staged `pharos.app.json` exists and preserves relocatable `app_root` metadata
+- promotes the fully prepared staged app root into `/srv/pharos/apps/<app_id>` only after staging verification and migration succeed, so a failed app deploy leaves the previously live app in place
 - preserves generated ownership sentinels such as `media/.gitkeep`, which are required by runtime artifact verification
 - prunes older retained app bundles
 

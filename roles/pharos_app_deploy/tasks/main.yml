@@ -162,9 +162,6 @@
         {% for name in pharos_app_deploy_bundle_exclude_names %}
         tar_args="$tar_args --exclude={{ name }}"
         {% endfor %}
-        {% for suffix in pharos_app_deploy_bundle_exclude_suffixes %}
-        tar_args="$tar_args --exclude=*{{ suffix }}"
-        {% endfor %}
         # shellcheck disable=SC2086
         tar -C "$archive_source_dir" $tar_args -czf "$archive_path" .
       args:
@@ -184,7 +181,8 @@
     mode: "{{ pharos_app_deploy_directory_mode }}"
   loop:
     - "{{ pharos_app_deploy_remote_root }}"
-    - "{{ pharos_app_deploy_remote_app_dir }}"
+    - "{{ pharos_app_deploy_remote_stage_root }}"
+    - "{{ pharos_app_deploy_remote_backup_root }}"
 
 - name: Stage {{ app_id }} bundle in ll_repo
   vars:
@@ -192,67 +190,80 @@
     ll_repo_type: app
   import_role: { name: ll_repo }
 
-- name: Optionally clean Pharos app directory on target host before extraction
-  shell: |
-    set -eu
-    app_dir="{{ pharos_app_deploy_remote_app_dir }}"
-    find "$app_dir" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
-  args:
-    executable: /bin/sh
-  when: clean_dest | bool
+- name: Remove any previous staged {{ app_id }} app directory on target host
+  ansible.builtin.file:
+    path: "{{ pharos_app_deploy_remote_stage_dir }}"
+    state: absent
 
-- name: Extract Pharos app bundle on target host
+- name: Create staged {{ app_id }} app directory on target host
+  ansible.builtin.file:
+    path: "{{ pharos_app_deploy_remote_stage_dir }}"
+    state: directory
+    owner: "{{ pharos_app_deploy_owner }}"
+    group: "{{ pharos_app_deploy_group }}"
+    mode: "{{ pharos_app_deploy_directory_mode }}"
+
+- name: Extract Pharos app bundle into staged {{ app_id }} directory on target host
   unarchive:
     src: "{{ ll_repo }}/{{ pharos_app_deploy_archive_basename }}"
-    dest: "{{ pharos_app_deploy_remote_app_dir }}"
+    dest: "{{ pharos_app_deploy_remote_stage_dir }}"
     remote_src: true
     owner: "{{ pharos_app_deploy_owner }}"
     group: "{{ pharos_app_deploy_group }}"
     extra_opts:
       - --no-same-owner
   register: pharos_app_deploy_extract
-  notify: Restart Pharos services
 
-- name: Secure deployed {{ app_id }} runtime configuration
+- name: Secure staged {{ app_id }} runtime configuration
   ansible.builtin.file:
-    path: "{{ pharos_app_deploy_remote_app_dir }}/app.conf"
+    path: "{{ pharos_app_deploy_remote_stage_dir }}/app.conf"
     state: file
     owner: "{{ pharos_app_deploy_owner }}"
     group: "{{ pharos_app_deploy_group }}"
     mode: "0640"
 
-- name: Read deployed {{ app_id }} packaged manifest
+- name: Read staged {{ app_id }} packaged manifest
   ansible.builtin.slurp:
-    path: "{{ pharos_app_deploy_remote_app_dir }}/pharos.app.json"
+    path: "{{ pharos_app_deploy_remote_stage_dir }}/pharos.app.json"
   register: pharos_app_deploy_manifest_raw
 
-- name: Parse deployed {{ app_id }} packaged manifest
+- name: Parse staged {{ app_id }} packaged manifest
   ansible.builtin.set_fact:
     pharos_app_deploy_manifest: >-
       {{ pharos_app_deploy_manifest_raw.content | b64decode | from_json }}
 
-- name: Read deployed {{ app_id }} runtime app config
-  ansible.builtin.slurp:
-    path: "{{ pharos_app_deploy_remote_app_dir }}/app.conf"
-  register: pharos_app_deploy_app_conf_raw
-  when: pharos_app_deploy_manifest.host_profile | default('') == 'dynamic-app'
+- name: Derive staged {{ app_id }} host profile
+  ansible.builtin.set_fact:
+    pharos_app_deploy_host_profile: >-
+      {{
+        pharos_app_deploy_manifest.host_profile
+        | default(pharos_app_deploy_manifest.runtime.host_profile | default(''))
+      }}
 
-- name: Derive deployed {{ app_id }} runtime backend
+- name: Read staged {{ app_id }} runtime app config
+  ansible.builtin.slurp:
+    path: "{{ pharos_app_deploy_remote_stage_dir }}/app.conf"
+  register: pharos_app_deploy_app_conf_raw
+  when: pharos_app_deploy_host_profile == 'dynamic-app'
+
+- name: Derive staged {{ app_id }} runtime backend
   ansible.builtin.set_fact:
     pharos_app_deploy_runtime_backend: >-
       {{
         (
           pharos_app_deploy_app_conf_raw.content
           | b64decode
-          | regex_search('(?m)^db_backend=([^\\n]+)$', '\\1')
-          | first
-        )
+        ).splitlines()
+        | select('match', '^db_backend=')
+        | map('regex_replace', '^db_backend=', '')
+        | list
+        | first
         | default('sqlite', true)
         | trim
       }}
-  when: pharos_app_deploy_manifest.host_profile | default('') == 'dynamic-app'
+  when: pharos_app_deploy_host_profile == 'dynamic-app'
 
-- name: Apply deployed {{ app_id }} migrations for dynamic app runtime
+- name: Apply staged {{ app_id }} migrations for dynamic app runtime
   ansible.builtin.command:
     argv:
       - "{{ pharos_app_deploy_runtime_binary_path }}"
@@ -263,7 +274,7 @@
       - --conf
       - "{{ pharos_app_deploy_runtime_conf_path }}"
       - --app-dir
-      - "{{ pharos_app_deploy_remote_app_dir }}"
+      - "{{ pharos_app_deploy_remote_stage_dir }}"
       - --backend
       - "{{ pharos_app_deploy_runtime_backend }}"
   environment:
@@ -272,18 +283,46 @@
   become_user: "{{ pharos_app_deploy_owner }}"
   register: pharos_app_deploy_migrate_apply
   changed_when: false
-  when: pharos_app_deploy_manifest.host_profile | default('') == 'dynamic-app'
+  when: pharos_app_deploy_host_profile == 'dynamic-app'
 
-- name: Verify deployed {{ app_id }} packaged manifest exists and preserves relocatable app_root
+- name: Verify staged {{ app_id }} packaged manifest exists and preserves relocatable app_root
   ansible.builtin.shell: |
     set -eu
-    manifest_path="{{ pharos_app_deploy_remote_app_dir }}/pharos.app.json"
+    manifest_path="{{ pharos_app_deploy_remote_stage_dir }}/pharos.app.json"
     relocatable_pattern='"app_root"[[:space:]]*:[[:space:]]*"\."'
     [ -f "$manifest_path" ]
     grep -E "$relocatable_pattern" "$manifest_path" >/dev/null
   args:
     executable: /bin/sh
   become: true
+
+- name: Promote staged {{ app_id }} app directory into live apps root
+  ansible.builtin.shell: |
+    set -eu
+    current_dir="{{ pharos_app_deploy_remote_app_dir }}"
+    staged_dir="{{ pharos_app_deploy_remote_stage_dir }}"
+    backup_dir="{{ pharos_app_deploy_remote_backup_dir }}"
+    rm -rf "$backup_dir"
+    if [ -e "$current_dir" ]; then
+      mv "$current_dir" "$backup_dir"
+    fi
+    if mv "$staged_dir" "$current_dir"; then
+      rm -rf "$backup_dir"
+      exit 0
+    fi
+    promote_rc=$?
+    if [ -e "$backup_dir" ] && [ ! -e "$current_dir" ]; then
+      mv "$backup_dir" "$current_dir"
+    fi
+    exit "$promote_rc"
+  args:
+    executable: /bin/sh
+  notify: Restart Pharos services
+
+- name: Remove any leftover staged {{ app_id }} app directory after promotion
+  ansible.builtin.file:
+    path: "{{ pharos_app_deploy_remote_stage_dir }}"
+    state: absent
 
 - name: Prune older {{ app_id }} bundles
   vars:
