@@ -167,8 +167,10 @@ Notes:
 
 - the build role runs from `ops/` on the controller
 - source checkout is expected at `../pharos`
-- the ops-side build version is `pharos_build_release_version` and defaults to `0.7.23`
-- when `pharos_build_release_version` is newer than `../pharos/VERSION`, the role bumps `../pharos/VERSION` before building
+- the automation-facing Pharos release version surface remains `../pharos/VERSION`
+- the build-facing Pharos release version surface is `../pharos/Cargo.toml` at `[workspace.package].version`
+- those two surfaces must stay synchronized
+- `pharos_build_release_version` is an optional explicit override used to bump both surfaces before building
 - app packaging now runs through `pharos build app --packaging`, which isolates temporary sqlite and runtime-state paths inside the controller build tree so dynamic app builds do not touch live `/var/lib/pharos` or `/var/state/pharos`
 - packaged app bundles retain their app-local `app.conf`; deployment installs that runtime configuration as `pharos:pharos` with mode `0640` before restarting the shared runtime
 - Docker Compose orchestration lives under `../pharos/cross/docker`

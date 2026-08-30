@@ -57,15 +57,68 @@
       register: pharos_build_current_version_raw
       when: pharos_build_version_file.stat.exists
 
+    - name: Check current Pharos Cargo workspace manifest
+      ansible.builtin.stat:
+        path: "{{ pharos_build_repo_dir }}/Cargo.toml"
+      register: pharos_build_manifest_file
+
+    - name: Read current Pharos Cargo workspace manifest
+      ansible.builtin.slurp:
+        path: "{{ pharos_build_repo_dir }}/Cargo.toml"
+      register: pharos_build_manifest_raw
+      when: pharos_build_manifest_file.stat.exists
+
     - name: Set Pharos version facts for build
       ansible.builtin.set_fact:
-        pharos_build_current_version: >-
+        pharos_build_manifest_text: >-
+          {{
+            (pharos_build_manifest_raw.content | b64decode)
+            if pharos_build_manifest_file.stat.exists
+            else ''
+          }}
+        pharos_build_version_file_text: >-
           {{
             (pharos_build_current_version_raw.content | b64decode | trim)
             if pharos_build_version_file.stat.exists
             else ''
           }}
+        pharos_build_current_version: >-
+          {{
+            (
+              (
+                pharos_build_manifest_text
+                | regex_findall('(?ms)^\\[workspace\\.package\\]\\s*$.*?^version\\s*=\\s*"([^"]+)"')
+              ) | first | default('')
+            )
+          }}
         pharos_build_requested_version: "{{ pharos_build_release_version | trim }}"
+
+    - name: Fail when Pharos workspace version cannot be resolved
+      fail:
+        msg: >-
+          Could not resolve the current Pharos version from
+          {{ pharos_build_repo_dir }}/Cargo.toml [workspace.package].version.
+      when: pharos_build_current_version | length == 0
+
+    - name: Fail when Pharos VERSION and Cargo workspace version are out of sync
+      fail:
+        msg: >-
+          Pharos version mismatch detected.
+          VERSION={{ pharos_build_version_file_text | default('') }}
+          Cargo.toml={{ pharos_build_current_version }}.
+          Sync both surfaces before building.
+      when:
+        - pharos_build_version_file.stat.exists
+        - pharos_build_version_file_text | length > 0
+        - pharos_build_version_file_text != pharos_build_current_version
+
+    - name: Create or sync Pharos VERSION file from workspace version when missing
+      ansible.builtin.copy:
+        dest: "{{ pharos_build_repo_dir }}/VERSION"
+        content: "{{ pharos_build_current_version }}\n"
+        mode: "0644"
+      when:
+        - not pharos_build_version_file.stat.exists or pharos_build_version_file_text | length == 0
 
     - name: Bump Pharos VERSION file from ops build setting when newer
       ansible.builtin.copy:
@@ -74,7 +127,16 @@
         mode: "0644"
       when:
         - pharos_build_requested_version | length > 0
-        - pharos_build_current_version | length == 0 or pharos_build_requested_version is version(pharos_build_current_version, '>')
+        - pharos_build_requested_version is version(pharos_build_current_version, '>')
+
+    - name: Bump Pharos Cargo workspace version from ops build setting when newer
+      ansible.builtin.replace:
+        path: "{{ pharos_build_repo_dir }}/Cargo.toml"
+        regexp: '(?ms)(^\\[workspace\\.package\\]\\s*$.*?^version\\s*=\\s*")[^"]+(")'
+        replace: '\g<1>{{ pharos_build_requested_version }}\2'
+      when:
+        - pharos_build_requested_version | length > 0
+        - pharos_build_requested_version is version(pharos_build_current_version, '>')
 
     - name: Set --clean based on CLI parameter
       set_fact:
