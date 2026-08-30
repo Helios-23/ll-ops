@@ -41,9 +41,9 @@
       register: pharos_build_pharos_pull
       when: update_repo
 
-    - name: Clean cached zig binaries for platform-agnostic Docker builds
+    - name: Clean repo-local Zig tool directory for platform-agnostic Docker builds
       file:
-        path: "{{ pharos_build_repo_dir }}/scripts/tools/zig"
+        path: "{{ pharos_build_repo_dir }}/.deps/zig"
         state: absent
 
     - name: Check current Pharos VERSION file
