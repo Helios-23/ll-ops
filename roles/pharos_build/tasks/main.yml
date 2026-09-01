@@ -68,7 +68,7 @@
       register: pharos_build_manifest_raw
       when: pharos_build_manifest_file.stat.exists
 
-    - name: Set Pharos version facts for build
+    - name: Set raw Pharos version surfaces for build
       ansible.builtin.set_fact:
         pharos_build_manifest_text: >-
           {{
@@ -82,16 +82,24 @@
             if pharos_build_version_file.stat.exists
             else ''
           }}
-        pharos_build_current_version: >-
-          {{
-            (
-              (
-                pharos_build_manifest_text
-                | regex_findall('(?ms)^\\[workspace\\.package\\]\\s*$.*?^version\\s*=\\s*"([^"]+)"')
-              ) | first | default('')
-            )
-          }}
         pharos_build_requested_version: "{{ pharos_build_release_version | trim }}"
+
+    - name: Resolve current Pharos workspace version from Cargo manifest
+      ansible.builtin.command:
+        argv:
+          - python3
+          - -c
+          - |
+            import pathlib
+            import tomllib
+            manifest = pathlib.Path(r"{{ pharos_build_repo_dir }}/Cargo.toml").read_text()
+            print(tomllib.loads(manifest)["workspace"]["package"]["version"])
+      register: pharos_build_manifest_version_cmd
+      changed_when: false
+
+    - name: Set resolved current Pharos workspace version for build
+      ansible.builtin.set_fact:
+        pharos_build_current_version: "{{ pharos_build_manifest_version_cmd.stdout | trim }}"
 
     - name: Fail when Pharos workspace version cannot be resolved
       fail:
@@ -141,7 +149,7 @@
     - name: Set --clean based on CLI parameter
       set_fact:
         release_flag: "--release"
-      when: release
+      when: release | bool
 
     - name: Capture pre-build checksums
       shell: |
