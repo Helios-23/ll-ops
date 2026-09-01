@@ -197,7 +197,8 @@ Expected behavior:
 - resolves or accepts a `pharos_*.deb`
 - stages it through `roles/ll_repo`
 - installs it on the target host
-- applies bundled dynamic-app migrations for packaged apps already installed under `/srv/pharos/apps` before the shared runtime restart
+- stops `pharos.service` and `pharos-ha.service` before bundled dynamic-app migrations for packaged apps already installed under `/srv/pharos/apps`
+- applies those bundled dynamic-app migrations while the shared runtime is stopped
 - restarts `pharos.service` and `pharos-ha.service`
 - prunes older retained runtime packages
 

@@ -124,14 +124,30 @@
     parsed_manifest: "{{ item.content | b64decode | from_json }}"
   loop: "{{ pharos_deploy_packaged_manifest_raw.results }}"
 
-- name: Read bundled dynamic-app configs before runtime restart
+- name: Select bundled dynamic apps that require migration
+  ansible.builtin.set_fact:
+    pharos_deploy_dynamic_apps: >-
+      {{
+        (pharos_deploy_packaged_apps | default([]))
+        | selectattr('host_profile', 'equalto', 'dynamic-app')
+        | list
+      }}
+
+- name: Stop shared runtime services before bundled dynamic-app migrations
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    daemon_reload: true
+    state: stopped
+  loop: "{{ pharos_deploy_services }}"
+  when: (pharos_deploy_dynamic_apps | default([]) | length) > 0
+
+- name: Read bundled dynamic-app configs after shared runtime stop
   ansible.builtin.slurp:
     path: "{{ item.app_dir }}/app.conf"
-  loop: "{{ pharos_deploy_packaged_apps | default([]) }}"
+  loop: "{{ pharos_deploy_dynamic_apps | default([]) }}"
   register: pharos_deploy_packaged_app_conf_raw
-  when: item.host_profile == 'dynamic-app'
 
-- name: Apply bundled dynamic-app migrations before runtime restart
+- name: Apply bundled dynamic-app migrations while shared runtime is stopped
   ansible.builtin.command:
     argv:
       - /usr/bin/pharos
