@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Protocol
 
 
-FINGERPRINT_VERSION = "v4"
+FINGERPRINT_VERSION = "v5"
 MAX_INPUT_FILES = 1_000
 MAX_INPUT_BYTES = 64 * 1024 * 1024
 WHOLE_FILE_INPUTS = (
@@ -21,11 +21,11 @@ RUNTIME_REGIONS = (
     (
         "app-build-command-entry",
         "pub fn handle_runtime_app_command_direct(",
-        "/// Clears owned app-runtime fields after a clone leaves its request scope.",
+        "pub fn clear_cloned_app(",
     ),
     (
         "app-build-render-entry",
-        "/// Builds one app artifact directly from the app-owned source root.",
+        "pub fn build_app_from_root(",
         "fn finalize_artifact_manifest(",
     ),
     (
