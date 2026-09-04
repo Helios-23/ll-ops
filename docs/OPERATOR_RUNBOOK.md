@@ -229,6 +229,7 @@ Expected behavior:
 - only when `app_id=dev_docs`, prebuilds the Rustdoc-backed `dev_docs` artifact on the controller before packaging that app
 - renders the finalized app root on the controller
 - packages it into a tarball under `../pharos/dist/release/app`
+- during `--check`, still materializes the controller-side archive so preview can validate the stage-copy and extract path without applying remote changes
 - preserves app-owned payload files and ownership-tracked app files in the built artifact, including private archives such as `private/downloads/*.zip` and any generated `.DS_Store` entries still present in the built app root
 - stages the bundle via `roles/ll_repo`
 - extracts it into a hidden staging directory outside `/srv/pharos/apps`
