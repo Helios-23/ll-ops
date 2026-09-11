@@ -69,7 +69,7 @@
 - name: Install Pharos package from staged repository
   shell: |
     set -e
-    deb="{{ ll_repo }}/$(ls -1t {{ ll_repo }}/pharos_*.deb | head -1 | xargs -n1 basename)"
+    deb="{{ ll_repo }}/{{ pharos_deploy_package_src | basename }}"
     dpkg --force-confnew -i "$deb" || (apt-get -f install -y && dpkg --force-confnew -i "$deb")
   args:
     executable: /bin/sh
