@@ -70,7 +70,12 @@
   shell: |
     set -e
     deb="{{ ll_repo }}/{{ pharos_deploy_package_src | basename }}"
-    dpkg --force-confnew -i "$deb" || (apt-get -f install -y && dpkg --force-confnew -i "$deb")
+    dpkg_path_args=""
+    if [ "{{ pharos_deploy_preserve_existing_apps | bool | ternary('1', '0') }}" = "1" ]; then
+      dpkg_path_args="$dpkg_path_args --path-exclude=/srv/pharos/apps/*"
+    fi
+    # shellcheck disable=SC2086
+    dpkg $dpkg_path_args --force-confnew -i "$deb" || (apt-get -f install -y && dpkg $dpkg_path_args --force-confnew -i "$deb")
   args:
     executable: /bin/sh
   register: pharos_deploy_install
@@ -110,19 +115,22 @@
     file_type: file
     recurse: true
   register: pharos_deploy_packaged_manifests
+  when: not pharos_deploy_preserve_existing_apps | bool
 
 - name: Read bundled packaged app manifests installed by the runtime package
   ansible.builtin.slurp:
     path: "{{ item.path }}"
-  loop: "{{ pharos_deploy_packaged_manifests.files }}"
+  loop: "{{ pharos_deploy_packaged_manifests.files | default([]) }}"
   register: pharos_deploy_packaged_manifest_raw
+  when: not pharos_deploy_preserve_existing_apps | bool
 
 - name: Build bundled packaged app metadata for post-install migration
   ansible.builtin.set_fact:
     pharos_deploy_packaged_apps: "{{ (pharos_deploy_packaged_apps | default([])) + [ {'app_id': parsed_manifest.app_id, 'host_profile': (parsed_manifest.host_profile | default(parsed_manifest.runtime.host_profile | default(''))), 'app_dir': (item.item.path | dirname)} ] }}"
   vars:
     parsed_manifest: "{{ item.content | b64decode | from_json }}"
-  loop: "{{ pharos_deploy_packaged_manifest_raw.results }}"
+  loop: "{{ pharos_deploy_packaged_manifest_raw.results | default([]) }}"
+  when: not pharos_deploy_preserve_existing_apps | bool
 
 - name: Select bundled dynamic apps that require migration
   ansible.builtin.set_fact:
@@ -132,6 +140,7 @@
         | selectattr('host_profile', 'equalto', 'dynamic-app')
         | list
       }}
+  when: not pharos_deploy_preserve_existing_apps | bool
 
 - name: Stop shared runtime services before bundled dynamic-app migrations
   ansible.builtin.systemd:
@@ -139,13 +148,16 @@
     daemon_reload: true
     state: stopped
   loop: "{{ pharos_deploy_services }}"
-  when: (pharos_deploy_dynamic_apps | default([]) | length) > 0
+  when:
+    - not pharos_deploy_preserve_existing_apps | bool
+    - (pharos_deploy_dynamic_apps | default([]) | length) > 0
 
 - name: Read bundled dynamic-app configs after shared runtime stop
   ansible.builtin.slurp:
     path: "{{ item.app_dir }}/app.conf"
   loop: "{{ pharos_deploy_dynamic_apps | default([]) }}"
   register: pharos_deploy_packaged_app_conf_raw
+  when: not pharos_deploy_preserve_existing_apps | bool
 
 - name: Apply bundled dynamic-app migrations while shared runtime is stopped
   ansible.builtin.command:
@@ -166,6 +178,7 @@
   become_user: "{{ pharos_deploy_owner }}"
   loop: "{{ pharos_deploy_packaged_app_conf_raw.results | default([]) }}"
   when:
+    - not pharos_deploy_preserve_existing_apps | bool
     - item.skipped is not defined or not item.skipped
   notify: Restart Pharos services
 

@@ -190,15 +190,15 @@ Install the newest staged Pharos package on `web0`:
 apb deploy.yml -l web0 -t pharos_runtime
 ```
 
-If needed, pass an explicit controller-side package path with `-e pharos_deploy_package_src=/path/to/pharos_<version>.deb`.
+If needed, pass an explicit controller-side package path with `-e pharos_deploy_package_src=/path/to/pharos_<version>.deb`. For a server-only update that preserves every deployed app bundle, add `-e pharos_deploy_preserve_existing_apps=true` and deploy changed apps separately with `pharos_app`.
 
 Expected behavior:
 
 - resolves or accepts a `pharos_*.deb`
 - stages it through `roles/ll_repo`
 - installs it on the target host
-- stops `pharos.service` and `pharos-ha.service` before bundled dynamic-app migrations for packaged apps already installed under `/srv/pharos/apps`
-- applies those bundled dynamic-app migrations while the shared runtime is stopped
+- by default, installs runtime-packaged app roots and runs bundled dynamic-app migrations while the shared runtime is stopped
+- when `pharos_deploy_preserve_existing_apps=true`, passes `--path-exclude=/srv/pharos/apps/*` to `dpkg` and skips the runtime role app migration scan so existing deployed apps remain untouched
 - restarts `pharos.service` and `pharos-ha.service`
 - prunes older retained runtime packages
 

@@ -24,3 +24,6 @@ pharos_deploy_services:
 pharos_build_repo_dir: "{{ playbook_dir }}/../pharos"
 pharos_build_package_dir: "{{ pharos_build_repo_dir }}/dist/packages"
 pharos_deploy_package_glob: "pharos_*.deb"
+# When true, runtime package installation keeps existing /srv/pharos/apps contents untouched.
+# Use this for server-only QA updates where app bundles are deployed separately with pharos_app.
+pharos_deploy_preserve_existing_apps: false
