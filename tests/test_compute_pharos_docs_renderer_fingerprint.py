@@ -50,6 +50,8 @@ class DocsRendererFingerprintTests(unittest.TestCase):
             "rust-toolchain.toml": "[toolchain]\nchannel = 'stable'\n",
             "scripts/build_docs.sh": "build docs\n",
             "scripts/build_native.sh": "build native\n",
+            "src/bin/pharos_docs_builder.rs": "fn main() { build_docs(); }\n",
+            "src/ops_helper.rs": "pub fn run_docs_build_request() {}\n",
             "src/runtime/docs.rs": "pub use docs::*;\n",
             "src/runtime/mod.rs": RUNTIME_SOURCE,
             "src/crates/pharos_runtime_docs/Cargo.toml": "[package]\nname = 'docs'\n",
@@ -72,6 +74,8 @@ class DocsRendererFingerprintTests(unittest.TestCase):
             MODULE.WHOLE_FILE_INPUTS,
             (
                 "scripts/build_docs.sh",
+                "src/bin/pharos_docs_builder.rs",
+                "src/ops_helper.rs",
                 "src/runtime/docs.rs",
             ),
         )
@@ -99,7 +103,7 @@ class DocsRendererFingerprintTests(unittest.TestCase):
 
     def test_fingerprint_is_stable(self) -> None:
         self.assertEqual(self.fingerprint(), self.fingerprint())
-        self.assertTrue(self.fingerprint().startswith("v4:"))
+        self.assertTrue(self.fingerprint().startswith("v6:"))
 
     def test_unrelated_rust_file_does_not_change_fingerprint(self) -> None:
         before = self.fingerprint()
@@ -140,6 +144,18 @@ class DocsRendererFingerprintTests(unittest.TestCase):
         before = self.fingerprint()
         build_docs = self.repo / "scripts/build_docs.sh"
         build_docs.write_text("build docs with new renderer\n", encoding="utf-8")
+        self.assertNotEqual(before, self.fingerprint())
+
+    def test_docs_helper_entrypoint_change_updates_fingerprint(self) -> None:
+        before = self.fingerprint()
+        helper = self.repo / "src/bin/pharos_docs_builder.rs"
+        helper.write_text("fn main() { build_docs_changed(); }\n", encoding="utf-8")
+        self.assertNotEqual(before, self.fingerprint())
+
+    def test_docs_helper_module_change_updates_fingerprint(self) -> None:
+        before = self.fingerprint()
+        helper = self.repo / "src/ops_helper.rs"
+        helper.write_text("pub fn run_docs_build_request_changed() {}\n", encoding="utf-8")
         self.assertNotEqual(before, self.fingerprint())
 
     def test_docs_crate_change_updates_fingerprint(self) -> None:

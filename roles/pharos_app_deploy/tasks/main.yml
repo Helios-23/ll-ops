@@ -119,7 +119,7 @@
 
     - name: Prebuild packaged dev_docs artifact on host
       ansible.builtin.command:
-        cmd: bin/pharos build app dev_docs --build-dir dist --text
+        cmd: sh scripts/build_docs.sh dist/apps/dev_docs
         chdir: "{{ pharos_app_deploy_repo_dir }}"
       when: app_id == 'dev_docs'
       check_mode: false

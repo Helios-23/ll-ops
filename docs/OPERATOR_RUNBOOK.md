@@ -224,9 +224,9 @@ apb deploy.yml -l web0 -t pharos_app -e app_id=ucal -e clean_app=true
 Expected behavior:
 
 - optionally syncs the `../pharos` repo when `update_repo=true`
-- ensures the host-native `bin/pharos` CLI exists on the controller before packaging any app
-- only when `app_id=dev_docs`, reuses the existing host-native Pharos docs renderer when the shared narrow `dev_docs` renderer fingerprint matches, and rebuilds it automatically only when the docs crate, app-build entry regions, or relevant docs build scripts changed or the binary is missing; root dependency manifests, lockfiles, and toolchain metadata are explicitly excluded
-- only when `app_id=dev_docs`, prebuilds the Rustdoc-backed `dev_docs` artifact on the controller before packaging that app
+- ensures the host-native `bin/pharos` CLI and helper binaries exist on the controller before packaging any app
+- only when `app_id=dev_docs`, reuses the existing host-native Pharos docs builder when the shared narrow `dev_docs` renderer fingerprint matches, and rebuilds it automatically only when the docs crate, docs helper source, app-build entry regions, or relevant docs build scripts changed or the binary is missing; root dependency manifests, lockfiles, and toolchain metadata are explicitly excluded
+- only when `app_id=dev_docs`, prebuilds the Rustdoc-backed `dev_docs` artifact through `scripts/build_docs.sh` on the controller before packaging that app
 - renders the finalized app root on the controller
 - packages it into a tarball under `../pharos/dist/release/app`
 - during `--check`, still materializes the controller-side archive so preview can validate the stage-copy and extract path without applying remote changes
