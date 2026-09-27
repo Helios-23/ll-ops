@@ -192,6 +192,8 @@ apb deploy.yml -l web0 -t pharos_runtime
 
 If needed, pass an explicit controller-side package path with `-e pharos_deploy_package_src=/path/to/pharos_<version>.deb`. For a server-only update that preserves every deployed app bundle, add `-e pharos_deploy_preserve_existing_apps=true` and deploy changed apps separately with `pharos_app`.
 
+Do not use Ansible `--check` during a Pharos release deployment after the local green gate has approved the exact package or app archive. The release path stages and promotes concrete artifacts, and check mode can spend time on paths that intentionally do not exist until apply.
+
 Expected behavior:
 
 - resolves or accepts a `pharos_*.deb`
@@ -229,7 +231,7 @@ Expected behavior:
 - only when `app_id=dev_docs`, prebuilds the Rustdoc-backed `dev_docs` artifact through `scripts/build_docs.sh` on the controller before packaging that app
 - renders the finalized app root on the controller
 - packages it into a tarball under `../pharos/dist/release/app`
-- during `--check`, still materializes the controller-side archive so preview can validate the stage-copy and extract path without applying remote changes
+- materializes the controller-side archive before deployment so the stage-copy and extract path use the same artifact that will be promoted
 - preserves app-owned payload files and ownership-tracked app files in the built artifact, including private archives such as `private/downloads/*.zip` and any generated `.DS_Store` entries still present in the built app root
 - stages the bundle via `roles/ll_repo`
 - extracts it into a hidden staging directory outside `/srv/pharos/apps`

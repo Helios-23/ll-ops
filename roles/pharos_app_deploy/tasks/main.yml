@@ -117,6 +117,12 @@
         dist_clean: "--clean"
       when: clean_dist
 
+    - name: Remove finalized {{ app_id }} app root on controller for clean app packaging
+      ansible.builtin.file:
+        path: "{{ pharos_app_deploy_controller_app_root }}"
+        state: absent
+      when: clean_dist
+
     - name: Prebuild packaged dev_docs artifact on host
       ansible.builtin.command:
         cmd: sh scripts/build_docs.sh dist/apps/dev_docs
@@ -282,6 +288,7 @@
       - "{{ pharos_app_deploy_remote_stage_dir }}"
       - --backend
       - "{{ pharos_app_deploy_runtime_backend }}"
+    chdir: "{{ pharos_app_deploy_remote_stage_dir }}"
   environment:
     PHAROS_CONFIG: "{{ pharos_app_deploy_runtime_conf_path }}"
   become: true

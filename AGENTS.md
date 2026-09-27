@@ -32,8 +32,9 @@ Apply this guard only to changes in `ops/`. Do not require it for unrelated part
 Never run apply or destructive operations without explicit user approval:
 
 - NEVER run `terraform apply`, an auto-applying playbook, or any command that can create, destroy, or replace infrastructure or remote state without first showing the user what it will do and getting explicit approval to apply.
-- ALWAYS run a plan or dry-run first (`terraform plan`, `ansible-playbook --check`, and so on) and report the planned changes back before any apply step.
-- Playbooks must default to plan-only or check mode. Any apply step must be opt-in through an explicit variable the user passes deliberately (for example `terraform_apply: true`). Never default apply to on.
+- ALWAYS run a plan or dry-run first (`terraform plan`, and so on) and report the planned changes back before any apply step, except for Pharos release deployments after the local green gate has already approved the exact package or app artifact.
+- NEVER run Ansible `--check` during Pharos release deployment. Release deployment uses the approved local package/app artifact and the concrete apply path; check mode is slow here and can misrepresent staged app deploys because release tasks create transient paths.
+- Playbooks must default to plan-only or check mode for infrastructure changes. Any apply step must be opt-in through an explicit variable the user passes deliberately (for example `terraform_apply: true`). Never default apply to on.
 - Never run auto-approved applies (`-auto-approve`) as part of a routine run.
 - When a task involves a playbook or command that can change infrastructure, ask the user before running it unless the user already explicitly requested the apply.
 
