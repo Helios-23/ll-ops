@@ -12,6 +12,7 @@ pharos_app_deploy_archive_path: "{{ pharos_app_deploy_controller_release_root }}
 pharos_app_deploy_controller_app_root: "{{ pharos_app_deploy_repo_dir }}/dist/apps/{{ app_id }}"
 pharos_app_deploy_models_archive_basename: architect_models.tar.gz
 pharos_app_deploy_models_archive_path: "{{ pharos_app_deploy_controller_release_root }}/{{ pharos_app_deploy_models_archive_basename }}"
+pharos_app_deploy_models_archive_fingerprint_path: "{{ pharos_app_deploy_models_archive_path }}.fingerprint"
 pharos_app_deploy_models_archive_source_dir: "{{ pharos_app_deploy_controller_app_root }}/data/models"
 pharos_app_deploy_remote_models_archive_dir: /opt/ll
 pharos_app_deploy_remote_models_archive_path: "{{ pharos_app_deploy_remote_models_archive_dir }}/{{ pharos_app_deploy_models_archive_basename }}"

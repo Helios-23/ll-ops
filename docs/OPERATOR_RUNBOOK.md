@@ -232,10 +232,10 @@ Expected behavior:
 - renders the finalized app root on the controller
 - packages it into a tarball under `../pharos/dist/release/app`
 - for `app_id=architect`, keeps the `data/models/` directory in the app structure while omitting its model files from the app tarball
-- for `app_id=architect`, refreshes the persistent `../pharos/dist/release/app/architect_models.tar.gz` archive from the built app root
+- for `app_id=architect`, refreshes the persistent `../pharos/dist/release/app/architect_models.tar.gz` archive from the built app root only when the model source fingerprint changed
 - materializes the controller-side archive before deployment so the staged-copy and extract path use the same artifact that will be promoted
 - preserves app-owned payload files and ownership-tracked app files in the built artifact, including private archives such as `private/downloads/*.zip` and any generated `.DS_Store` entries still present in the built app root
-- for `app_id=architect`, copies the model archive to `/opt/ll/architect_models.tar.gz` on the target and expands it into the staged app root before promotion
+- for `app_id=architect`, copies the model archive to `/opt/ll/architect_models.tar.gz` only when the remote checksum differs, then expands it into the staged app root before promotion
 - stages the bundle via `roles/ll_repo`
 - extracts it into a hidden staging directory outside `/srv/pharos/apps`
 - when the staged `pharos.app.json` host profile is `dynamic-app`, runs `pharos migrate apply app` on the target against the staged app root using `/etc/pharos/pharos.conf` and the staged `app.conf` backend before the app becomes visible to the shared runtime
