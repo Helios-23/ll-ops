@@ -149,9 +149,12 @@
             import sys
             root = sys.argv[1]
             digest = hashlib.sha256()
+            digest.update(b'architect-models-archive-v2-no-appledouble\0')
             files = []
             for dirpath, _, names in os.walk(root):
                 for name in names:
+                    if name == '.DS_Store' or name.startswith('._'):
+                        continue
                     path = os.path.join(dirpath, name)
                     rel = os.path.relpath(path, root)
                     files.append((rel, path))
@@ -209,9 +212,13 @@
     - name: Create persistent Architect models archive on controller
       ansible.builtin.command:
         argv:
+          - env
+          - COPYFILE_DISABLE=1
           - tar
           - -C
           - "{{ pharos_app_deploy_controller_app_root }}"
+          - --exclude=._*
+          - --exclude=.DS_Store
           - -czf
           - "{{ pharos_app_deploy_models_archive_path }}"
           - data/models
@@ -259,10 +266,10 @@
           find . ! -path './data/models/*' -print
         ) > "$file_list"
         # shellcheck disable=SC2086
-        tar -C "$archive_source_dir" --no-recursion $tar_args -czf "$archive_path" -T "$file_list"
+        COPYFILE_DISABLE=1 tar -C "$archive_source_dir" --no-recursion $tar_args --exclude='._*' --exclude='.DS_Store' -czf "$archive_path" -T "$file_list"
         {% else %}
         # shellcheck disable=SC2086
-        tar -C "$archive_source_dir" $tar_args -czf "$archive_path" .
+        COPYFILE_DISABLE=1 tar -C "$archive_source_dir" $tar_args --exclude='._*' --exclude='.DS_Store' -czf "$archive_path" .
         {% endif %}
       args:
         executable: /bin/sh
@@ -372,6 +379,28 @@
     group: "{{ pharos_app_deploy_group }}"
     extra_opts:
       - --no-same-owner
+      - --exclude=._*
+      - --exclude=*/._*
+      - --exclude=.DS_Store
+      - --exclude=*/.DS_Store
+  when: app_id == 'architect'
+
+- name: Remove macOS metadata files from staged Architect app root
+  ansible.builtin.command:
+    argv:
+      - find
+      - "{{ pharos_app_deploy_remote_stage_dir }}"
+      - "("
+      - -name
+      - ._*
+      - -o
+      - -name
+      - .DS_Store
+      - ")"
+      - -type
+      - f
+      - -delete
+  changed_when: false
   when: app_id == 'architect'
 
 - name: Verify staged {{ app_id }} packaged manifest exists and preserves relocatable app_root
