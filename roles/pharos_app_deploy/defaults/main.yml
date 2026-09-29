@@ -10,6 +10,11 @@ pharos_app_deploy_archive_basename: >-
   {{ app_id }}-{{ pharos_app_deploy_archive_stamp }}{{ pharos_app_deploy_archive_revision | ternary('-' ~ pharos_app_deploy_archive_revision, '') }}.{{ pharos_app_deploy_archive_ext }}
 pharos_app_deploy_archive_path: "{{ pharos_app_deploy_controller_release_root }}/{{ pharos_app_deploy_archive_basename }}"
 pharos_app_deploy_controller_app_root: "{{ pharos_app_deploy_repo_dir }}/dist/apps/{{ app_id }}"
+pharos_app_deploy_models_archive_basename: architect_models.tar.gz
+pharos_app_deploy_models_archive_path: "{{ pharos_app_deploy_controller_release_root }}/{{ pharos_app_deploy_models_archive_basename }}"
+pharos_app_deploy_models_archive_source_dir: "{{ pharos_app_deploy_controller_app_root }}/data/models"
+pharos_app_deploy_remote_models_archive_dir: /opt/ll
+pharos_app_deploy_remote_models_archive_path: "{{ pharos_app_deploy_remote_models_archive_dir }}/{{ pharos_app_deploy_models_archive_basename }}"
 
 # Staged-archive repository (managed by roles/ll_repo).
 # ll_repo_type values: pack (runtime/services) | app (apps under services).
@@ -31,6 +36,7 @@ pharos_app_deploy_bundle_exclude_exact_paths:
   - .deployed-archive
 pharos_app_deploy_bundle_exclude_names:
   - .archives
+pharos_app_deploy_bundle_exclude_suffixes: []
 pharos_app_deploy_owner: pharos
 pharos_app_deploy_group: pharos
 pharos_app_deploy_directory_mode: "0755"
