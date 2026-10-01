@@ -50,8 +50,9 @@ class DocsRendererFingerprintTests(unittest.TestCase):
             "rust-toolchain.toml": "[toolchain]\nchannel = 'stable'\n",
             "scripts/build_docs.sh": "build docs\n",
             "scripts/build_native.sh": "build native\n",
-            "src/bin/pharos_docs_builder.rs": "fn main() { build_docs(); }\n",
-            "src/ops_helper.rs": "pub fn run_docs_build_request() {}\n",
+            "src/crates/pharos_runtime_ops/src/bin/pharos_docs_builder.rs": "fn main() { build_docs(); }\n",
+            "src/crates/pharos_runtime_ops/Cargo.toml": "[package]\nname = 'ops'\n",
+            "src/crates/pharos_runtime_ops/src/lib.rs": "pub fn run_docs_build_request() {}\n",
             "src/runtime/docs.rs": "pub use docs::*;\n",
             "src/runtime/mod.rs": RUNTIME_SOURCE,
             "src/crates/pharos_runtime_docs/Cargo.toml": "[package]\nname = 'docs'\n",
@@ -74,8 +75,9 @@ class DocsRendererFingerprintTests(unittest.TestCase):
             MODULE.WHOLE_FILE_INPUTS,
             (
                 "scripts/build_docs.sh",
-                "src/bin/pharos_docs_builder.rs",
-                "src/ops_helper.rs",
+                "src/crates/pharos_runtime_ops/Cargo.toml",
+                "src/crates/pharos_runtime_ops/src/lib.rs",
+                "src/crates/pharos_runtime_ops/src/bin/pharos_docs_builder.rs",
                 "src/runtime/docs.rs",
             ),
         )
@@ -103,12 +105,18 @@ class DocsRendererFingerprintTests(unittest.TestCase):
 
     def test_fingerprint_is_stable(self) -> None:
         self.assertEqual(self.fingerprint(), self.fingerprint())
-        self.assertTrue(self.fingerprint().startswith("v6:"))
+        self.assertTrue(self.fingerprint().startswith("v7:"))
 
     def test_unrelated_rust_file_does_not_change_fingerprint(self) -> None:
         before = self.fingerprint()
         unrelated = self.repo / "src/runtime/unrelated.rs"
         unrelated.write_text("pub fn unrelated() {}\n", encoding="utf-8")
+        self.assertEqual(before, self.fingerprint())
+
+    def test_ops_backup_source_does_not_change_docs_fingerprint(self) -> None:
+        before = self.fingerprint()
+        backup = self.repo / "src/crates/pharos_runtime_ops/src/backup.rs"
+        backup.write_text("pub fn backup_changed() {}\n", encoding="utf-8")
         self.assertEqual(before, self.fingerprint())
 
     def test_unrelated_runtime_region_does_not_change_fingerprint(self) -> None:
@@ -148,13 +156,13 @@ class DocsRendererFingerprintTests(unittest.TestCase):
 
     def test_docs_helper_entrypoint_change_updates_fingerprint(self) -> None:
         before = self.fingerprint()
-        helper = self.repo / "src/bin/pharos_docs_builder.rs"
+        helper = self.repo / "src/crates/pharos_runtime_ops/src/bin/pharos_docs_builder.rs"
         helper.write_text("fn main() { build_docs_changed(); }\n", encoding="utf-8")
         self.assertNotEqual(before, self.fingerprint())
 
     def test_docs_helper_module_change_updates_fingerprint(self) -> None:
         before = self.fingerprint()
-        helper = self.repo / "src/ops_helper.rs"
+        helper = self.repo / "src/crates/pharos_runtime_ops/src/lib.rs"
         helper.write_text("pub fn run_docs_build_request_changed() {}\n", encoding="utf-8")
         self.assertNotEqual(before, self.fingerprint())
 

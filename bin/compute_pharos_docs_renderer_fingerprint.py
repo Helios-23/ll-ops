@@ -9,13 +9,14 @@ from pathlib import Path
 from typing import Protocol
 
 
-FINGERPRINT_VERSION = "v6"
+FINGERPRINT_VERSION = "v7"
 MAX_INPUT_FILES = 1_000
 MAX_INPUT_BYTES = 64 * 1024 * 1024
 WHOLE_FILE_INPUTS = (
     "scripts/build_docs.sh",
-    "src/bin/pharos_docs_builder.rs",
-    "src/ops_helper.rs",
+    "src/crates/pharos_runtime_ops/Cargo.toml",
+    "src/crates/pharos_runtime_ops/src/lib.rs",
+    "src/crates/pharos_runtime_ops/src/bin/pharos_docs_builder.rs",
     "src/runtime/docs.rs",
 )
 DIRECTORY_INPUTS = ("src/crates/pharos_runtime_docs",)
