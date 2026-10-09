@@ -26,6 +26,12 @@ Required local prerequisites:
 - local credentials loaded from `ops/` with `source ./bin/loadenv.sh`
 - access to the inventory hosts you intend to manage
 
+### Private QA integration environment
+
+Run `sudo python3 provision_pharos_qa_environment.py` on the QA host to preview missing framework payment keys and Dynamic loopback settings; add `--apply` only after explicit approval. The helper preserves existing nonempty values and atomically writes `/etc/pharos/pharos.env` with its existing owner and mode 0640. It never prints secret values. Retain the payment encryption key across redeploys and include it in protected operator backups; replacing it requires an explicit key-rotation workflow.
+
+The controlled Dynamic receiver is the test-only `pharos/tests/support/qa_integration_receiver.py`, bound to `127.0.0.1:18085`. Board requests require the configured JSON or form token. Its approval endpoint deliberately returns 503 to exercise bounded retry behavior. Use an explicitly named service with the private environment file; verify its health before restarting the shared runtime. This receiver is not a payment provider and must never replace real Stripe credentials or endpoints. Remove the test service only after controlled proof is complete and restore any prior integration settings before doing so.
+
 ## Standard operating sequence
 
 ### 1. Bootstrap a workstation

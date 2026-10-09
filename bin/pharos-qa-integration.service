@@ -1,0 +1,25 @@
+[Unit]
+Description=Pharos QA controlled loopback integration receiver
+After=network.target
+
+[Service]
+Type=simple
+User=pharos
+Group=pharos
+EnvironmentFile=/etc/pharos/pharos.env
+ExecStart=/usr/bin/python3 /opt/ll/qa-tests/qa_integration_receiver.py
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+RestrictAddressFamilies=AF_INET AF_UNIX
+IPAddressDeny=any
+IPAddressAllow=localhost
+MemoryMax=64M
+TasksMax=8
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
