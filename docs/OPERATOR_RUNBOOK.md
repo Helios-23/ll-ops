@@ -199,7 +199,7 @@ Expected behavior:
 - resolves or accepts a `pharos_*.deb`
 - stages it through `roles/ll_repo`
 - installs it on the target host
-- by default, installs runtime-packaged app roots and runs bundled dynamic-app migrations while the shared runtime is stopped
+- by default, installs runtime-packaged app roots and runs migrations only for dynamic app roots owned by the installed Debian package while the shared runtime is stopped. External apps are migrated from their staged updated bundles by pharos_app; runtime deployment never migrates an older external bundle
 - when `pharos_deploy_preserve_existing_apps=true`, passes `--path-exclude=/srv/pharos/apps/*` to `dpkg` and skips the runtime role app migration scan so existing deployed apps remain untouched
 - restarts `pharos.service` and `pharos-ha.service`
 - prunes older retained runtime packages

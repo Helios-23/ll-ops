@@ -108,25 +108,32 @@
     group: "{{ pharos_deploy_group }}"
     mode: '0640'
 
-- name: Find bundled packaged app manifests installed by the runtime package
-  ansible.builtin.find:
-    paths: /srv/pharos/apps
-    patterns: pharos.app.json
-    file_type: file
-    recurse: true
-  register: pharos_deploy_packaged_manifests
+- name: Read the installed runtime package file inventory
+  ansible.builtin.command:
+    argv:
+      - dpkg-query
+      - --listfiles
+      - pharos
+  register: pharos_deploy_package_files
+  changed_when: false
+  when: not pharos_deploy_preserve_existing_apps | bool
+
+- name: Select manifests owned by the installed runtime package
+  ansible.builtin.set_fact:
+    pharos_deploy_packaged_manifest_paths: "{{ pharos_deploy_package_files.stdout_lines | select('match', '^/srv/pharos/apps/[^/]+/pharos[.]app[.]json$') | list }}"
+    pharos_deploy_packaged_apps: []
   when: not pharos_deploy_preserve_existing_apps | bool
 
 - name: Read bundled packaged app manifests installed by the runtime package
   ansible.builtin.slurp:
-    path: "{{ item.path }}"
-  loop: "{{ pharos_deploy_packaged_manifests.files | default([]) }}"
+    path: "{{ item }}"
+  loop: "{{ pharos_deploy_packaged_manifest_paths | default([]) }}"
   register: pharos_deploy_packaged_manifest_raw
   when: not pharos_deploy_preserve_existing_apps | bool
 
 - name: Build bundled packaged app metadata for post-install migration
   ansible.builtin.set_fact:
-    pharos_deploy_packaged_apps: "{{ (pharos_deploy_packaged_apps | default([])) + [ {'app_id': parsed_manifest.app_id, 'host_profile': (parsed_manifest.host_profile | default(parsed_manifest.runtime.host_profile | default(''))), 'app_dir': (item.item.path | dirname)} ] }}"
+    pharos_deploy_packaged_apps: "{{ (pharos_deploy_packaged_apps | default([])) + [ {'app_id': parsed_manifest.app_id, 'host_profile': (parsed_manifest.host_profile | default(parsed_manifest.runtime.host_profile | default(''))), 'app_dir': (item.item | dirname)} ] }}"
   vars:
     parsed_manifest: "{{ item.content | b64decode | from_json }}"
   loop: "{{ pharos_deploy_packaged_manifest_raw.results | default([]) }}"

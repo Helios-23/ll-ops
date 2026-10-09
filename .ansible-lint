@@ -1,0 +1,8 @@
+# .ansible-lint
+profile: moderate
+
+skip_list:
+  - fqcn          # Ignores fully qualified collection name requirements
+  - yaml          # Ignores all formatting rules enforced by yamllint
+  - var-naming    # Ignores variable naming convention rules
+  - jinja         # Ignores Jinja formatting rules
