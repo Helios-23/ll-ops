@@ -1,3 +1,13 @@
+- name: Require runtime deployment configuration before changing services
+  ansible.builtin.assert:
+    that:
+      - fqdn is defined
+      - smtp_server is defined
+      - smtp_mail_from is defined
+      - smtp_login is defined
+      - smtp_pass is defined
+  no_log: true
+
 - name: Resolve Pharos package source from build output
   set_fact:
     pharos_deploy_package_src: >-
@@ -85,7 +95,7 @@
       dpkg_path_args="$dpkg_path_args --path-exclude=/srv/pharos/apps/*"
     fi
     # shellcheck disable=SC2086
-    dpkg $dpkg_path_args --force-confnew -i "$deb" || (apt-get -f install -y && dpkg $dpkg_path_args --force-confnew -i "$deb")
+    dpkg $dpkg_path_args --force-confdef --force-confold -i "$deb" || (apt-get -f install -y && dpkg $dpkg_path_args --force-confdef --force-confold -i "$deb")
   args:
     executable: /bin/sh
   register: pharos_deploy_install

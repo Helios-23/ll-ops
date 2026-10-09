@@ -433,6 +433,51 @@
     path: "{{ pharos_app_deploy_remote_stage_dir }}/pharos.app.json"
   register: pharos_app_deploy_manifest_raw
 
+- name: Locate existing operator app configuration
+  ansible.builtin.stat:
+    path: "{{ pharos_app_deploy_remote_app_dir }}/app.conf"
+  register: pharos_app_deploy_existing_config
+
+- name: Read existing database connection settings privately
+  ansible.builtin.slurp:
+    path: "{{ pharos_app_deploy_remote_app_dir }}/app.conf"
+  register: pharos_app_deploy_existing_config_raw
+  no_log: true
+  when:
+    - pharos_app_deploy_existing_config.stat.exists
+    - pharos_app_deploy_staged_config.stat.exists
+
+- name: Read new app configuration privately for connection preservation
+  ansible.builtin.slurp:
+    path: "{{ pharos_app_deploy_remote_stage_dir }}/app.conf"
+  register: pharos_app_deploy_new_config_raw
+  no_log: true
+  when:
+    - pharos_app_deploy_existing_config.stat.exists
+    - pharos_app_deploy_staged_config.stat.exists
+
+- name: Preserve configured database authority in the staged app
+  vars:
+    pharos_app_deploy_existing_database_lines: "{{ (pharos_app_deploy_existing_config_raw.content | b64decode).splitlines() | select('match', '^db_[a-z0-9_]+=') | list }}"
+    pharos_app_deploy_existing_database_keys: "{{ pharos_app_deploy_existing_database_lines | map('regex_replace', '=.*$', '') | join('|') }}"
+  ansible.builtin.copy:
+    dest: "{{ pharos_app_deploy_remote_stage_dir }}/app.conf"
+    content: |
+      {% for line in pharos_app_deploy_existing_database_lines %}
+      {{ line }}
+      {% endfor %}
+      {% for line in (pharos_app_deploy_new_config_raw.content | b64decode).splitlines() | reject('match', '^(' ~ pharos_app_deploy_existing_database_keys ~ ')=') %}
+      {{ line }}
+      {% endfor %}
+    owner: "{{ pharos_app_deploy_owner }}"
+    group: "{{ pharos_app_deploy_group }}"
+    mode: "0640"
+  no_log: true
+  when:
+    - pharos_app_deploy_existing_config.stat.exists
+    - pharos_app_deploy_staged_config.stat.exists
+    - (pharos_app_deploy_existing_config_raw.content | b64decode).splitlines() | select('match', '^db_[a-z0-9_]+=') | list | length > 0
+
 - name: Parse staged {{ app_id }} packaged manifest
   ansible.builtin.set_fact:
     pharos_app_deploy_manifest: >-
