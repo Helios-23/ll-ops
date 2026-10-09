@@ -14,6 +14,20 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class RuntimePackageManifestScopeTests(unittest.TestCase):
+    def test_services_stop_before_installation_and_staged_migrations(self):
+        for role, stop, mutation, variable in [
+            ('pharos_deploy', 'Stop existing Pharos services before runtime package installation', 'Install Pharos package from staged repository', 'pharos_deploy_services'),
+            ('pharos_app_deploy', 'Stop existing Pharos services before app migration and promotion', 'Apply staged {{ app_id }} migrations for dynamic app runtime', 'pharos_app_deploy_services'),
+        ]:
+            tasks = yaml.safe_load((ROOT / 'roles' / role / 'tasks/main.yml').read_text())
+            names = [task.get('name') for task in tasks]
+            self.assertLess(names.index(stop), names.index(mutation))
+            task = tasks[names.index(stop)]
+            self.assertEqual(task['ansible.builtin.systemd']['state'], 'stopped')
+            self.assertEqual(task['loop'], '{{ ' + variable + ' | reverse | list }}')
+            self.assertEqual(task['when'], 'item in ansible_facts.services')
+            self.assertTrue(any('ansible.builtin.service_facts' in earlier for earlier in tasks[:names.index(stop)]))
+
     def test_external_and_nested_apps_are_not_runtime_migration_targets(self):
         tasks = yaml.safe_load((ROOT / 'roles/pharos_deploy/tasks/main.yml').read_text())
         inventory = next(t for t in tasks if t['name'] == 'Read the installed runtime package file inventory')

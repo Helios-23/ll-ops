@@ -477,6 +477,16 @@
       }}
   when: pharos_app_deploy_host_profile == 'dynamic-app'
 
+- name: Read existing services before app migration and promotion
+  ansible.builtin.service_facts:
+
+- name: Stop existing Pharos services before app migration and promotion
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: stopped
+  loop: "{{ pharos_app_deploy_services | reverse | list }}"
+  when: item in ansible_facts.services
+
 - name: Apply staged {{ app_id }} migrations for dynamic app runtime
   ansible.builtin.command:
     argv:

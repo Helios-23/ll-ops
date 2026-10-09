@@ -198,7 +198,7 @@ Expected behavior:
 
 - resolves or accepts a `pharos_*.deb`
 - stages it through `roles/ll_repo`
-- installs it on the target host
+- stops the existing HA monitor and shared runtime before installing it on the target host, keeping post-install migrations isolated from active writers
 - by default, installs runtime-packaged app roots and runs migrations only for dynamic app roots owned by the installed Debian package while the shared runtime is stopped. External apps are migrated from their staged updated bundles by pharos_app; runtime deployment never migrates an older external bundle
 - when `pharos_deploy_preserve_existing_apps=true`, passes `--path-exclude=/srv/pharos/apps/*` to `dpkg` and skips the runtime role app migration scan so existing deployed apps remain untouched
 - restarts `pharos.service` and `pharos-ha.service`
@@ -287,3 +287,5 @@ Use [FEATURES.md](FEATURES.md) for the current task-tag inventory.
 - Core GCP resources in `tf/main.tf` (network, subnet, firewall, reserved IP, instance) carry `lifecycle { prevent_destroy = true }`. A planned destroy of any of them is a red flag: do not force it, investigate the plan instead. Removing a resource on purpose requires deleting its lifecycle guard first, then a plan-only run to review.
 - When in doubt, narrow Ansible runs with `-l` and the smallest useful `-t` selection.
 - The Ansible remote tmp dir is per connection user: `remote_tmp = ~/.ansible/tmp` expands `~` to the remote user's home, so `devops` runs use `/home/devops/.ansible/tmp` and root runs use `/root/.ansible/tmp` and never collide. The temp dir is created as the connection user before `become` elevates to root, so root task privileges do not help if that user cannot write the path. If a run ever fails with `Failed to create temporary directory`, check ownership of the offending path; the legacy shared `/tmp/ansible-remote` (root-owned mode 700 from an old root run) can simply be removed on the host: `rm -rf /tmp/ansible-remote`.
+
+Runtime and app deployment stop existing Pharos services before migrations or promotion. The HA monitor stops before the runtime so it cannot restart a writer during the cutover. For coordinated runtime and app updates, include the deployment roles in one play and defer restart handlers until all staged bundles are promoted. Validate the exact release locally and retain pre-deployment data backups before this cutover.

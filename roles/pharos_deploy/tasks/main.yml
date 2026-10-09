@@ -66,6 +66,16 @@
       ExecStartPre=/usr/bin/install -d -o pharos -g www-data -m 2750 /run/pharos
   notify: Restart Pharos services
 
+- name: Read existing services before runtime package installation
+  ansible.builtin.service_facts:
+
+- name: Stop existing Pharos services before runtime package installation
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: stopped
+  loop: "{{ pharos_deploy_services | reverse | list }}"
+  when: item in ansible_facts.services
+
 - name: Install Pharos package from staged repository
   shell: |
     set -e
