@@ -1,0 +1,21 @@
+- name: Plan or deploy the isolated native subscription service
+  hosts: web0
+  become: true
+  gather_facts: false
+  vars:
+    pharos_access_apply: false
+  tags: pharos_access
+  tasks:
+    - name: Describe the scoped access-service deployment
+      ansible.builtin.debug:
+        msg: |
+          Deploy only the locally validated Linux access-service binary and browser assets.
+          Create a separate pharos-access-qa Keycloak realm using authenticated SMTP.
+          Enable pharos-access.service with persistent external state and loopback port 7624.
+          Preserve the existing Pharos runtime, capture realm, Nginx sites and DNS.
+          Public HTTPS and live Stripe activation require their separate configuration.
+          Apply requested: {{ pharos_access_apply | bool }}.
+    - name: Deploy the explicitly requested validated access service
+      ansible.builtin.include_role:
+        name: pharos_access
+      when: pharos_access_apply | bool and not ansible_check_mode

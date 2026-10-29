@@ -400,3 +400,23 @@ Local acceptance supplies SSH reverse forwarding from those remote loopback endp
 Server resilience acceptance is complete by the operator's instruction; the acceptance report distinguishes that decision from agent-observed checks.
 
 The authentication tenant logs only method, path, status and timing; query strings, action tokens, cookies and request bodies are excluded from its dedicated access log.
+
+
+## Native subscription service on QA
+
+The standalone access service is deployed separately from the shared Pharos runtime. Run pharos_access.yml with no apply variable to inspect its scope. The playbook preserves the existing runtime, capture realm, Nginx tenants and DNS. Its dedicated pharos-access-qa realm uses authenticated Brevo SMTP; its application listener binds only 127.0.0.1:7624. This initial QA profile uses genuine Stripe sandbox credentials and does not enable live billing.
+
+Before deployment, build the exact Linux x86_64 GNU binary locally, run non-release check, targeted tests and strict Clippy before the optimized build, then execute the fresh Linux binary in isolated deployment staging. The authenticated Linux acceptance must pass native Keycloak provisioning, captured activation, OIDC, policy enforcement, actual unpaid Stripe sandbox Checkout and restart persistence. Record binary SHA-256 and gate_passed=true in a private local gate JSON. Host-only tests or a package transfer do not replace this gate.
+
+Provide an owner-only ignored extra-vars JSON with pharos_access_binary, pharos_access_gate, pharos_access_web_root, pharos_access_settings, pharos_access_environment and pharos_access_realm_definition. Environment credentials are PHAROS_PROVISIONER_SECRET, PHAROS_ACCESS_AUTHORIZATION_SECRET, PHAROS_ACCESS_MANAGEMENT_SECRET, PHAROS_STRIPE_SECRET and PHAROS_STRIPE_WEBHOOK_SECRET. Use the declared realm import with an exact localhost:7624 callback, the matching independent provisioner secret and authenticated STARTTLS SMTP. The master administrator password stays in the existing Vault variable and is used only for realm provisioning. Store stable generated application credentials in operator-controlled private storage or Vault before replacing the controller workspace.
+
+```sh
+apb pharos_access.yml -l web0 -t pharos_access
+apb pharos_access.yml -l web0 -t pharos_access -e @dist/qa-access-private/deployment.json -e pharos_access_apply=true
+```
+
+The service runs as pharos-access with a read-only system, private temporary directory, bounded memory/tasks and no capabilities. Its private credentials are in /etc/pharos-access/service.env, host settings in /etc/pharos-access/service.json, and durable purchases in /var/lib/pharos-access/subscriptions.sqlite3. Releases live under /opt/pharos-access/releases with a current symlink. Promotion checks readiness twice; a failed promotion restores the previous binary link and private configuration when present. Keep previous release directories until acceptance succeeds. Service lifecycle uses systemctl start, stop or restart pharos-access.service; enablement persists reboots. Inspect logs with journalctl -u pharos-access.service without exporting tokens or activation URLs.
+
+For manual review, use a recorded detached SSH session forwarding localhost:7624 to the same loopback port on web0. Open http://localhost:7624 and use the real recipient rp@llight.io for an explicitly requested live-mail acceptance. SMTP acceptance confirms submission only; record actual inbox or spam receipt and complete the emailed setup and login round trip separately. Do not reset the existing pharos capture realm to change this QA realm's SMTP.
+
+Public HTTPS exposure and production Stripe webhooks need an agreed dedicated hostname, reviewed DNS/site changes, trusted TLS, a live Stripe key and the corresponding production endpoint signing secret. This loopback sandbox profile deliberately refuses live API keys. Do not record production payment acceptance from a synthetic signature, CLI test forwarding or a sandbox transaction. Main and the original mixed feature branch are not merged by deployment.

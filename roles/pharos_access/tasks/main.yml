@@ -1,0 +1,263 @@
+- name: Inspect the exact controller-built Linux binary
+  ansible.builtin.stat:
+    path: "{{ pharos_access_binary }}"
+    checksum_algorithm: sha256
+  delegate_to: localhost
+  become: false
+  register: pharos_access_local_binary
+
+- name: Inspect the exact controller-built browser assets
+  ansible.builtin.stat:
+    path: "{{ pharos_access_web_root }}/{{ item }}"
+    checksum_algorithm: sha256
+  loop: [index.html, app.js, style.css, settings.html, settings.js]
+  delegate_to: localhost
+  become: false
+  register: pharos_access_local_web
+
+- name: Require the validated browser artifact identity
+  ansible.builtin.assert:
+    that:
+      - item.stat.isreg | default(false)
+      - item.stat.checksum == (lookup('ansible.builtin.file', pharos_access_gate) | from_json).web_sha256[item.item]
+  loop: "{{ pharos_access_local_web.results }}"
+
+- name: Require the completed exact-target local deployment gate
+  ansible.builtin.assert:
+    that:
+      - pharos_access_local_binary.stat.isreg | default(false)
+      - (lookup('ansible.builtin.file', pharos_access_gate) | from_json).gate_passed | bool
+      - (lookup('ansible.builtin.file', pharos_access_gate) | from_json).binary_sha256 == pharos_access_local_binary.stat.checksum
+      - (lookup('ansible.builtin.file', pharos_access_gate) | from_json).artifact_sha256 is match('^[a-f0-9]{64}$')
+      - pharos_access_origin == 'http://localhost:7624'
+      - pharos_access_issuer == 'https://auth.llight.io/realms/pharos-access-qa'
+      - pharos_access_realm_definition.realm == 'pharos-access-qa'
+      - pharos_access_realm_definition.smtpServer.auth == 'true'
+      - pharos_access_realm_definition.smtpServer.starttls == 'true'
+      - pharos_access_realm_definition.smtpServer.host == 'smtp-relay.brevo.com'
+      - pharos_access_realm_definition.smtpServer.port == '587'
+      - pharos_access_realm_definition.smtpServer.user | length > 0
+      - pharos_access_realm_definition.smtpServer.password | length > 0
+      - pharos_access_realm_definition.clients[0].redirectUris == [pharos_access_origin ~ '/__pharos/keycloak/callback']
+      - pharos_access_realm_definition.clients[0].attributes['pkce.code.challenge.method'] == 'S256'
+      - pharos_access_realm_definition.clients[1].secret == pharos_access_environment.PHAROS_PROVISIONER_SECRET
+      - pharos_access_settings.payment_mode == 'stripe'
+      - pharos_access_settings.email_delivery == 'smtp'
+      - pharos_access_environment.keys() | sort == ['PHAROS_ACCESS_AUTHORIZATION_SECRET', 'PHAROS_ACCESS_MANAGEMENT_SECRET', 'PHAROS_PROVISIONER_SECRET', 'PHAROS_STRIPE_SECRET', 'PHAROS_STRIPE_WEBHOOK_SECRET']
+      - pharos_access_environment.PHAROS_PROVISIONER_SECRET is match('^[a-zA-Z0-9]{32,128}$')
+      - pharos_access_environment.PHAROS_ACCESS_AUTHORIZATION_SECRET is match('^[a-zA-Z0-9]{32,128}$')
+      - pharos_access_environment.PHAROS_ACCESS_MANAGEMENT_SECRET is match('^[a-zA-Z0-9]{32,128}$')
+      - pharos_access_environment.PHAROS_STRIPE_SECRET is match('^(sk|rk)_test_[a-zA-Z0-9]+$')
+      - pharos_access_environment.PHAROS_STRIPE_WEBHOOK_SECRET is match('^whsec_[a-zA-Z0-9_]{16,128}$')
+    fail_msg: Require the passing local Linux gate and explicit isolated QA configuration; live keys require a separately reviewed public deployment.
+  no_log: true
+
+- name: Resolve the immutable release path
+  ansible.builtin.set_fact:
+    pharos_access_release: "/opt/pharos-access/releases/{{ (lookup('ansible.builtin.file', pharos_access_gate) | from_json).artifact_sha256 }}"
+
+- name: Create the unprivileged service identity
+  ansible.builtin.user:
+    name: pharos-access
+    system: true
+    create_home: false
+    home: /var/lib/pharos-access
+    shell: /usr/sbin/nologin
+
+- name: Create immutable release and private configuration directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: "{{ item.group | default('root') }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - {path: /etc/pharos-access, group: pharos-access, mode: "0750"}
+    - {path: "{{ pharos_access_release }}/bin", mode: "0755"}
+    - {path: "{{ pharos_access_release }}/web", mode: "0755"}
+
+- name: Install the validated Linux binary
+  ansible.builtin.copy:
+    src: "{{ pharos_access_binary }}"
+    dest: "{{ pharos_access_release }}/bin/pharos_access_service"
+    owner: root
+    group: root
+    mode: "0755"
+  register: pharos_access_installed_binary
+
+- name: Install the app-owned browser artifact
+  ansible.builtin.copy:
+    src: "{{ pharos_access_web_root }}/{{ item }}"
+    dest: "{{ pharos_access_release }}/web/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: [index.html, app.js, style.css, settings.html, settings.js]
+  register: pharos_access_installed_web
+
+- name: Authenticate only for scoped realm provisioning
+  ansible.builtin.uri:
+    url: https://auth.llight.io/realms/master/protocol/openid-connect/token
+    method: POST
+    body_format: form-urlencoded
+    body:
+      client_id: admin-cli
+      grant_type: password
+      username: "{{ keycloak_admin_user }}"
+      password: "{{ keycloak_admin_password }}"
+    follow_redirects: none
+    return_content: true
+  register: pharos_access_admin
+  no_log: true
+
+- name: Inspect only the dedicated QA realm
+  ansible.builtin.uri:
+    url: https://auth.llight.io/admin/realms/pharos-access-qa
+    headers:
+      Authorization: "Bearer {{ pharos_access_admin.json.access_token }}"
+    follow_redirects: none
+    status_code: [200, 404]
+    return_content: true
+  register: pharos_access_realm
+  no_log: true
+
+- name: Create the independent QA realm without editing the capture realm
+  ansible.builtin.uri:
+    url: https://auth.llight.io/admin/realms
+    method: POST
+    headers:
+      Authorization: "Bearer {{ pharos_access_admin.json.access_token }}"
+    body_format: json
+    body: "{{ pharos_access_realm_definition }}"
+    status_code: 201
+    follow_redirects: none
+  when: pharos_access_realm.status == 404
+  no_log: true
+
+- name: Require the dedicated realm provisioning credential before promotion
+  ansible.builtin.uri:
+    url: https://auth.llight.io/realms/pharos-access-qa/protocol/openid-connect/token
+    method: POST
+    body_format: form-urlencoded
+    body:
+      client_id: pharos-provisioner
+      grant_type: client_credentials
+      client_secret: "{{ pharos_access_environment.PHAROS_PROVISIONER_SECRET }}"
+    follow_redirects: none
+  no_log: true
+
+- name: Inspect the previous release for rollback
+  ansible.builtin.stat:
+    path: /opt/pharos-access/current
+    follow: false
+  register: pharos_access_previous
+
+- name: Inspect existing service configuration
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop: [/etc/pharos-access/service.json, /etc/pharos-access/service.env, /etc/systemd/system/pharos-access.service]
+  register: pharos_access_previous_files
+
+- name: Preserve previous private configuration for rollback
+  ansible.builtin.slurp:
+    src: "{{ item.item }}"
+  when: item.stat.exists
+  loop: "{{ pharos_access_previous_files.results }}"
+  register: pharos_access_rollback_files
+  no_log: true
+
+- name: Promote the access service with readiness rollback
+  block:
+    - name: Write the host-owned runtime configuration
+      ansible.builtin.copy:
+        content: "{{ pharos_access_settings | combine({'listen': '127.0.0.1:7624', 'origin': pharos_access_origin, 'issuer': pharos_access_issuer, 'local': false, 'database': '/var/lib/pharos-access/subscriptions.sqlite3', 'web_root': '/opt/pharos-access/current/web'}) | to_nice_json }}"
+        dest: /etc/pharos-access/service.json
+        owner: root
+        group: pharos-access
+        mode: "0640"
+      register: pharos_access_config
+      no_log: true
+
+    - name: Write private environment credentials
+      ansible.builtin.copy:
+        content: |
+          {% for name, value in pharos_access_environment.items() %}
+          {{ name }}={{ value | to_json }}
+          {% endfor %}
+        dest: /etc/pharos-access/service.env
+        owner: root
+        group: root
+        mode: "0600"
+      register: pharos_access_env
+      no_log: true
+
+    - name: Promote the immutable release
+      ansible.builtin.file:
+        src: "{{ pharos_access_release }}"
+        dest: /opt/pharos-access/current
+        state: link
+      register: pharos_access_link
+
+    - name: Install the sandboxed service unit
+      ansible.builtin.template:
+        src: pharos-access.service.j2
+        dest: /etc/systemd/system/pharos-access.service
+        owner: root
+        group: root
+        mode: "0644"
+      register: pharos_access_unit
+
+    - name: Start the native service and enable reboot persistence
+      ansible.builtin.systemd_service:
+        name: pharos-access.service
+        enabled: true
+        daemon_reload: "{{ pharos_access_unit.changed }}"
+        state: "{{ 'restarted' if pharos_access_link.changed or pharos_access_config.changed or pharos_access_env.changed or pharos_access_unit.changed or pharos_access_installed_binary.changed or pharos_access_installed_web.changed else 'started' }}"
+
+    - name: Require native readiness after service promotion
+      ansible.builtin.uri:
+        url: http://127.0.0.1:7624/health/ready
+      register: pharos_access_ready
+      until: pharos_access_ready.status == 200
+      retries: 10
+      delay: 2
+
+    - name: Require a second successful readiness response
+      ansible.builtin.uri:
+        url: http://127.0.0.1:7624/health/ready
+
+  rescue:
+    - name: Stop the failed new service
+      ansible.builtin.systemd_service:
+        name: pharos-access.service
+        state: stopped
+        enabled: "{{ pharos_access_previous.stat.islnk | default(false) }}"
+
+    - name: Restore previous private configuration
+      ansible.builtin.copy:
+        content: "{{ item.content | b64decode }}"
+        dest: "{{ item.item.item }}"
+        owner: root
+        group: "{{ 'pharos-access' if item.item.item.endswith('.json') else 'root' }}"
+        mode: "{{ '0640' if item.item.item.endswith('.json') else ('0644' if item.item.item.endswith('.service') else '0600') }}"
+      when: item.content is defined
+      loop: "{{ pharos_access_rollback_files.results }}"
+      no_log: true
+
+    - name: Restore the previous release
+      ansible.builtin.file:
+        src: "{{ pharos_access_previous.stat.lnk_source }}"
+        dest: /opt/pharos-access/current
+        state: link
+      when: pharos_access_previous.stat.islnk | default(false)
+
+    - name: Restart the previous release
+      ansible.builtin.systemd_service:
+        name: pharos-access.service
+        state: started
+        daemon_reload: true
+      when: pharos_access_previous.stat.islnk | default(false)
+
+    - name: Report the failed promotion
+      ansible.builtin.fail:
+        msg: Access-service promotion failed; previous release and configuration restored when available. Existing shared services were not replaced.

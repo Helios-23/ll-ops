@@ -1,0 +1,8 @@
+pharos_access_binary: ""
+pharos_access_gate: ""
+pharos_access_web_root: ""
+pharos_access_origin: http://localhost:7624
+pharos_access_issuer: https://auth.llight.io/realms/pharos-access-qa
+pharos_access_environment: {}
+pharos_access_realm_definition: {}
+pharos_access_settings: {}
