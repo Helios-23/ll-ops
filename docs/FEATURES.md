@@ -10,6 +10,7 @@ Use this as the quick command map. The **Complete Tag Index** and **Role Notes**
 
 | Playbook | Scope | Flow | Main tags | Focus tags |
 | --- | --- | --- | --- | --- |
+| `keycloak_application.yml` | `web0` shared QA/production host | plan by default; scoped subscription realm and clients, Vault provisioner secret, and Docker-private SMTP-to-SSH capture forwarding | `keycloak_application` | `keycloak_application` |
 | `keycloak.yml` | `web0` shared QA/production host | plan by default; opt-in Docker Engine and dedicated HTTPS Keycloak/PostgreSQL service installation using locally staged images and Vault credentials; dedicated auth Nginx TLS site and webroot certificate issuance | `keycloak` | `keycloak` |
 | `setup_pharos.yml` | `web0` | baseline the public web host, nginx, TLS, and the Pharos edge vhost | `web_server` | `harden`, `nginx`, `certbot_tls`, `pharos`, `pharos_nginx` |
 | `deploy.yml` | `web0` | deploy either the Pharos runtime package or a single Pharos app bundle | `pharos_runtime`, `pharos_app` | `pharos_runtime`, `pharos_app` |
@@ -112,7 +113,7 @@ apb cloud_bootstrap.yml -e cloud_bootstrap_provider=azure
 
 | Tags |
 | --- |
-| `admin`, `cloud_bootstrap`, `kymstr`, `keycloak`, `pharos_app`, `pharos_runtime`, `terraform`, `web_server` |
+| `admin`, `cloud_bootstrap`, `kymstr`, `keycloak`, `keycloak_application`, `pharos_app`, `pharos_runtime`, `terraform`, `web_server` |
 
 ### Role-level tags
 
@@ -135,6 +136,7 @@ apb cloud_bootstrap.yml -e cloud_bootstrap_provider=azure
 | `roles/certbot_tls` | `certbot_tls` | ACME/TLS issuance and renewal support for nginx-hosted services |
 | `roles/docker_engine` | none | installs Docker Engine and Compose prerequisites on build-capable hosts and the dedicated QA Keycloak host |
 | `roles/keycloak` | inherited `keycloak` | Vault credentials, canonical `keycloak_admin_user`, pinned local images, PostgreSQL volume, HTTPS Compose stack and enabled systemd service; no Pharos deployment |
+| `roles/keycloak_application` | inherited `keycloak_application` | exact browser callbacks, separate confidential service account, existing realm identity preservation, and private capture forwarder; no native Pharos deployment |
 | `roles/keycloak_nginx` | inherited `keycloak` | dedicated auth HTTP/HTTPS site, webroot ACME issuance without stopping Nginx, verified HTTPS upstream, certificate renewal hook and site rollback on invalid configuration |
 | `roles/fail2ban` | `fail2ban` | extra tags: `fail2ban_sshd_invalid_user`, `reverse_proxy_fail2ban`; configure jails, filters, and helper scripts; run immediately after `harden` |
 | `roles/harden` | `harden` | extra tags: `ipv4-forward`, `port_knock` |

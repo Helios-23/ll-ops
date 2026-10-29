@@ -1,0 +1,21 @@
+[Unit]
+Description=Private Keycloak capture SMTP forwarding
+After=keycloak.service
+Requires=keycloak.service
+
+[Service]
+ExecStart=/usr/bin/python3 /usr/local/lib/keycloak-capture/capture_forward.py
+DynamicUser=yes
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_INET
+MemoryMax=64M
+TasksMax=32
+
+[Install]
+WantedBy=multi-user.target

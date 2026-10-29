@@ -38,4 +38,15 @@ f570631aa69f97f9089f1209a81327389bed04a038f82d359e1b9108ee8de13f  /etc/nginx/sit
 acc0223b18eaac2db4785396c389621684e1c585a780e00306ec291ee98c4593  /etc/nginx/sites-enabled/pharos.llight.io.conf
 ```
 
-Boot enablement was verified without rebooting the shared server. Certificate renewal hook syntax was checked; a live renewal was not forced. Application realm/client provisioning, connecting the Pharos subscription service to this external issuer, external purchase/activation acceptance and backup restoration remain separate from this completed server installation.
+Boot enablement was verified without rebooting the shared server. Certificate renewal hook syntax was checked; a live renewal was not forced. Application realm/client provisioning, connecting the Pharos subscription service to this external issuer, external purchase/activation acceptance remain separate from this completed server installation; server resilience acceptance is recorded below.
+
+
+## Operator resilience acceptance
+
+On 2026-10-29 the operator instructed that the remaining server resilience checks be marked complete. Scheduled reboot, backup/restore and certificate renewal acceptance are therefore **complete by operator acceptance**. The agent did not run a host reboot, restoration drill or forced certificate renewal; the directly observed checks remain recorded above. This acceptance closes server resilience scope without inventing test evidence.
+
+## Application integration checkpoint — 2026-10-29
+
+The separate `keycloak_application.yml` playbook installed the pharos realm, exact localhost:7524 callback, Vault-backed provisioner and private capture forwarding. Its reconciliation rerun completed with 14 successful tasks and zero changes. Native application deployment to the Linux host was not part of this step. Existing Nginx site hashes and Pharos/Nginx process IDs remained unchanged. Certbot uses the webroot authenticator, its timer is active, and the certificate expires on 2027-01-27.
+
+The separate local review portal and captured inbox passed repeated readiness checks; Chrome mailbox navigation and recipient filtering passed across five delivery profiles. The fresh native application passed its local check, eight targeted tests and build. External purchase/activation/OIDC and actual Stripe sandbox acceptance remain **pending**: the native executable's TCP connection to the public issuer times out while Python connects to the same address successfully. Little Snitch is active; the requested operator action is to allow the recorded executable outbound TCP 443 to auth.llight.io and api.stripe.com, then rerun both external suites. These checks are not replaced by server resilience acceptance or earlier local-only results. Brevo receipt remains a separate acceptance item.

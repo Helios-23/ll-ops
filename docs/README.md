@@ -11,7 +11,7 @@ Documentation root for the `ops` repo.
 
 ## Specialist docs
 
-- [KEYCLOAK_QA_ACCEPTANCE.md](KEYCLOAK_QA_ACCEPTANCE.md): verified shared-host auth tenant rollout and remaining application acceptance scope
+- [KEYCLOAK_QA_ACCEPTANCE.md](KEYCLOAK_QA_ACCEPTANCE.md): verified shared-host auth tenant rollout, operator resilience acceptance and application integration scope
 
 - [infra-consulting-spec-single-machine.md](infra-consulting-spec-single-machine.md): infrastructure planning notes
 

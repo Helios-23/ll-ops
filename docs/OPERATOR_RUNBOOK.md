@@ -383,3 +383,20 @@ Operator authorization covers adding the auth tenant on the shared host. Existin
 
 
 `tests/check_keycloak_live.py` runs on the shared host as root using the retained private credentials. It never prints passwords or tokens and always verifies the public certificate. Its `inspect` action checks issuer and the configured administrator; `create` makes a uniquely named disposable acceptance realm/account, `verify` proves persistence after a controlled `keycloak.service` stop/start, and `cleanup` removes only that owned realm/state. Pass `--admin-user ll-admin` for this host. Never reboot or restart Nginx/Pharos for this identity-service persistence check.
+
+
+### Subscription application integration
+
+`keycloak_application.yml` configures the external `pharos` realm on `auth.llight.io`. Its public browser client uses authorization code flow with S256 PKCE and the exact local review callback `http://localhost:7524/__pharos/keycloak/callback`; logout returns to `http://localhost:7524/accounts/login/`. Its confidential `pharos-provisioner` client has user-management roles only in this application realm. Its independent credential is stored as `vault.keycloak.provisioner_secret`. The application receives no master-realm administrator password.
+
+The `keycloak_application_realm_source` variable identifies the reviewed local Pharos realm JSON. For the feature worktree, pass its absolute `containers/keycloak/pharos-realm.json` path; the normal default is the sibling `pharos` checkout. Plan first, then opt in with `keycloak_application_apply=true`. The helper creates a missing realm once, updates only declared settings/clients on rerun, preserves accounts and signing keys, and refuses an unplanned provisioner-secret rotation or missing-client recreation.
+
+While Brevo remains unavailable, `keycloak-capture-forward.service` listens only on the existing private Docker gateway. It accepts only that Docker subnet and forwards capture SMTP to loopback SSH tunnel endpoints: private port 21126 to 21125 for disposable acceptance, and private port 21226 to 21225 for manual review. It is bounded to eight concurrent connections per endpoint and 512 KiB per SMTP connection, runs as a dynamic unprivileged user, and exposes no public SMTP or mailbox listener. It has no real-relay configuration. Forwarding fails visibly while the local SSH tunnel/inbox is absent; native purchase delivery retry remains available.
+
+Local acceptance supplies SSH reverse forwarding from those remote loopback endpoints to the isolated local capture listeners. Manual review uses a separate local portal/inbox at ports 7524/8225 and preserves the original 7324/8025 environment. Actual Stripe sandbox requests use test credentials, and `local=false` enforces the external issuer transport profile. This does not deploy or replace the shared Pharos runtime on Linux.
+
+`keycloak_application_external_config` optionally exports owner-only diagnostic administration/provisioner settings into an explicitly supplied local ignored file. Use it only for acceptance and keep it out of logs and source control. The native service configuration receives only the realm provisioner secret, its own policy/management credentials and Stripe test credentials.
+
+Server resilience acceptance is complete by the operator's instruction; the acceptance report distinguishes that decision from agent-observed checks.
+
+The authentication tenant logs only method, path, status and timing; query strings, action tokens, cookies and request bodies are excluded from its dedicated access log.

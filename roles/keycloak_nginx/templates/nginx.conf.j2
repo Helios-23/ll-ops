@@ -1,3 +1,6 @@
+{% if keycloak_nginx_tls %}
+log_format keycloak_safe '$remote_addr $status $request_method $uri $body_bytes_sent $request_time';
+{% endif %}
 server {
     listen 80;
     server_name {{ keycloak_nginx_hostname }};
@@ -22,7 +25,7 @@ server {
     ssl_certificate_key /etc/letsencrypt/live/{{ keycloak_nginx_hostname }}/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
     client_max_body_size 2m;
-    access_log /var/log/nginx/keycloak.access.log;
+    access_log /var/log/nginx/keycloak.access.log keycloak_safe;
     error_log /var/log/nginx/keycloak.error.log;
     location / {
         proxy_pass https://127.0.0.1:{{ keycloak_https_port }};

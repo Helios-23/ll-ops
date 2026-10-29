@@ -1,0 +1,19 @@
+- name: Configure subscription clients on the shared Keycloak server
+  hosts: web0
+  become: true
+  gather_facts: false
+  vars:
+    keycloak_application_apply: false
+  tags: keycloak_application
+  tasks:
+    - name: Describe the isolated application configuration
+      ansible.builtin.debug:
+        msg: |
+          Configure the pharos realm and exact localhost subscription callback.
+          Install a Docker-network-only capture forwarder to private SSH tunnel endpoints.
+          No DNS, Nginx, Pharos runtime, existing local accounts or server restart changes.
+          Apply requested: {{ keycloak_application_apply | bool }}.
+    - name: Configure explicitly requested application integration
+      ansible.builtin.include_role:
+        name: keycloak_application
+      when: keycloak_application_apply | bool and not ansible_check_mode
