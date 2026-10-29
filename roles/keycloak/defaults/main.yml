@@ -1,0 +1,14 @@
+keycloak_directory: /opt/keycloak
+keycloak_hostname: ""
+keycloak_https_port: 8443
+keycloak_bind_address: 127.0.0.1
+# Existing readable files on the target; the role does not issue or replace certificates.
+keycloak_tls_directory: /etc/keycloak/tls
+keycloak_admin_username: qa-admin
+keycloak_service_state: started
+keycloak_service_enabled: true
+keycloak_image: quay.io/keycloak/keycloak:26.8.1@sha256:a78d6b79572168cb25886b80a8b5b8d4ed4390743e3eecb810538683e209dd6b
+keycloak_postgres_image: postgres:16-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
+# Stage trusted local docker-save archives on the target before apply when necessary.
+# Archives are loaded without registry pulls; entries are absolute target paths.
+keycloak_image_archives: []

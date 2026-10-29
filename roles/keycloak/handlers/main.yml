@@ -1,0 +1,5 @@
+- name: Restart Keycloak service
+  ansible.builtin.systemd_service:
+    name: keycloak.service
+    state: restarted
+  when: keycloak_service_state == 'started'

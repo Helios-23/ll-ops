@@ -10,6 +10,7 @@ Use this as the quick command map. The **Complete Tag Index** and **Role Notes**
 
 | Playbook | Scope | Flow | Main tags | Focus tags |
 | --- | --- | --- | --- | --- |
+| `keycloak.yml` | `qa` | plan by default; opt-in Docker Engine and dedicated HTTPS Keycloak/PostgreSQL service installation using locally staged images | `keycloak` | `keycloak` |
 | `setup_pharos.yml` | `web0` | baseline the public web host, nginx, TLS, and the Pharos edge vhost | `web_server` | `harden`, `nginx`, `certbot_tls`, `pharos`, `pharos_nginx` |
 | `deploy.yml` | `web0` | deploy either the Pharos runtime package or a single Pharos app bundle | `pharos_runtime`, `pharos_app` | `pharos_runtime`, `pharos_app` |
 | `build.yml` | `localhost` | uses `../pharos/VERSION` as the automation-facing release version surface, enforces sync with the Pharos root `Cargo.toml` workspace package version, optionally bumps both when `pharos_build_release_version` is set to a newer value, then builds Pharos release artifacts via Docker Compose, optionally for one target; the default all-target build currently skips `macos-universal` because the current cross image is broken for that target | `pharos_build` | `pharos_build` |
@@ -111,7 +112,7 @@ apb cloud_bootstrap.yml -e cloud_bootstrap_provider=azure
 
 | Tags |
 | --- |
-| `admin`, `cloud_bootstrap`, `kymstr`, `pharos_app`, `pharos_runtime`, `terraform`, `web_server` |
+| `admin`, `cloud_bootstrap`, `kymstr`, `keycloak`, `pharos_app`, `pharos_runtime`, `terraform`, `web_server` |
 
 ### Role-level tags
 
@@ -132,7 +133,8 @@ apb cloud_bootstrap.yml -e cloud_bootstrap_provider=azure
 | `roles/admin` | none | task tag: `update_reboot` |
 | `roles/cloud_bootstrap` | `cloud_bootstrap` | extra tags: `cloud_gcp`, `cloud_aws`, `cloud_azure`; provider-specific bootstrap for Terraform service accounts and credentials; controller-side only |
 | `roles/certbot_tls` | `certbot_tls` | ACME/TLS issuance and renewal support for nginx-hosted services |
-| `roles/docker_engine` | none | installs Docker Engine and Compose prerequisites on build-capable hosts |
+| `roles/docker_engine` | none | installs Docker Engine and Compose prerequisites on build-capable hosts and the dedicated QA Keycloak host |
+| `roles/keycloak` | inherited `keycloak` | private credentials, pinned local images, PostgreSQL volume, HTTPS Compose stack and enabled systemd service; no Pharos deployment |
 | `roles/fail2ban` | `fail2ban` | extra tags: `fail2ban_sshd_invalid_user`, `reverse_proxy_fail2ban`; configure jails, filters, and helper scripts; run immediately after `harden` |
 | `roles/harden` | `harden` | extra tags: `ipv4-forward`, `port_knock` |
 | `roles/keymaster` | none | key and certificate workflows are documented above under Role Task Areas |

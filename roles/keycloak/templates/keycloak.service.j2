@@ -1,0 +1,19 @@
+[Unit]
+Description=Dedicated Keycloak Compose service
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+PartOf=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory={{ keycloak_directory }}
+ExecStart=/usr/bin/docker compose --project-name keycloak --file {{ keycloak_directory }}/compose.yml up --detach --wait --wait-timeout 240 --pull never
+ExecStop=/usr/bin/docker compose --project-name keycloak --file {{ keycloak_directory }}/compose.yml down --timeout 60
+TimeoutStartSec=300
+TimeoutStopSec=150
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

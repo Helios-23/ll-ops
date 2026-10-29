@@ -1,0 +1,37 @@
+- name: Plan or install the dedicated QA Keycloak service
+  hosts: qa
+  become: true
+  gather_facts: false
+  vars:
+    keycloak_apply: false
+  tags: keycloak
+  tasks:
+    - name: Describe the requested service changes
+      ansible.builtin.debug:
+        msg: |
+          Target: {{ inventory_hostname }}
+          Install Docker through roles/docker_engine; install an isolated Keycloak/PostgreSQL Compose stack.
+          Enable keycloak.service for reboot persistence; preserve database volumes on service stop.
+          No Pharos deployment, DNS, firewall, nginx, or existing service changes.
+          Apply requested: {{ keycloak_apply | bool }}; check mode: {{ ansible_check_mode }}.
+
+    - name: Apply the explicitly requested service installation
+      when:
+        - keycloak_apply | bool
+        - not ansible_check_mode
+      block:
+        - name: Gather operating system facts
+          ansible.builtin.setup:
+
+        - name: Validate Keycloak settings before changing Docker
+          ansible.builtin.include_role:
+            name: keycloak
+            tasks_from: preflight
+
+        - name: Install Docker using the existing role
+          ansible.builtin.include_role:
+            name: docker_engine
+
+        - name: Install the dedicated Keycloak service
+          ansible.builtin.include_role:
+            name: keycloak

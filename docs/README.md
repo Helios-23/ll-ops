@@ -4,7 +4,7 @@ Documentation root for the `ops` repo.
 
 ## Core operator docs
 
-- [OPERATOR_RUNBOOK.md](OPERATOR_RUNBOOK.md): top-level operating workflow for the current environment
+- [OPERATOR_RUNBOOK.md](OPERATOR_RUNBOOK.md): top-level operating workflow, including the dedicated QA Keycloak Compose service
 - [FEATURES.md](FEATURES.md): authoritative playbook, role, and tag inventory
 - [SETUP_GUIDE.md](SETUP_GUIDE.md): workstation setup, checkout, and credential bootstrap
 - [VAULT_COMMIT_GUARD_PLAN.md](VAULT_COMMIT_GUARD_PLAN.md): implementation plan for local and GitHub enforcement of required Ansible Vault encryption
