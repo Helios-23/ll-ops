@@ -10,7 +10,7 @@ Use this as the quick command map. The **Complete Tag Index** and **Role Notes**
 
 | Playbook | Scope | Flow | Main tags | Focus tags |
 | --- | --- | --- | --- | --- |
-| `keycloak.yml` | `qa` | plan by default; opt-in Docker Engine and dedicated HTTPS Keycloak/PostgreSQL service installation using locally staged images | `keycloak` | `keycloak` |
+| `keycloak.yml` | `web0` shared QA/production host | plan by default; opt-in Docker Engine and dedicated HTTPS Keycloak/PostgreSQL service installation using locally staged images and Vault credentials | `keycloak` | `keycloak` |
 | `setup_pharos.yml` | `web0` | baseline the public web host, nginx, TLS, and the Pharos edge vhost | `web_server` | `harden`, `nginx`, `certbot_tls`, `pharos`, `pharos_nginx` |
 | `deploy.yml` | `web0` | deploy either the Pharos runtime package or a single Pharos app bundle | `pharos_runtime`, `pharos_app` | `pharos_runtime`, `pharos_app` |
 | `build.yml` | `localhost` | uses `../pharos/VERSION` as the automation-facing release version surface, enforces sync with the Pharos root `Cargo.toml` workspace package version, optionally bumps both when `pharos_build_release_version` is set to a newer value, then builds Pharos release artifacts via Docker Compose, optionally for one target; the default all-target build currently skips `macos-universal` because the current cross image is broken for that target | `pharos_build` | `pharos_build` |

@@ -71,10 +71,10 @@
     fail_msg: The database volume exists but credentials.json is missing. Restore the original protected credentials before proceeding.
   when: not keycloak_credentials_file.stat.exists
 
-- name: Generate credentials for the first installation
+- name: Retain vault credentials for the first installation
   ansible.builtin.copy:
     dest: "{{ keycloak_directory }}/credentials.json"
-    content: "{{ {'admin_password': lookup('ansible.builtin.password', '/dev/null', length=48, chars=['ascii_letters', 'digits']), 'database_password': lookup('ansible.builtin.password', '/dev/null', length=48, chars=['ascii_letters', 'digits'])} | to_nice_json }}"
+    content: "{{ {'admin_password': keycloak_admin_password, 'database_password': keycloak_database_password} | to_nice_json }}"
     owner: root
     group: root
     mode: "0600"
@@ -86,6 +86,14 @@
   ansible.builtin.slurp:
     src: "{{ keycloak_directory }}/credentials.json"
   register: keycloak_credentials_raw
+  no_log: true
+
+- name: Prevent accidental password changes without database rotation
+  ansible.builtin.assert:
+    that:
+      - (keycloak_credentials_raw.content | b64decode | from_json).admin_password == keycloak_admin_password
+      - (keycloak_credentials_raw.content | b64decode | from_json).database_password == keycloak_database_password
+    fail_msg: Vault values differ from the installed credentials. Restore the retained values or use an explicit credential rotation workflow.
   no_log: true
 
 - name: Render private service configuration

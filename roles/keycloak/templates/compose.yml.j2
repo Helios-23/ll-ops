@@ -1,6 +1,7 @@
 name: keycloak
 services:
   database:
+    mem_limit: {{ keycloak_postgres_memory_limit | to_json }}
     image: {{ keycloak_postgres_image | to_json }}
     pull_policy: never
     restart: unless-stopped
@@ -17,6 +18,7 @@ services:
       driver: json-file
       options: {max-size: 10m, max-file: '3'}
   keycloak:
+    mem_limit: {{ keycloak_memory_limit | to_json }}
     image: {{ keycloak_image | to_json }}
     pull_policy: never
     restart: unless-stopped

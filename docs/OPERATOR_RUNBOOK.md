@@ -301,7 +301,7 @@ Runtime deployment validates required configuration before stopping services. De
 
 ## Dedicated QA Keycloak service
 
-`keycloak.yml` targets only the `qa` inventory group. Identify the QA host explicitly; do not infer that the existing production `web0` host is QA. The playbook defaults to plan-only execution and never deploys a Pharos runtime or app. Docker installation reuses `roles/docker_engine`; the isolated `roles/keycloak` owns the Compose stack and `keycloak.service`.
+`keycloak.yml` targets `web0`, which the operator has confirmed is the shared QA/production host. No separate QA inventory group is required. The playbook defaults to plan-only execution and never deploys a Pharos runtime or app. Docker installation reuses `roles/docker_engine`; the isolated `roles/keycloak` owns the Compose stack and `keycloak.service`.
 
 Before apply, provide these host variables (example names must be replaced):
 
@@ -315,14 +315,14 @@ The bind defaults to loopback. A public bind requires deliberate host configurat
 
 Both image references are digest-pinned to locally cached inputs: Keycloak 26.8.1 and PostgreSQL 16 Alpine. Registry pulls are disabled. Transfer reviewed local Docker image archives to the target and optionally list their absolute target paths in `keycloak_image_archives`; ensure the pinned references resolve locally after loading. Missing pinned images stop installation rather than falling back to a registry. Images must match the target architecture. Docker Engine package installation uses the existing role and its official Docker apt repository.
 
-Run from `ops/`, after adding the confirmed QA host to the `qa` group:
+Run from `ops/` against the confirmed shared host:
 
 ```bash
-apb keycloak.yml -l qa0 --check
-apb keycloak.yml -l qa0 -e keycloak_apply=true
+apb keycloak.yml -l web0 --check
+apb keycloak.yml -l web0 -e keycloak_apply=true
 ```
 
-Review the plan before the opt-in apply. `--check` always remains non-mutating, even with the apply variable. A populated inventory host and TLS/image prerequisites are required for the actual installation. Installation waits for database and Keycloak readiness; a failure prevents a successful service start.
+Review the plan before the opt-in apply. `--check` always remains non-mutating, even with the apply variable. Vault credentials and TLS/image prerequisites are required for the actual installation. Installation waits for database and Keycloak readiness; a failure prevents a successful service start.
 
 Service management on the target:
 
@@ -335,9 +335,11 @@ sudo journalctl -u keycloak.service
 sudo docker compose --project-name keycloak --file /opt/keycloak/compose.yml logs --tail 100
 ```
 
+Default container memory limits are 1536 MiB for Keycloak and 512 MiB for PostgreSQL, leaving capacity for the existing shared runtime. Override `keycloak_memory_limit` and `keycloak_postgres_memory_limit` deliberately after checking host capacity.
+
 The systemd unit is enabled at boot. Compose also restarts containers after crashes. Stopping the service removes containers and networks while retaining the named PostgreSQL volume; starting recreates containers using that same database. Do not use `down --volumes`, remove the volume, or change the Compose project name. Reapplying the role defaults to starting and enabling the service; set `keycloak_service_state: stopped` or `keycloak_service_enabled: false` deliberately when required.
 
-Initial admin username is `qa-admin`. The generated bootstrap admin password and database password are retained in root-only `/opt/keycloak/credentials.json`; retrieve them privately with `sudo` on the target. Separate root-only environment files limit which credentials each container receives. Never paste these values into tickets, logs, or tracked variables. Existing credentials are retained on rerun; installation refuses to generate replacement credentials when a retained database volume already exists. Replacing an environment password does not rotate credentials already stored in PostgreSQL or Keycloak. Bootstrap administration is temporary: create a named operator admin and remove the temporary account after first setup, following the Keycloak admin workflow.
+Initial admin username is `qa-admin`. The Vault-provided bootstrap admin password and database password are retained in root-only `/opt/keycloak/credentials.json`; retrieve them privately with `sudo` on the target. Separate root-only environment files limit which credentials each container receives. Never paste these values into tickets, logs, or tracked variables. Existing credentials are retained on rerun; installation refuses to generate replacement credentials when a retained database volume already exists. Replacing an environment password does not rotate credentials already stored in PostgreSQL or Keycloak. Bootstrap administration is temporary: create a named operator admin and remove the temporary account after first setup, following the Keycloak admin workflow.
 
 Before acceptance, verify HTTPS discovery and readiness twice, create a test realm/account, stop/start the service and confirm that account survives. A host reboot test must be scheduled explicitly to avoid interrupting shared QA services. Back up PostgreSQL with `pg_dump` into protected storage and prove restore into an isolated database before claiming backup acceptance. No reboot or backup acceptance is implied by enabling the unit.
 
@@ -353,3 +355,15 @@ ansible-lint --offline keycloak.yml roles/keycloak roles/docker_engine
 KEYCLOAK_DOCKER_TEST=1 python -m unittest discover -s tests -p test_keycloak_role.py -v
 python3 bin/check_features_sync.py
 ```
+
+
+Store two distinct passwords in encrypted `group_vars/prod_web/vault.yml` as `keycloak_admin_password` and `keycloak_database_password`. Use 32–128 random ASCII letters and digits per password, without dollar signs or newlines so Compose environment parsing cannot alter their values. The optional nonsecret admin username is `keycloak_admin_username` (default `qa-admin`). The role neither generates replacement passwords nor rotates existing database/admin credentials on rerun: mismatches between Vault and the retained installation block apply.
+
+Docker may be installed independently while the operator prepares Vault credentials and the HTTPS origin:
+
+```bash
+apb keycloak.yml -l web0 --check -e keycloak_docker_only=true
+apb keycloak.yml -l web0 -e keycloak_apply=true -e keycloak_docker_only=true
+```
+
+The Docker-only path skips Keycloak configuration and startup. It requires no Keycloak passwords and does not restart nginx or Pharos. Run the full playbook without the Docker-only flag once the remaining inputs are ready.

@@ -1,6 +1,7 @@
 """Local render and lifecycle checks for the dedicated Keycloak stack."""
 import json
 import os
+import shutil
 from pathlib import Path
 import ssl
 import subprocess
@@ -40,6 +41,8 @@ class KeycloakRoleTests(unittest.TestCase):
             stack = yaml.safe_load((directory / 'compose.yml').read_text())
             database = stack['services']['database']
             server = stack['services']['keycloak']
+            self.assertEqual(database['mem_limit'], '512m')
+            self.assertEqual(server['mem_limit'], '1536m')
             self.assertNotIn('ports', database)
             self.assertTrue(stack['networks']['database']['internal'])
             self.assertEqual(server['ports'], ['127.0.0.1:18443:8443'])
@@ -56,6 +59,38 @@ class KeycloakRoleTests(unittest.TestCase):
             self.assertNotIn('--volumes', unit)
             subprocess.run(['docker', 'compose', '-f', str(directory / 'compose.yml'),
                             'config', '--quiet'], check=True)
+
+    @unittest.skipUnless(shutil.which('ansible-playbook'), 'Requires the existing Ansible environment')
+    def test_vault_preflight_rejects_unsafe_passwords_without_logging_values(self):
+        (ROOT / 'dist').mkdir(exist_ok=True)
+        with tempfile.TemporaryDirectory(prefix='keycloak-vault-check-', dir=ROOT / 'dist') as temporary:
+            directory = Path(temporary).resolve()
+            inventory = directory / 'inventory.yml'
+            inventory.write_text(yaml.safe_dump({'all': {'hosts': {
+                'keycloak_preflight_local': {'ansible_connection': 'local'}}}}))
+            play = directory / 'preflight.yml'
+            play.write_text(yaml.safe_dump([{'hosts': 'all', 'gather_facts': False, 'become': False,
+                'tasks': [{'ansible.builtin.include_role': {
+                    'name': str(ROLE), 'tasks_from': 'preflight'}}]}]))
+            password = uuid.uuid4().hex + uuid.uuid4().hex
+            cases = [('valid', password, uuid.uuid4().hex, 0),
+                     ('missing', '', uuid.uuid4().hex, 2),
+                     ('same', password, password, 2),
+                     ('interpolation', password, '${UNSAFE}' * 8, 2)]
+            for label, admin, database, expected in cases:
+                with self.subTest(label=label):
+                    values = directory / 'values.yml'
+                    values.write_text(yaml.safe_dump({
+                        'keycloak_hostname': 'https://identity.qa.example.com:8443',
+                        'keycloak_admin_password': admin, 'keycloak_database_password': database}))
+                    values.chmod(0o600)
+                    result = subprocess.run(['ansible-playbook', str(play), '-i', str(inventory),
+                                             '--check', '-e', '@' + str(values)],
+                                            capture_output=True, text=True, cwd=ROOT)
+                    self.assertEqual(result.returncode, expected, 'Unexpected password validation result')
+                    for secret in (admin, database):
+                        if secret:
+                            self.assertNotIn(secret, result.stdout + result.stderr)
 
     @unittest.skipUnless(os.environ.get('KEYCLOAK_DOCKER_TEST') == '1',
                          'Set KEYCLOAK_DOCKER_TEST=1 for real local container acceptance')

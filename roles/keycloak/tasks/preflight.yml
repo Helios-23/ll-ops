@@ -13,3 +13,11 @@
       - "'@sha256:' in keycloak_postgres_image"
     fail_msg: Configure the HTTPS origin, target TLS paths and pinned image digests before apply.
 
+- name: Require distinct vault-managed service passwords
+  ansible.builtin.assert:
+    that:
+      - keycloak_admin_password is match('^[a-zA-Z0-9]{32,128}$')
+      - keycloak_database_password is match('^[a-zA-Z0-9]{32,128}$')
+      - keycloak_admin_password != keycloak_database_password
+    fail_msg: Set distinct keycloak_admin_password and keycloak_database_password in Ansible Vault using 32 to 128 letters and digits each.
+  no_log: true

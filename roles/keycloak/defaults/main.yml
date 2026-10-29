@@ -5,6 +5,11 @@ keycloak_bind_address: 127.0.0.1
 # Existing readable files on the target; the role does not issue or replace certificates.
 keycloak_tls_directory: /etc/keycloak/tls
 keycloak_admin_username: qa-admin
+# Define these in the encrypted group_vars/prod_web/vault.yml, never here.
+keycloak_admin_password: ""
+keycloak_database_password: ""
+keycloak_memory_limit: 1536m
+keycloak_postgres_memory_limit: 512m
 keycloak_service_state: started
 keycloak_service_enabled: true
 keycloak_image: quay.io/keycloak/keycloak:26.8.1@sha256:a78d6b79572168cb25886b80a8b5b8d4ed4390743e3eecb810538683e209dd6b
