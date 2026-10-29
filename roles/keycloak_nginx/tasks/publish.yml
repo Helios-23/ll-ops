@@ -1,0 +1,63 @@
+- name: Inspect the dedicated site before changing it
+  ansible.builtin.stat:
+    path: "/etc/nginx/sites-enabled/{{ keycloak_nginx_hostname }}.conf"
+  register: keycloak_nginx_previous
+
+- name: Retain the previous authentication site for rollback
+  ansible.builtin.slurp:
+    src: "/etc/nginx/sites-enabled/{{ keycloak_nginx_hostname }}.conf"
+  register: keycloak_nginx_previous_content
+  when: keycloak_nginx_previous.stat.exists
+  no_log: true
+
+- name: Publish and validate only the authentication site
+  block:
+    - name: Render the dedicated authentication site
+      ansible.builtin.template:
+        src: nginx.conf.j2
+        dest: "/etc/nginx/sites-enabled/{{ keycloak_nginx_hostname }}.conf"
+        owner: root
+        group: root
+        mode: "0644"
+      register: keycloak_nginx_rendered
+
+    - name: Require valid complete Nginx configuration before reload
+      ansible.builtin.command:
+        argv: [nginx, -t]
+      changed_when: false
+
+    - name: Reload Nginx while keeping existing workers serving requests
+      ansible.builtin.systemd_service:
+        name: nginx
+        state: reloaded
+      when: keycloak_nginx_rendered.changed
+  rescue:
+    - name: Restore the previous authentication site
+      ansible.builtin.copy:
+        content: "{{ keycloak_nginx_previous_content.content | b64decode }}"
+        dest: "/etc/nginx/sites-enabled/{{ keycloak_nginx_hostname }}.conf"
+        owner: root
+        group: root
+        mode: "0644"
+      when: keycloak_nginx_previous.stat.exists
+      no_log: true
+
+    - name: Remove only the newly added site if no previous site existed
+      ansible.builtin.file:
+        path: "/etc/nginx/sites-enabled/{{ keycloak_nginx_hostname }}.conf"
+        state: absent
+      when: not keycloak_nginx_previous.stat.exists
+
+    - name: Validate the restored Nginx configuration
+      ansible.builtin.command:
+        argv: [nginx, -t]
+      changed_when: false
+
+    - name: Reload the restored configuration
+      ansible.builtin.systemd_service:
+        name: nginx
+        state: reloaded
+
+    - name: Report that the authentication site change failed
+      ansible.builtin.fail:
+        msg: Authentication site validation or reload failed; the previous site configuration was restored.

@@ -130,3 +130,4 @@
     daemon_reload: "{{ keycloak_unit.changed }}"
     enabled: "{{ keycloak_service_enabled }}"
     state: "{{ keycloak_service_state }}"
+  register: keycloak_service_control

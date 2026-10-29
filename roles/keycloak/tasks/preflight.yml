@@ -7,7 +7,8 @@
       - keycloak_bind_address is match('^[0-9.]+$')
       - keycloak_https_port | int > 1024
       - keycloak_https_port | int < 65536
-      - keycloak_admin_username is match('^[a-zA-Z0-9_-]+$')
+      - keycloak_admin_user is match('^[a-zA-Z0-9_-]+$')
+      - keycloak_proxy_headers in ['', 'xforwarded']
       - keycloak_service_state in ['started', 'stopped']
       - "'@sha256:' in keycloak_image"
       - "'@sha256:' in keycloak_postgres_image"

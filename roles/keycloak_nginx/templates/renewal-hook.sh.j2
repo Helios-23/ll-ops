@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+[ "${RENEWED_LINEAGE:-}" = "/etc/letsencrypt/live/{{ keycloak_nginx_hostname }}" ] || exit 0
+for certificate in fullchain.pem privkey.pem; do
+    install -o 1000 -g 0 -m 0400 "$RENEWED_LINEAGE/$certificate" "{{ keycloak_tls_directory }}/.$certificate.new"
+    mv -f "{{ keycloak_tls_directory }}/.$certificate.new" "{{ keycloak_tls_directory }}/$certificate"
+done
+nginx -t
+systemctl reload nginx

@@ -1,0 +1,4 @@
+- name: Publish the authentication HTTPS reverse proxy
+  ansible.builtin.include_tasks: publish.yml
+  vars:
+    keycloak_nginx_tls: true

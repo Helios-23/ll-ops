@@ -1,0 +1,5 @@
+keycloak_nginx_hostname: ""
+keycloak_nginx_acme_root: /var/www/keycloak-acme
+keycloak_nginx_certbot_email: "{{ admin_email }}"
+keycloak_tls_directory: /etc/keycloak/tls
+keycloak_https_port: 8443

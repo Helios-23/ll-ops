@@ -34,6 +34,12 @@ locals {
         name    = "pharos"
         ttl     = var.dns_ttl
         address = local.pharos_public_ipv4
+      },
+      {
+        type    = "A"
+        name    = "auth"
+        ttl     = var.dns_ttl
+        address = local.pharos_public_ipv4
       }
     ]
   )

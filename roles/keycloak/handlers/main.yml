@@ -2,4 +2,6 @@
   ansible.builtin.systemd_service:
     name: keycloak.service
     state: restarted
-  when: keycloak_service_state == 'started'
+  when:
+    - keycloak_service_state == 'started'
+    - keycloak_service_control.status.ActiveState | default('inactive') == 'active'

@@ -306,12 +306,16 @@ Runtime deployment validates required configuration before stopping services. De
 Before apply, provide these host variables (example names must be replaced):
 
 ```yml
-keycloak_hostname: https://identity.qa.example.com:8443
+keycloak_hostname: https://auth.llight.io
+keycloak_nginx_hostname: auth.llight.io
+keycloak_admin_user: ll-admin
 keycloak_bind_address: 127.0.0.1
-keycloak_tls_directory: /etc/keycloak/tls
+keycloak_proxy_headers: xforwarded
 ```
 
-The bind defaults to loopback. A public bind requires deliberate host configuration and network policy review. The role changes no DNS, firewall, proxy, or certificate configuration. Place the trusted certificate chain at `fullchain.pem` and key at `privkey.pem` in the TLS directory first. Keycloak UID 1000 must be able to read both files and traverse that directory; keep the private key restricted. External OIDC acceptance requires a publicly resolvable hostname and a trusted certificate. A loopback bind is suitable behind an already configured TLS passthrough proxy or a private test tunnel; this role does not create that proxy.
+The bind remains loopback. The dedicated `roles/keycloak_nginx` first installs only the new auth HTTP challenge site, issues a trusted certificate using `certbot certonly --webroot`, then copies the certificate chain/key into `/etc/keycloak/tls` for container UID 1000. It does not stop Nginx, edit existing virtual hosts, or open additional firewall ports. After Keycloak is healthy, it enables the auth HTTPS site and gracefully reloads Nginx only after `nginx -t` succeeds. A failed site validation restores that site's previous configuration. PostgreSQL and Keycloak's management port remain unpublished.
+
+The frontend uses the existing public ports 80/443. The upstream is certificate-verified HTTPS on `127.0.0.1:8443`, with SNI `auth.llight.io`. Nginx overwrites forwarded identity headers and Keycloak uses a fixed HTTPS origin. A scoped certbot deploy hook updates only the auth container certificate copies and validates/reloads Nginx; Keycloak reloads certificates every five minutes. No shared runtime or Pharos app is deployed by this playbook.
 
 Both image references are digest-pinned to locally cached inputs: Keycloak 26.8.1 and PostgreSQL 16 Alpine. Registry pulls are disabled. Transfer reviewed local Docker image archives to the target and optionally list their absolute target paths in `keycloak_image_archives`; ensure the pinned references resolve locally after loading. Missing pinned images stop installation rather than falling back to a registry. Images must match the target architecture. Docker Engine package installation uses the existing role and its official Docker apt repository.
 
@@ -322,7 +326,7 @@ apb keycloak.yml -l web0 --check
 apb keycloak.yml -l web0 -e keycloak_apply=true
 ```
 
-Review the plan before the opt-in apply. `--check` always remains non-mutating, even with the apply variable. Vault credentials and TLS/image prerequisites are required for the actual installation. Installation waits for database and Keycloak readiness; a failure prevents a successful service start.
+Review the plan before the opt-in apply. `--check` always remains non-mutating, even with the apply variable. Vault credentials and DNS/image prerequisites are required for the actual installation. Installation waits for database and Keycloak readiness; a failure prevents a successful service start.
 
 Service management on the target:
 
@@ -337,9 +341,9 @@ sudo docker compose --project-name keycloak --file /opt/keycloak/compose.yml log
 
 Default container memory limits are 1536 MiB for Keycloak and 512 MiB for PostgreSQL, leaving capacity for the existing shared runtime. Override `keycloak_memory_limit` and `keycloak_postgres_memory_limit` deliberately after checking host capacity.
 
-The systemd unit is enabled at boot. Compose also restarts containers after crashes. Stopping the service removes containers and networks while retaining the named PostgreSQL volume; starting recreates containers using that same database. Do not use `down --volumes`, remove the volume, or change the Compose project name. Reapplying the role defaults to starting and enabling the service; set `keycloak_service_state: stopped` or `keycloak_service_enabled: false` deliberately when required.
+The role avoids a redundant restart when it has just started the service with the final configuration; configuration changes restart an already active service. The systemd unit is enabled at boot. Compose also restarts containers after crashes. Stopping the service removes containers and networks while retaining the named PostgreSQL volume; starting recreates containers using that same database. Do not use `down --volumes`, remove the volume, or change the Compose project name. Reapplying the role defaults to starting and enabling the service; set `keycloak_service_state: stopped` or `keycloak_service_enabled: false` deliberately when required.
 
-Initial admin username is `qa-admin`. The Vault-provided bootstrap admin password and database password are retained in root-only `/opt/keycloak/credentials.json`; retrieve them privately with `sudo` on the target. Separate root-only environment files limit which credentials each container receives. Never paste these values into tickets, logs, or tracked variables. Existing credentials are retained on rerun; installation refuses to generate replacement credentials when a retained database volume already exists. Replacing an environment password does not rotate credentials already stored in PostgreSQL or Keycloak. Bootstrap administration is temporary: create a named operator admin and remove the temporary account after first setup, following the Keycloak admin workflow.
+Initial admin username comes from `keycloak_admin_user`: `ll-admin` on the shared host (the role default remains `qa-admin`). The Vault-provided bootstrap admin password and database password are retained in root-only `/opt/keycloak/credentials.json`; retrieve them privately with `sudo` on the target. Separate root-only environment files limit which credentials each container receives. Never paste these values into tickets, logs, or tracked variables. Existing credentials are retained on rerun; installation refuses to generate replacement credentials when a retained database volume already exists. Replacing an environment password does not rotate credentials already stored in PostgreSQL or Keycloak. Bootstrap administration is temporary: create a named operator admin and remove the temporary account after first setup, following the Keycloak admin workflow.
 
 Before acceptance, verify HTTPS discovery and readiness twice, create a test realm/account, stop/start the service and confirm that account survives. A host reboot test must be scheduled explicitly to avoid interrupting shared QA services. Back up PostgreSQL with `pg_dump` into protected storage and prove restore into an isolated database before claiming backup acceptance. No reboot or backup acceptance is implied by enabling the unit.
 
@@ -357,7 +361,7 @@ python3 bin/check_features_sync.py
 ```
 
 
-Store two distinct passwords in encrypted `group_vars/prod_web/vault.yml` as `keycloak_admin_password` and `keycloak_database_password`. Use 32–128 random ASCII letters and digits per password, without dollar signs or newlines so Compose environment parsing cannot alter their values. The optional nonsecret admin username is `keycloak_admin_username` (default `qa-admin`). The role neither generates replacement passwords nor rotates existing database/admin credentials on rerun: mismatches between Vault and the retained installation block apply.
+Store two distinct passwords in encrypted `group_vars/prod_web/vault.yml` as `keycloak_admin_password` and `keycloak_database_password`. Use 32–128 random ASCII letters and digits per password, without dollar signs or newlines so Compose environment parsing cannot alter their values. The canonical nonsecret admin username is `keycloak_admin_user` (default `qa-admin`). The shared host maps the passwords to `vault.keycloak.admin_pass` and `vault.keycloak.db_pass` in `group_vars/prod_web/main.yml`. The role neither generates replacement passwords nor rotates existing database/admin credentials on rerun: mismatches between Vault and the retained installation block apply.
 
 Docker may be installed independently while the operator prepares Vault credentials and the HTTPS origin:
 
@@ -367,3 +371,15 @@ apb keycloak.yml -l web0 -e keycloak_apply=true -e keycloak_docker_only=true
 ```
 
 The Docker-only path skips Keycloak configuration and startup. It requires no Keycloak passwords and does not restart nginx or Pharos. Run the full playbook without the Docker-only flag once the remaining inputs are ready.
+
+
+### Adding only the authentication DNS record through Spaceship
+
+DNS is managed by `tf/main.tf` using the existing `spaceship_dns_records.root` resource. `auth.llight.io` points to the existing reserved public IP, alongside the existing root/www/pharos A records and MX records. Do not add a second DNS resource for the same zone or use the broad Terraform bootstrap apply for this change.
+
+For this narrowly scoped DNS addition, create a saved plan targeting `spaceship_dns_records.root` with the existing local providers and GCP credentials, save its JSON privately, and run `python3 bin/check_keycloak_dns_plan.py <plan.json> --address <existing-server-ip>`. The guard rejects any existing-record removal/modification, server changes, resource replacement, or addition other than the single auth A record. JSON and plan files can include sensitive Terraform variables: keep them owner-only under ignored `dist/`. Review the accepted plan and apply that exact saved plan; do not use auto-approve. After apply, refresh the targeted plan and compare the live records against the pre-apply snapshot. This exceptional target prevents unrelated VM image drift from entering the DNS apply.
+
+Operator authorization covers adding the auth tenant on the shared host. Existing Nginx site contents should be hashed before and after the rollout, and their HTTPS pages checked on both sides of each service transition. Do not reboot the shared host to prove boot persistence without a separately scheduled window. The server installation is complete only after public certificate validation, expected OIDC issuer, Vault-backed administrator login and Keycloak service start/stop persistence all pass.
+
+
+`tests/check_keycloak_live.py` runs on the shared host as root using the retained private credentials. It never prints passwords or tokens and always verifies the public certificate. Its `inspect` action checks issuer and the configured administrator; `create` makes a uniquely named disposable acceptance realm/account, `verify` proves persistence after a controlled `keycloak.service` stop/start, and `cleanup` removes only that owned realm/state. Pass `--admin-user ll-admin` for this host. Never reboot or restart Nginx/Pharos for this identity-service persistence check.

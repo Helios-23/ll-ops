@@ -23,6 +23,7 @@ def render_stack(directory):
     values = yaml.safe_load((ROLE / 'defaults/main.yml').read_text())
     values.update(keycloak_directory=str(directory), keycloak_tls_directory=str(directory / 'tls'),
                   keycloak_hostname='https://localhost:18443', keycloak_https_port=18443,
+                  keycloak_admin_user='ll-admin',
                   keycloak_credentials={'admin_password': uuid.uuid4().hex,
                                         'database_password': uuid.uuid4().hex})
     environment = jinja2.Environment(undefined=jinja2.StrictUndefined)
@@ -50,6 +51,7 @@ class KeycloakRoleTests(unittest.TestCase):
                 self.assertEqual(service['pull_policy'], 'never')
                 self.assertIn('@sha256:', service['image'])
             self.assertEqual(server['depends_on']['database']['condition'], 'service_healthy')
+            self.assertIn('KC_BOOTSTRAP_ADMIN_USERNAME=ll-admin', (directory / 'keycloak.env').read_text())
             self.assertNotIn(values['keycloak_credentials']['admin_password'],
                              (directory / 'postgres.env').read_text())
             unit = (directory / 'keycloak.service').read_text()
@@ -126,7 +128,7 @@ class KeycloakRoleTests(unittest.TestCase):
 
             def login():
                 return request('/realms/master/protocol/openid-connect/token', urllib.parse.urlencode({
-                    'client_id': 'admin-cli', 'grant_type': 'password', 'username': 'qa-admin',
+                    'client_id': 'admin-cli', 'grant_type': 'password', 'username': values['keycloak_admin_user'],
                     'password': values['keycloak_credentials']['admin_password']}).encode())['access_token']
 
             try:
