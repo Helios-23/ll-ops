@@ -1,0 +1,42 @@
+- name: Create the dedicated ACME webroot
+  ansible.builtin.file:
+    path: /var/www/pharos-access-acme
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Inspect the access portal certificate
+  ansible.builtin.stat:
+    path: /etc/letsencrypt/live/access.llight.io/fullchain.pem
+  register: pharos_access_certificate
+
+- name: Publish the dedicated HTTP challenge site if needed
+  ansible.builtin.include_tasks: publish.yml
+  vars:
+    pharos_access_tls: false
+  when: not pharos_access_certificate.stat.exists
+
+- name: Issue the access portal certificate without stopping Nginx
+  ansible.builtin.command:
+    argv: [certbot, certonly, --webroot, --webroot-path, /var/www/pharos-access-acme, --domain, access.llight.io, --email, "{{ pharos_access_certbot_email }}", --agree-tos, --non-interactive]
+    creates: /etc/letsencrypt/live/access.llight.io/fullchain.pem
+
+- name: Publish the dedicated HTTPS access tenant
+  ansible.builtin.include_tasks: publish.yml
+  vars:
+    pharos_access_tls: true
+
+- name: Install the access certificate renewal reload hook
+  ansible.builtin.copy:
+    dest: /etc/letsencrypt/renewal-hooks/deploy/pharos-access
+    owner: root
+    group: root
+    mode: "0755"
+    content: |
+      #!/bin/sh
+      set -eu
+      if [ "${RENEWED_LINEAGE:-}" = /etc/letsencrypt/live/access.llight.io ]; then
+        /usr/sbin/nginx -t
+        /bin/systemctl reload nginx
+      fi

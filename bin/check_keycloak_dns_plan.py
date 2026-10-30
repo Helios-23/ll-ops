@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Reject any Terraform plan that does more than add the Keycloak A record."""
+"""Reject any Terraform plan that does more than add one declared authentication or access A record."""
 import argparse
 from collections import Counter
 import json
 
 
-def check(plan, address):
+def check(plan, address, name='auth'):
+    if name not in ('auth', 'access'):
+        raise ValueError('Only the declared authentication or access host may be added')
     changes = [r for r in plan.get('resource_changes', [])
                if r['mode'] == 'managed' and r['change']['actions'] != ['no-op']]
     if len(changes) != 1 or changes[0]['address'] != 'spaceship_dns_records.root':
@@ -26,7 +28,7 @@ def check(plan, address):
     if old - new or len(additions) != 1:
         raise ValueError('Existing records must remain identical; only one addition is allowed')
     added = json.loads(additions[0])
-    if added != {'type': 'A', 'name': 'auth', 'address': address, 'ttl': 3600}:
+    if added != {'type': 'A', 'name': name, 'address': address, 'ttl': 3600}:
         raise ValueError('Unexpected added DNS record')
     return len(list(old.elements()))
 
@@ -35,7 +37,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('plan_json')
     parser.add_argument('--address', required=True)
+    parser.add_argument('--name', choices=['auth', 'access'], default='auth')
     args = parser.parse_args()
     with open(args.plan_json) as source:
-        count = check(json.load(source), args.address)
-    print(f'Plan accepted: preserve all {count} existing records; add only auth A {args.address}')
+        count = check(json.load(source), args.address, args.name)
+    print(f'Plan accepted: preserve all {count} existing records; add only {args.name} A {args.address}')

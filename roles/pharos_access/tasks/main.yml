@@ -29,7 +29,8 @@
       - (lookup('ansible.builtin.file', pharos_access_gate) | from_json).gate_passed | bool
       - (lookup('ansible.builtin.file', pharos_access_gate) | from_json).binary_sha256 == pharos_access_local_binary.stat.checksum
       - (lookup('ansible.builtin.file', pharos_access_gate) | from_json).artifact_sha256 is match('^[a-f0-9]{64}$')
-      - pharos_access_origin == 'http://localhost:7624'
+      - pharos_access_hostname == 'access.llight.io'
+      - pharos_access_origin == 'https://' ~ pharos_access_hostname
       - pharos_access_issuer == 'https://auth.llight.io/realms/pharos-access-qa'
       - pharos_access_realm_definition.realm == 'pharos-access-qa'
       - pharos_access_realm_definition.smtpServer.auth == 'true'
@@ -49,16 +50,22 @@
       - pharos_access_environment.PHAROS_ACCESS_MANAGEMENT_SECRET is match('^[a-zA-Z0-9]{32,128}$')
       - pharos_access_environment.PHAROS_STRIPE_SECRET is match('^(sk|rk)_test_[a-zA-Z0-9]+$')
       - pharos_access_environment.PHAROS_STRIPE_WEBHOOK_SECRET is match('^whsec_[a-zA-Z0-9_]{16,128}$')
-    fail_msg: Require the passing local Linux gate and explicit isolated QA configuration; live keys require a separately reviewed public deployment.
+    fail_msg: Require the passing local Linux gate, exact HTTPS origin, real SMTP and sandbox Stripe credentials.
   no_log: true
 
 - name: Resolve the immutable release path
   ansible.builtin.set_fact:
     pharos_access_release: "/opt/pharos-access/releases/{{ (lookup('ansible.builtin.file', pharos_access_gate) | from_json).artifact_sha256 }}"
 
+- name: Create the unprivileged service group
+  ansible.builtin.group:
+    name: pharos-access
+    system: true
+
 - name: Create the unprivileged service identity
   ansible.builtin.user:
     name: pharos-access
+    group: pharos-access
     system: true
     create_home: false
     home: /var/lib/pharos-access
@@ -261,3 +268,6 @@
     - name: Report the failed promotion
       ansible.builtin.fail:
         msg: Access-service promotion failed; previous release and configuration restored when available. Existing shared services were not replaced.
+
+- name: Publish the dedicated QA HTTPS portal
+  ansible.builtin.include_tasks: nginx.yml

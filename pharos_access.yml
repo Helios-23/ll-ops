@@ -12,8 +12,8 @@
           Deploy only the locally validated Linux access-service binary and browser assets.
           Create a separate pharos-access-qa Keycloak realm using authenticated SMTP.
           Enable pharos-access.service with persistent external state and loopback port 7624.
-          Preserve the existing Pharos runtime, capture realm, Nginx sites and DNS.
-          Public HTTPS and live Stripe activation require their separate configuration.
+          Publish only the dedicated access.llight.io Nginx/Certbot site using Stripe sandbox.
+          Preserve the existing runtime, capture realm and Nginx sites; scoped DNS is planned separately.
           Apply requested: {{ pharos_access_apply | bool }}.
     - name: Deploy the explicitly requested validated access service
       ansible.builtin.include_role:

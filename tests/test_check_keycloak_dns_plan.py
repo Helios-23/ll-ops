@@ -19,6 +19,15 @@ class DnsPlanTests(unittest.TestCase):
     def test_only_auth_addition_is_accepted(self):
         self.assertEqual(module.check(self.plan, '34.169.129.168'), 1)
 
+    def test_access_requires_explicit_selection_and_preserves_existing_records(self):
+        self.plan['resource_changes'][0]['change']['after']['records'][-1]['name'] = 'access'
+        self.assertEqual(module.check(self.plan, '34.169.129.168', 'access'), 1)
+        with self.assertRaises(ValueError):
+            module.check(self.plan, '34.169.129.168')
+        self.plan['resource_changes'][0]['change']['after']['records'][0]['ttl'] = 60
+        with self.assertRaises(ValueError):
+            module.check(self.plan, '34.169.129.168', 'access')
+
     def test_removal_modification_and_server_changes_are_rejected(self):
         for case in ['remove', 'modify', 'server', 'replace', 'wrong_ip']:
             with self.subTest(case=case):

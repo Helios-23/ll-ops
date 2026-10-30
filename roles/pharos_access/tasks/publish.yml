@@ -1,0 +1,55 @@
+- name: Inspect the dedicated access site for rollback
+  ansible.builtin.stat:
+    path: /etc/nginx/sites-enabled/access.llight.io.conf
+  register: pharos_access_old_site
+
+- name: Preserve the existing dedicated access site
+  ansible.builtin.slurp:
+    src: /etc/nginx/sites-enabled/access.llight.io.conf
+  register: pharos_access_old_site_content
+  when: pharos_access_old_site.stat.exists
+
+- name: Publish only the access tenant with configuration rollback
+  block:
+    - name: Render the dedicated access tenant
+      ansible.builtin.template:
+        src: nginx.conf.j2
+        dest: /etc/nginx/sites-enabled/access.llight.io.conf
+        owner: root
+        group: root
+        mode: "0644"
+      register: pharos_access_site
+    - name: Require valid complete Nginx configuration before reload
+      ansible.builtin.command:
+        argv: [nginx, -t]
+      changed_when: false
+    - name: Reload Nginx without stopping existing sites
+      ansible.builtin.systemd_service:
+        name: nginx
+        state: reloaded
+      when: pharos_access_site.changed
+  rescue:
+    - name: Restore the previous access tenant
+      ansible.builtin.copy:
+        content: "{{ pharos_access_old_site_content.content | b64decode }}"
+        dest: /etc/nginx/sites-enabled/access.llight.io.conf
+        owner: root
+        group: root
+        mode: "0644"
+      when: pharos_access_old_site.stat.exists
+    - name: Remove only the failed new access tenant
+      ansible.builtin.file:
+        path: /etc/nginx/sites-enabled/access.llight.io.conf
+        state: absent
+      when: not pharos_access_old_site.stat.exists
+    - name: Validate the restored Nginx configuration
+      ansible.builtin.command:
+        argv: [nginx, -t]
+      changed_when: false
+    - name: Reload the restored Nginx configuration
+      ansible.builtin.systemd_service:
+        name: nginx
+        state: reloaded
+    - name: Report the rejected access tenant
+      ansible.builtin.fail:
+        msg: The dedicated access tenant failed validation; the previous configuration was restored.
