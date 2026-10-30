@@ -1,0 +1,53 @@
+- name: Plan or install the dedicated QA Keycloak service
+  hosts: web0
+  become: true
+  gather_facts: false
+  vars:
+    keycloak_apply: false
+    keycloak_docker_only: false
+  tags: keycloak
+  tasks:
+    - name: Describe the requested service changes
+      ansible.builtin.debug:
+        msg: |
+          Target: {{ inventory_hostname }}
+          Install Docker through roles/docker_engine; install an isolated Keycloak/PostgreSQL Compose stack.
+          Enable keycloak.service for reboot persistence; preserve database volumes on service stop.
+          Manage only the dedicated auth Nginx site; no Pharos deployment or existing site edits.
+          DNS is separately managed through the reviewed Terraform plan.
+          Docker only: {{ keycloak_docker_only | bool }}.
+          Apply requested: {{ keycloak_apply | bool }}; check mode: {{ ansible_check_mode }}.
+
+    - name: Apply the explicitly requested service installation
+      when:
+        - keycloak_apply | bool
+        - not ansible_check_mode
+      block:
+        - name: Gather operating system facts
+          ansible.builtin.setup:
+
+        - name: Validate Keycloak settings before changing Docker
+          ansible.builtin.include_role:
+            name: keycloak
+            tasks_from: preflight
+          when: not keycloak_docker_only | bool
+
+        - name: Install Docker using the existing role
+          ansible.builtin.include_role:
+            name: docker_engine
+
+        - name: Prepare the dedicated authentication TLS certificate
+          ansible.builtin.include_role:
+            name: keycloak_nginx
+            tasks_from: prepare
+          when: not keycloak_docker_only | bool
+
+        - name: Install the dedicated Keycloak service
+          ansible.builtin.include_role:
+            name: keycloak
+          when: not keycloak_docker_only | bool
+
+        - name: Publish the dedicated authentication HTTPS site
+          ansible.builtin.include_role:
+            name: keycloak_nginx
+          when: not keycloak_docker_only | bool

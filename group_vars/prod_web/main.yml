@@ -6,3 +6,13 @@ allowed_ssh_users:
 sshd_password_auth: "no"
 fail2ban_feature_sshd_invalid_user_enabled: true
 fail2ban_feature_reverse_proxy_enabled: false
+
+
+# Keycloak
+keycloak_admin_user: "ll-admin"
+keycloak_admin_password: "{{ vault.keycloak.admin_pass }}"
+keycloak_database_password: "{{ vault.keycloak.db_pass }}"
+
+keycloak_hostname: https://auth.llight.io
+keycloak_nginx_hostname: auth.llight.io
+keycloak_proxy_headers: xforwarded

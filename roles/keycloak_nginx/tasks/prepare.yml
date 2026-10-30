@@ -1,0 +1,77 @@
+- name: Require the dedicated authentication hostname
+  ansible.builtin.assert:
+    that:
+      - keycloak_nginx_hostname is match('^[a-zA-Z0-9][a-zA-Z0-9.-]+$')
+      - keycloak_hostname == 'https://' ~ keycloak_nginx_hostname
+      - keycloak_bind_address | default('127.0.0.1') == '127.0.0.1'
+    fail_msg: Configure a matching HTTPS origin with the container bound only to loopback.
+
+- name: Create the dedicated ACME webroot
+  ansible.builtin.file:
+    path: "{{ keycloak_nginx_acme_root }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Inspect the authentication certificate
+  ansible.builtin.stat:
+    path: "/etc/letsencrypt/live/{{ keycloak_nginx_hostname }}/fullchain.pem"
+  register: keycloak_nginx_certificate
+
+- name: Publish only the new HTTP challenge site when a certificate is needed
+  ansible.builtin.include_tasks: publish.yml
+  vars:
+    keycloak_nginx_tls: false
+  when: not keycloak_nginx_certificate.stat.exists
+
+- name: Issue the authentication certificate without stopping Nginx
+  ansible.builtin.command:
+    argv:
+      - certbot
+      - certonly
+      - --webroot
+      - --webroot-path
+      - "{{ keycloak_nginx_acme_root }}"
+      - --domain
+      - "{{ keycloak_nginx_hostname }}"
+      - --email
+      - "{{ keycloak_nginx_certbot_email }}"
+      - --agree-tos
+      - --non-interactive
+    creates: "/etc/letsencrypt/live/{{ keycloak_nginx_hostname }}/fullchain.pem"
+
+- name: Create the restricted container certificate directory
+  ansible.builtin.file:
+    path: "{{ keycloak_tls_directory }}"
+    state: directory
+    owner: "1000"
+    group: "0"
+    mode: "0700"
+
+- name: Copy certificates for the unprivileged Keycloak container
+  ansible.builtin.copy:
+    src: "/etc/letsencrypt/live/{{ keycloak_nginx_hostname }}/{{ item }}"
+    dest: "{{ keycloak_tls_directory }}/{{ item }}"
+    remote_src: true
+    owner: "1000"
+    group: "0"
+    mode: "0400"
+  loop: [fullchain.pem, privkey.pem]
+  no_log: true
+
+- name: Ensure the certificate deploy hook directory exists
+  ansible.builtin.file:
+    path: /etc/letsencrypt/renewal-hooks/deploy
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install the dedicated certificate renewal hook
+  ansible.builtin.template:
+    src: renewal-hook.sh.j2
+    dest: /etc/letsencrypt/renewal-hooks/deploy/keycloak-auth
+    owner: root
+    group: root
+    mode: "0700"

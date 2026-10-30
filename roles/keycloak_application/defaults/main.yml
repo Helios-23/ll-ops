@@ -1,0 +1,5 @@
+keycloak_application_realm_source: "{{ playbook_dir }}/../pharos/containers/keycloak/pharos-realm.json"
+keycloak_application_callback_uri: http://localhost:7524/__pharos/keycloak/callback
+keycloak_application_logout_uri: http://localhost:7524/accounts/login/
+keycloak_application_provisioner_secret: "{{ vault.keycloak.provisioner_secret }}"
+keycloak_application_external_config: ""

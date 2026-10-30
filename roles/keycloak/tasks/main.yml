@@ -1,0 +1,133 @@
+- name: Validate the dedicated Keycloak configuration
+  ansible.builtin.import_tasks: preflight.yml
+
+- name: Inspect required local image availability
+  ansible.builtin.command:
+    argv: [docker, image, inspect, "{{ item }}"]
+  loop:
+    - "{{ keycloak_image }}"
+    - "{{ keycloak_postgres_image }}"
+  register: keycloak_existing_images
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+- name: Load explicitly staged local container archives
+  ansible.builtin.command:
+    argv: [docker, image, load, --input, "{{ item }}"]
+  loop: "{{ keycloak_image_archives }}"
+  when: keycloak_existing_images.results | selectattr('rc', 'ne', 0) | list | length > 0
+  register: keycloak_loaded_images
+  changed_when: "'Loaded image' in keycloak_loaded_images.stdout"
+
+- name: Require locally available images without registry downloads
+  ansible.builtin.command:
+    argv: [docker, image, inspect, "{{ item }}"]
+  loop:
+    - "{{ keycloak_image }}"
+    - "{{ keycloak_postgres_image }}"
+  changed_when: false
+  no_log: true
+
+- name: Create the private service directory
+  ansible.builtin.file:
+    path: "{{ keycloak_directory }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Read existing service credentials metadata
+  ansible.builtin.stat:
+    path: "{{ keycloak_directory }}/credentials.json"
+  register: keycloak_credentials_file
+
+- name: Require retained credentials to be a regular private file
+  ansible.builtin.assert:
+    that:
+      - not keycloak_credentials_file.stat.exists or (keycloak_credentials_file.stat.isreg and not keycloak_credentials_file.stat.islnk)
+    fail_msg: Refusing to load service credentials from a non-regular file.
+
+- name: Protect retained credentials
+  ansible.builtin.file:
+    path: "{{ keycloak_directory }}/credentials.json"
+    owner: root
+    group: root
+    mode: "0600"
+  when: keycloak_credentials_file.stat.exists
+
+- name: Inspect retained database volume before credential creation
+  ansible.builtin.command:
+    argv: [docker, volume, inspect, keycloak_database]
+  register: keycloak_existing_database
+  changed_when: false
+  failed_when: keycloak_existing_database.rc != 0 and 'no such volume' not in keycloak_existing_database.stderr | lower
+  when: not keycloak_credentials_file.stat.exists
+
+- name: Prevent replacement credentials against an existing database
+  ansible.builtin.assert:
+    that:
+      - keycloak_existing_database.rc != 0
+    fail_msg: The database volume exists but credentials.json is missing. Restore the original protected credentials before proceeding.
+  when: not keycloak_credentials_file.stat.exists
+
+- name: Retain vault credentials for the first installation
+  ansible.builtin.copy:
+    dest: "{{ keycloak_directory }}/credentials.json"
+    content: "{{ {'admin_password': keycloak_admin_password, 'database_password': keycloak_database_password} | to_nice_json }}"
+    owner: root
+    group: root
+    mode: "0600"
+    force: false
+  when: not keycloak_credentials_file.stat.exists
+  no_log: true
+
+- name: Load retained credentials
+  ansible.builtin.slurp:
+    src: "{{ keycloak_directory }}/credentials.json"
+  register: keycloak_credentials_raw
+  no_log: true
+
+- name: Prevent accidental password changes without database rotation
+  ansible.builtin.assert:
+    that:
+      - (keycloak_credentials_raw.content | b64decode | from_json).admin_password == keycloak_admin_password
+      - (keycloak_credentials_raw.content | b64decode | from_json).database_password == keycloak_database_password
+    fail_msg: Vault values differ from the installed credentials. Restore the retained values or use an explicit credential rotation workflow.
+  no_log: true
+
+- name: Render private service configuration
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "{{ keycloak_directory }}/{{ item }}"
+    owner: root
+    group: root
+    mode: "0600"
+  vars:
+    keycloak_credentials: "{{ keycloak_credentials_raw.content | b64decode | from_json }}"
+  loop: [keycloak.env, postgres.env, compose.yml]
+  no_log: true
+  notify: Restart Keycloak service
+
+- name: Validate the generated Compose configuration
+  ansible.builtin.command:
+    argv: [docker, compose, --project-name, keycloak, --file, "{{ keycloak_directory }}/compose.yml", config, --quiet]
+  changed_when: false
+
+- name: Install the Keycloak systemd service
+  ansible.builtin.template:
+    src: keycloak.service.j2
+    dest: /etc/systemd/system/keycloak.service
+    owner: root
+    group: root
+    mode: "0644"
+  register: keycloak_unit
+  notify: Restart Keycloak service
+
+- name: Enable and manage the Keycloak service
+  ansible.builtin.systemd_service:
+    name: keycloak.service
+    daemon_reload: "{{ keycloak_unit.changed }}"
+    enabled: "{{ keycloak_service_enabled }}"
+    state: "{{ keycloak_service_state }}"
+  register: keycloak_service_control

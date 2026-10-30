@@ -1,0 +1,92 @@
+- name: Require a dedicated provisioner secret from Vault
+  ansible.builtin.assert:
+    that:
+      - keycloak_application_provisioner_secret is match('^[a-zA-Z0-9]{32,128}$')
+  no_log: true
+
+- name: Read the existing private Docker gateway
+  ansible.builtin.command:
+    argv: [docker, network, inspect, keycloak_outbound]
+  register: keycloak_application_network
+  changed_when: false
+
+- name: Create the capture helper installation directory
+  ansible.builtin.file:
+    path: /usr/local/lib/keycloak-capture
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install the bounded capture forwarder
+  ansible.builtin.copy:
+    src: capture_forward.py
+    dest: /usr/local/lib/keycloak-capture/capture_forward.py
+    owner: root
+    group: root
+    mode: "0755"
+  register: keycloak_capture_program
+
+- name: Configure only the current private Docker network
+  ansible.builtin.copy:
+    dest: /etc/keycloak-capture-forward.json
+    content: "{{ {'gateway': (keycloak_application_network.stdout | from_json)[0].IPAM.Config[0].Gateway, 'subnet': (keycloak_application_network.stdout | from_json)[0].IPAM.Config[0].Subnet} | to_nice_json }}"
+    owner: root
+    group: root
+    mode: "0644"
+  register: keycloak_capture_config
+
+- name: Install the dedicated capture service
+  ansible.builtin.template:
+    src: capture-forward.service.j2
+    dest: /etc/systemd/system/keycloak-capture-forward.service
+    owner: root
+    group: root
+    mode: "0644"
+  register: keycloak_capture_unit
+
+- name: Enable the private capture forwarding service
+  ansible.builtin.systemd_service:
+    name: keycloak-capture-forward.service
+    daemon_reload: "{{ keycloak_capture_unit.changed }}"
+    enabled: true
+    state: "{{ 'restarted' if keycloak_capture_program.changed or keycloak_capture_config.changed or keycloak_capture_unit.changed else 'started' }}"
+
+- name: Install the scoped realm provisioning helper
+  ansible.builtin.copy:
+    src: provision_realm.py
+    dest: /opt/keycloak/provision_realm.py
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Read the declared application realm from the local source
+  ansible.builtin.set_fact:
+    keycloak_application_realm_text: "{{ lookup('ansible.builtin.file', keycloak_application_realm_source) }}"
+  no_log: true
+
+- name: Render the subscription realm with separate capture SMTP and exact callback
+  ansible.builtin.copy:
+    dest: /opt/keycloak/pharos-realm.json
+    content: "{{ keycloak_application_realm_text | replace('\"registrationAllowed\": true', '\"registrationAllowed\": false') | replace('${PHAROS_REALM_SSL_REQUIRED}', 'external') | replace('${PHAROS_CALLBACK_URI}', keycloak_application_callback_uri) | replace('${PHAROS_LOGOUT_URI}', keycloak_application_logout_uri) | replace('${PHAROS_PROVISIONER_SECRET}', keycloak_application_provisioner_secret) | replace('${PHAROS_SMTP_HOST}', (keycloak_application_network.stdout | from_json)[0].IPAM.Config[0].Gateway) | replace('${PHAROS_SMTP_PORT}', '21226') | replace('${PHAROS_SMTP_FROM}', 'accounts@pharos.test') | replace('${PHAROS_SMTP_FROM_NAME}', 'Pharos capture testing') | replace('${PHAROS_SMTP_SSL}', 'false') | replace('${PHAROS_SMTP_STARTTLS}', 'false') | replace('${PHAROS_SMTP_AUTH}', 'false') | replace('${PHAROS_SMTP_USER}', '') | replace('${PHAROS_SMTP_PASSWORD}', '') }}"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Provision the declared subscription realm without resetting existing users
+  ansible.builtin.command:
+    argv: [python3, /opt/keycloak/provision_realm.py, --admin-user, "{{ keycloak_admin_user }}"]
+  register: keycloak_application_provision
+  changed_when: "keycloak_application_provision.stdout.startswith('changed:')"
+
+
+- name: Export owner-only external acceptance settings when explicitly requested
+  ansible.builtin.copy:
+    dest: "{{ keycloak_application_external_config }}"
+    content: "{{ {'origin': 'https://auth.llight.io', 'username': keycloak_admin_user, 'password': keycloak_admin_password, 'provisioner_secret': keycloak_application_provisioner_secret, 'smtp_host': (keycloak_application_network.stdout | from_json)[0].IPAM.Config[0].Gateway, 'smtp_port': 21126} | to_nice_json }}"
+    mode: "0600"
+  delegate_to: localhost
+  become: false
+  when: keycloak_application_external_config | length > 0
+  no_log: true

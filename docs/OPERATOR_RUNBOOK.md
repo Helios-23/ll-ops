@@ -297,3 +297,128 @@ Use [FEATURES.md](FEATURES.md) for the current task-tag inventory.
 Runtime and app deployment stop existing Pharos services before migrations or promotion. The HA monitor stops before the runtime so it cannot restart a writer during the cutover. For coordinated runtime and app updates, include the deployment roles in one play and defer restart handlers until all staged bundles are promoted. Validate the exact release locally and retain pre-deployment data backups before this cutover.
 
 Runtime deployment validates required configuration before stopping services. Debian registers the four package-owned app.conf files as conffiles and retains operator configuration during upgrades. External app staging preserves existing db_* settings before migration so each app keeps its configured backend, namespace and database location. New app defaults remain available for keys without an existing override. Database settings are handled privately and are never logged. A package or app update must not redirect an existing app into another app database.
+
+
+## Dedicated QA Keycloak service
+
+`keycloak.yml` targets `web0`, which the operator has confirmed is the shared QA/production host. No separate QA inventory group is required. The playbook defaults to plan-only execution and never deploys a Pharos runtime or app. Docker installation reuses `roles/docker_engine`; the isolated `roles/keycloak` owns the Compose stack and `keycloak.service`.
+
+Before apply, provide these host variables (example names must be replaced):
+
+```yml
+keycloak_hostname: https://auth.llight.io
+keycloak_nginx_hostname: auth.llight.io
+keycloak_admin_user: ll-admin
+keycloak_bind_address: 127.0.0.1
+keycloak_proxy_headers: xforwarded
+```
+
+The bind remains loopback. The dedicated `roles/keycloak_nginx` first installs only the new auth HTTP challenge site, issues a trusted certificate using `certbot certonly --webroot`, then copies the certificate chain/key into `/etc/keycloak/tls` for container UID 1000. It does not stop Nginx, edit existing virtual hosts, or open additional firewall ports. After Keycloak is healthy, it enables the auth HTTPS site and gracefully reloads Nginx only after `nginx -t` succeeds. A failed site validation restores that site's previous configuration. PostgreSQL and Keycloak's management port remain unpublished.
+
+The frontend uses the existing public ports 80/443. The upstream is certificate-verified HTTPS on `127.0.0.1:8443`, with SNI `auth.llight.io`. Nginx overwrites forwarded identity headers and Keycloak uses a fixed HTTPS origin. A scoped certbot deploy hook updates only the auth container certificate copies and validates/reloads Nginx; Keycloak reloads certificates every five minutes. No shared runtime or Pharos app is deployed by this playbook.
+
+Both image references are digest-pinned to locally cached inputs: Keycloak 26.8.1 and PostgreSQL 16 Alpine. Registry pulls are disabled. Transfer reviewed local Docker image archives to the target and optionally list their absolute target paths in `keycloak_image_archives`; ensure the pinned references resolve locally after loading. Missing pinned images stop installation rather than falling back to a registry. Images must match the target architecture. Docker Engine package installation uses the existing role and its official Docker apt repository.
+
+Run from `ops/` against the confirmed shared host:
+
+```bash
+apb keycloak.yml -l web0 --check
+apb keycloak.yml -l web0 -e keycloak_apply=true
+```
+
+Review the plan before the opt-in apply. `--check` always remains non-mutating, even with the apply variable. Vault credentials and DNS/image prerequisites are required for the actual installation. Installation waits for database and Keycloak readiness; a failure prevents a successful service start.
+
+Service management on the target:
+
+```bash
+sudo systemctl status keycloak.service
+sudo systemctl stop keycloak.service
+sudo systemctl start keycloak.service
+sudo systemctl restart keycloak.service
+sudo journalctl -u keycloak.service
+sudo docker compose --project-name keycloak --file /opt/keycloak/compose.yml logs --tail 100
+```
+
+Default container memory limits are 1536 MiB for Keycloak and 512 MiB for PostgreSQL, leaving capacity for the existing shared runtime. Override `keycloak_memory_limit` and `keycloak_postgres_memory_limit` deliberately after checking host capacity.
+
+The role avoids a redundant restart when it has just started the service with the final configuration; configuration changes restart an already active service. The systemd unit is enabled at boot. Compose also restarts containers after crashes. Stopping the service removes containers and networks while retaining the named PostgreSQL volume; starting recreates containers using that same database. Do not use `down --volumes`, remove the volume, or change the Compose project name. Reapplying the role defaults to starting and enabling the service; set `keycloak_service_state: stopped` or `keycloak_service_enabled: false` deliberately when required.
+
+Initial admin username comes from `keycloak_admin_user`: `ll-admin` on the shared host (the role default remains `qa-admin`). The Vault-provided bootstrap admin password and database password are retained in root-only `/opt/keycloak/credentials.json`; retrieve them privately with `sudo` on the target. Separate root-only environment files limit which credentials each container receives. Never paste these values into tickets, logs, or tracked variables. Existing credentials are retained on rerun; installation refuses to generate replacement credentials when a retained database volume already exists. Replacing an environment password does not rotate credentials already stored in PostgreSQL or Keycloak. Bootstrap administration is temporary: create a named operator admin and remove the temporary account after first setup, following the Keycloak admin workflow.
+
+Before acceptance, verify HTTPS discovery and readiness twice, create a test realm/account, stop/start the service and confirm that account survives. A host reboot test must be scheduled explicitly to avoid interrupting shared QA services. Back up PostgreSQL with `pg_dump` into protected storage and prove restore into an isolated database before claiming backup acceptance. No reboot or backup acceptance is implied by enabling the unit.
+
+The Docker role now uses idempotent built-in download/copy modules for its official signing key and apt source instead of shell pipelines, and rejects unsupported distributions before package changes. The Keycloak health probe uses HTTP only on its unpublished management port; browser traffic requires HTTPS.
+
+This role installs the identity server only. Realm/client/policy provisioning, private test mailbox routing, external Pharos HTTPS configuration and Stripe sandbox end-to-end validation are separate acceptance steps. Until Brevo delivery is restored, captured email proves activation flow but not real mailbox delivery.
+
+
+Local role validation uses the existing Ansible Python environment (Jinja2 and PyYAML already installed), the cached pinned images and Docker Compose. It creates a uniquely named disposable project and test volume, checks certificate-validated HTTPS discovery twice, creates an account through the admin API, and confirms persistence after Compose down/up. The self-signed certificate is trusted only by that test and removed during cleanup; it is not suitable for external acceptance.
+
+```bash
+ansible-lint --offline keycloak.yml roles/keycloak roles/docker_engine
+KEYCLOAK_DOCKER_TEST=1 python -m unittest discover -s tests -p test_keycloak_role.py -v
+python3 bin/check_features_sync.py
+```
+
+
+Store two distinct passwords in encrypted `group_vars/prod_web/vault.yml` as `keycloak_admin_password` and `keycloak_database_password`. Use 32–128 random ASCII letters and digits per password, without dollar signs or newlines so Compose environment parsing cannot alter their values. The canonical nonsecret admin username is `keycloak_admin_user` (default `qa-admin`). The shared host maps the passwords to `vault.keycloak.admin_pass` and `vault.keycloak.db_pass` in `group_vars/prod_web/main.yml`. The role neither generates replacement passwords nor rotates existing database/admin credentials on rerun: mismatches between Vault and the retained installation block apply.
+
+Docker may be installed independently while the operator prepares Vault credentials and the HTTPS origin:
+
+```bash
+apb keycloak.yml -l web0 --check -e keycloak_docker_only=true
+apb keycloak.yml -l web0 -e keycloak_apply=true -e keycloak_docker_only=true
+```
+
+The Docker-only path skips Keycloak configuration and startup. It requires no Keycloak passwords and does not restart nginx or Pharos. Run the full playbook without the Docker-only flag once the remaining inputs are ready.
+
+
+### Adding only the authentication DNS record through Spaceship
+
+DNS is managed by `tf/main.tf` using the existing `spaceship_dns_records.root` resource. `auth.llight.io` points to the existing reserved public IP, alongside the existing root/www/pharos A records and MX records. Do not add a second DNS resource for the same zone or use the broad Terraform bootstrap apply for this change.
+
+For this narrowly scoped DNS addition, create a saved plan targeting `spaceship_dns_records.root` with the existing local providers and GCP credentials, save its JSON privately, and run `python3 bin/check_keycloak_dns_plan.py <plan.json> --address <existing-server-ip>`. The guard rejects any existing-record removal/modification, server changes, resource replacement, or addition other than the single auth A record. JSON and plan files can include sensitive Terraform variables: keep them owner-only under ignored `dist/`. Review the accepted plan and apply that exact saved plan; do not use auto-approve. After apply, refresh the targeted plan and compare the live records against the pre-apply snapshot. This exceptional target prevents unrelated VM image drift from entering the DNS apply.
+
+Operator authorization covers adding the auth tenant on the shared host. Existing Nginx site contents should be hashed before and after the rollout, and their HTTPS pages checked on both sides of each service transition. Do not reboot the shared host to prove boot persistence without a separately scheduled window. The server installation is complete only after public certificate validation, expected OIDC issuer, Vault-backed administrator login and Keycloak service start/stop persistence all pass.
+
+
+`tests/check_keycloak_live.py` runs on the shared host as root using the retained private credentials. It never prints passwords or tokens and always verifies the public certificate. Its `inspect` action checks issuer and the configured administrator; `create` makes a uniquely named disposable acceptance realm/account, `verify` proves persistence after a controlled `keycloak.service` stop/start, and `cleanup` removes only that owned realm/state. Pass `--admin-user ll-admin` for this host. Never reboot or restart Nginx/Pharos for this identity-service persistence check.
+
+
+### Subscription application integration
+
+`keycloak_application.yml` configures the external `pharos` realm on `auth.llight.io`. Its public browser client uses authorization code flow with S256 PKCE and the exact local review callback `http://localhost:7524/__pharos/keycloak/callback`; logout returns to `http://localhost:7524/accounts/login/`. Its confidential `pharos-provisioner` client has user-management roles only in this application realm. Its independent credential is stored as `vault.keycloak.provisioner_secret`. The application receives no master-realm administrator password.
+
+The `keycloak_application_realm_source` variable identifies the reviewed local Pharos realm JSON. For the feature worktree, pass its absolute `containers/keycloak/pharos-realm.json` path; the normal default is the sibling `pharos` checkout. Plan first, then opt in with `keycloak_application_apply=true`. The helper creates a missing realm once, updates only declared settings/clients on rerun, preserves accounts and signing keys, and refuses an unplanned provisioner-secret rotation or missing-client recreation.
+
+While Brevo remains unavailable, `keycloak-capture-forward.service` listens only on the existing private Docker gateway. It accepts only that Docker subnet and forwards capture SMTP to loopback SSH tunnel endpoints: private port 21126 to 21125 for disposable acceptance, and private port 21226 to 21225 for manual review. It is bounded to eight concurrent connections per endpoint and 512 KiB per SMTP connection, runs as a dynamic unprivileged user, and exposes no public SMTP or mailbox listener. It has no real-relay configuration. Forwarding fails visibly while the local SSH tunnel/inbox is absent; native purchase delivery retry remains available.
+
+Local acceptance supplies SSH reverse forwarding from those remote loopback endpoints to the isolated local capture listeners. Manual review uses a separate local portal/inbox at ports 7524/8225 and preserves the original 7324/8025 environment. Actual Stripe sandbox requests use test credentials, and `local=false` enforces the external issuer transport profile. This does not deploy or replace the shared Pharos runtime on Linux.
+
+`keycloak_application_external_config` optionally exports owner-only diagnostic administration/provisioner settings into an explicitly supplied local ignored file. Use it only for acceptance and keep it out of logs and source control. The native service configuration receives only the realm provisioner secret, its own policy/management credentials and Stripe test credentials.
+
+Server resilience acceptance is complete by the operator's instruction; the acceptance report distinguishes that decision from agent-observed checks.
+
+The authentication tenant logs only method, path, status and timing; query strings, action tokens, cookies and request bodies are excluded from its dedicated access log.
+
+
+## Native subscription service on QA
+
+The standalone access service runs at https://access.llight.io on the shared QA/production machine. It is independent of the shared Pharos runtime and uses Stripe sandbox with real Keycloak SMTP. It does not require live Stripe credentials or actual sales. Clippy is a local build lint tool; it is not a server prerequisite. The exact Linux artifact must pass local compile/check, targeted tests and deployment-shaped authenticated validation before installation. Native Rust source changes retain the repository's lint requirements; no additional target-server compiler or lint installation is needed.
+
+The pharos_access.yml playbook defaults to a plan. Its role validates binary and browser hashes against the approved local gate, stages an immutable release, creates an independent pharos-access-qa realm, and enables pharos-access.service. The application binds 127.0.0.1:7624 behind its dedicated Nginx tenant. Certbot issues the access certificate through a dedicated webroot without stopping Nginx; the renewal hook validates and reloads Nginx. Existing runtime, capture realm and other Nginx sites are preserved.
+
+The access DNS A record is managed by tf/main.tf in the existing Spaceship zone resource. Use a targeted saved plan and bin/check_keycloak_dns_plan.py with --name access --address 34.169.129.168. The guard permits only that single addition and preserves every existing record; never include unrelated server drift in the apply. Review and apply the exact accepted saved plan, then require a targeted no-change plan.
+
+Provide an owner-only ignored extra-vars JSON with pharos_access_binary, pharos_access_gate, pharos_access_web_root, pharos_access_settings, pharos_access_environment and pharos_access_realm_definition. The private environment keys are PHAROS_PROVISIONER_SECRET, PHAROS_ACCESS_AUTHORIZATION_SECRET, PHAROS_ACCESS_MANAGEMENT_SECRET, PHAROS_STRIPE_SECRET and PHAROS_STRIPE_WEBHOOK_SECRET. The role accepts test-mode Stripe keys only. Register the sandbox endpoint at https://access.llight.io/webhooks/stripe for Checkout completion/asynchronous results, charge refunds and dispute creation. Store its real signing secret privately. Enable the endpoint after HTTPS health passes, then verify genuine Stripe sandbox events against the deployed purchase state.
+
+Use the realm import with exact HTTPS callback and logout URLs at access.llight.io, a separate provisioner secret and authenticated STARTTLS SMTP. The master administrator password remains in the existing Vault variable and is used only for realm provisioning. Stable generated QA application credentials are retained in dist/qa-access-private/deployment.json with owner-only permissions; preserve this file or move its values into operator-controlled Vault storage before replacing the workspace.
+
+```sh
+apb pharos_access.yml -l web0 -t pharos_access
+apb pharos_access.yml -l web0 -t pharos_access -e @dist/qa-access-private/deployment.json -e pharos_access_apply=true
+```
+
+The service runs as pharos-access with a read-only system, private temporary directory, bounded memory/tasks and no capabilities. Private environment credentials are in /etc/pharos-access/service.env, host settings in /etc/pharos-access/service.json, and durable purchases in /var/lib/pharos-access/subscriptions.sqlite3. Releases live under /opt/pharos-access/releases with a current symlink. Promotion checks readiness twice and restores the previous binary link, unit and private configuration on failure when available. Service lifecycle uses systemctl start, stop or restart pharos-access.service; enablement persists reboots. Inspect safe diagnostics with journalctl -u pharos-access.service.
+
+QA must verify real SMTP configuration, account provisioning, submission to the relay, durable delivery failure/retry handling, OIDC and policy behavior. An external Brevo rejection or bounce after submission is recorded separately and does not fail application QA when service behavior is correct. Successful SMTP submission does not claim delivery to the real inbox. Keep activation and signed login covered through a private capture realm when external delivery is unavailable; do not replace the real SMTP settings of the persistent QA realm merely to run automation. No live-money transaction is required for this sandbox deployment, and the deployment does not merge main.

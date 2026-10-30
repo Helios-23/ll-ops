@@ -1,0 +1,64 @@
+name: keycloak
+services:
+  database:
+    mem_limit: {{ keycloak_postgres_memory_limit | to_json }}
+    image: {{ keycloak_postgres_image | to_json }}
+    pull_policy: never
+    restart: unless-stopped
+    env_file: [postgres.env]
+    volumes:
+      - database:/var/lib/postgresql/data
+    networks: [database]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U keycloak -d keycloak']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}
+  keycloak:
+    mem_limit: {{ keycloak_memory_limit | to_json }}
+    image: {{ keycloak_image | to_json }}
+    pull_policy: never
+    restart: unless-stopped
+    command: [start]
+    env_file: [keycloak.env]
+    depends_on:
+      database:
+        condition: service_healthy
+    ports:
+      - "{{ keycloak_bind_address }}:{{ keycloak_https_port }}:8443"
+    volumes:
+      - type: bind
+        source: {{ keycloak_tls_directory | to_json }}
+        target: /opt/keycloak/conf/tls
+        read_only: true
+        bind:
+          create_host_path: false
+    networks: [database, outbound]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    healthcheck:
+      test:
+        - CMD
+        - bash
+        - -ec
+        - >-
+          exec 3<>/dev/tcp/127.0.0.1/9000;
+          printf 'GET /health/ready HTTP/1.0\r\nHost: localhost\r\n\r\n' >&3;
+          grep -q '200 OK' <&3
+      interval: 10s
+      timeout: 5s
+      start_period: 90s
+      retries: 18
+    stop_grace_period: 60s
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: '3'}
+volumes:
+  database:
+networks:
+  database:
+    internal: true
+  outbound:

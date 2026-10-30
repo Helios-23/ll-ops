@@ -42,3 +42,8 @@ output "gcp_inventory_host_name" {
   description = "host_name value to assign to the web0 inventory entry."
   value       = var.gcp_inventory_host_name
 }
+
+output "auth_fqdn" {
+  description = "Keycloak hostname on the existing shared QA/production server."
+  value       = "auth.${var.domain}"
+}
