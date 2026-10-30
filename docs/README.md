@@ -22,3 +22,5 @@ When `ops/` automation changes, update:
 1. [FEATURES.md](FEATURES.md) for playbook, role, or tag inventory changes.
 2. [OPERATOR_RUNBOOK.md](OPERATOR_RUNBOOK.md) when operator workflow, prerequisites, verification, or recovery guidance changes.
 3. This index when operator docs are added, removed, or renamed.
+
+The operator runbook records the approved local QA access artifact location and retained Keycloak acceptance reports, independently of retired development worktrees.

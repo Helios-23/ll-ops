@@ -159,3 +159,5 @@ For AI-agent edits inside `ops/`:
 - `ops/bin/check_features_sync.py` checks that the **Complete Tag Index** matches the tags present in `ops/*.yml` and `ops/roles/**/*.yml`
 - the same checker also verifies that all `ops` playbooks and role directories are explicitly listed in `FEATURES.md`
 - agents working in `ops/` should run the checker before finishing their turn
+
+The native QA access service accepts an approved local Linux release with matching binary and browser hashes. The retained approved artifact is under the Pharos checkout at dist/keycloak-qa-approved; private deployment input stays in ignored controller storage.
