@@ -86,20 +86,51 @@
   loop: "{{ pharos_deploy_services | reverse | list }}"
   when: item in ansible_facts.services
 
-- name: Install Pharos package from staged repository
-  shell: |
-    set -e
-    deb="{{ ll_repo }}/{{ pharos_deploy_package_src | basename }}"
-    dpkg_path_args=""
-    if [ "{{ pharos_deploy_preserve_existing_apps | bool | ternary('1', '0') }}" = "1" ]; then
-      dpkg_path_args="$dpkg_path_args --path-exclude=/srv/pharos/apps/*"
-    fi
-    # shellcheck disable=SC2086
-    dpkg $dpkg_path_args --force-confdef --force-confold -i "$deb" || (apt-get -f install -y && dpkg $dpkg_path_args --force-confdef --force-confold -i "$deb")
-  args:
-    executable: /bin/sh
-  register: pharos_deploy_install
-  notify: Restart Pharos services
+- name: Allocate private app preservation staging
+  ansible.builtin.tempfile:
+    state: directory
+    path: /srv/pharos
+    prefix: .runtime-preserve-
+  register: pharos_deploy_preservation
+  when: pharos_deploy_preserve_existing_apps | bool
+
+- name: Retain existing app files before dpkg excludes formerly owned paths
+  ansible.builtin.command:
+    argv: [tar, -C, /srv/pharos/apps, -cpf, "{{ pharos_deploy_preservation.path }}/apps.tar", .]
+  when: pharos_deploy_preserve_existing_apps | bool
+
+- name: Install runtime with app preservation restored on success or failure
+  block:
+    - name: Install Pharos package from staged repository
+      shell: |
+        set -e
+        deb="{{ ll_repo }}/{{ pharos_deploy_package_src | basename }}"
+        dpkg_path_args=""
+        if [ "{{ pharos_deploy_preserve_existing_apps | bool | ternary('1', '0') }}" = "1" ]; then
+          dpkg_path_args="$dpkg_path_args --path-exclude=/srv/pharos/apps/*"
+        fi
+        # shellcheck disable=SC2086
+        dpkg $dpkg_path_args --force-confdef --force-confold -i "$deb" || (apt-get -f install -y && dpkg $dpkg_path_args --force-confdef --force-confold -i "$deb")
+      args:
+        executable: /bin/sh
+      environment:
+        PHAROS_PRESERVE_EXISTING_APPS: "{{ pharos_deploy_preserve_existing_apps | bool | ternary('1', '0') }}"
+      register: pharos_deploy_install
+      notify: Restart Pharos services
+
+  always:
+    - name: Restore preserved app files after package installation
+      ansible.builtin.unarchive:
+        src: "{{ pharos_deploy_preservation.path }}/apps.tar"
+        dest: /srv/pharos/apps
+        remote_src: true
+      when: pharos_deploy_preserve_existing_apps | bool
+
+    - name: Remove completed preservation staging
+      ansible.builtin.file:
+        path: "{{ pharos_deploy_preservation.path }}"
+        state: absent
+      when: pharos_deploy_preserve_existing_apps | bool
 
 - name: Update configuration to enalble smtp email
   ansible.builtin.lineinfile:

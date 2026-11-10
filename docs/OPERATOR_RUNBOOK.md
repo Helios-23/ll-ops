@@ -206,7 +206,7 @@ Expected behavior:
 - stages it through `roles/ll_repo`
 - stops the existing HA monitor and shared runtime before installing it on the target host, keeping post-install migrations isolated from active writers
 - by default, installs runtime-packaged app roots and runs migrations only for dynamic app roots owned by the installed Debian package while the shared runtime is stopped. External apps are migrated from their staged updated bundles by pharos_app; runtime deployment never migrates an older external bundle
-- when `pharos_deploy_preserve_existing_apps=true`, passes `--path-exclude=/srv/pharos/apps/*` to `dpkg` and skips the runtime role app migration scan so existing deployed apps remain untouched
+- when `pharos_deploy_preserve_existing_apps=true`, retains and restores the existing app files around `dpkg` because exclusion can remove formerly package-owned files, passes `--path-exclude=/srv/pharos/apps/*`, exports `PHAROS_PRESERVE_EXISTING_APPS=1` to the package maintainer script, and skips the runtime role app migration scan. The matching package hook skips app migrations and recursive database ownership or permission changes. Use a package containing this hook; older packages cannot provide this preservation contract.
 - restarts `pharos.service` and `pharos-ha.service`
 - prunes older retained runtime packages
 
