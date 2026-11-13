@@ -1,0 +1,12 @@
+pharos_services_root: /opt/pharos-services
+pharos_services_source: "{{ playbook_dir }}/../pharos"
+pharos_services_minimum_free_bytes: 3221225472
+pharos_clamav_data: /var/lib/pharos-clamav
+pharos_clamav_logs: /var/log/pharos-clamav
+pharos_postgresql_data: /var/lib/pharos-postgresql
+pharos_clamav_seed_archive: "{{ playbook_dir }}/dist/service-images/clamav-signatures.tar.gz"
+pharos_services_images:
+  - id: sha256:64ca916618842ba469ef38a501e6c2f42a68281c064c03749b0126c0fb085ce5
+    archive: "{{ playbook_dir }}/dist/service-images/clamav-1.5.4.tar"
+  - id: sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
+    archive: "{{ playbook_dir }}/dist/service-images/postgres-16-alpine.tar"

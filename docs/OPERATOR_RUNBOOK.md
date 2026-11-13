@@ -34,6 +34,12 @@ The controlled Dynamic receiver is the test-only `pharos/tests/support/qa_integr
 
 ## Standard operating sequence
 
+### Dedicated Pharos database and scanner services
+
+Use [PHAROS_QA_SERVICES.md](PHAROS_QA_SERVICES.md) to stage the pinned local image/signature inputs, preview the plan and explicitly apply the service-only stack. `pharos_services.yml` requires at least 3 GiB free root-disk space and 3.8 GiB total RAM before creating service files. It never deletes logs, backups, rollback packages or app data to make room. Disk enlargement requires a separate reviewed infrastructure action.
+
+ClamAV binds only `127.0.0.1:3310`; the dedicated Pharos PostgreSQL instance binds only `127.0.0.1:55432`. Persistent data and credentials are separate from Keycloak and from installed Pharos app roots. PostgreSQL bootstrap credentials are operator-only. App roles, per-app databases, data retention/transfer and selection of the configured backend require their own explicit cutover; preparing a container does not change the live app backend.
+
 ### 1. Bootstrap a workstation
 
 1. Follow [SETUP_GUIDE.md](SETUP_GUIDE.md).

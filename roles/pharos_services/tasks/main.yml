@@ -1,0 +1,198 @@
+- name: Read capacity facts before creating service files
+  ansible.builtin.setup:
+    gather_subset: [hardware]
+    filter:
+      - ansible_mounts
+      - ansible_memtotal_mb
+
+- name: Require disk and memory capacity without deleting retained data
+  ansible.builtin.assert:
+    that:
+      - (ansible_facts.mounts | selectattr('mount', 'equalto', '/') | first).size_available | int >= pharos_services_minimum_free_bytes | int
+      - ansible_facts.memtotal_mb | int >= 3800
+      - pharos_services_root == '/opt/pharos-services'
+      - pharos_clamav_data == '/var/lib/pharos-clamav'
+      - pharos_clamav_logs == '/var/log/pharos-clamav'
+      - pharos_postgresql_data == '/var/lib/pharos-postgresql'
+    fail_msg: Service preparation needs at least 3 GiB free disk and 3.8 GiB total RAM. Preserve app data, logs and rollback archives; provision capacity before apply.
+
+- name: Inspect pinned image IDs without registry access
+  ansible.builtin.command:
+    argv: [docker, image, inspect, "{{ item.id }}"]
+  loop: "{{ pharos_services_images }}"
+  register: pharos_services_image_status
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+- name: Create root-owned service directories
+  ansible.builtin.file:
+    path: "{{ pharos_services_root }}/{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  loop: [images, clamav, postgresql, postgresql/secrets]
+
+- name: Stage missing images from reviewed local archives
+  ansible.builtin.copy:
+    src: "{{ item.item.archive }}"
+    dest: "{{ pharos_services_root }}/images/{{ item.item.id | replace(':', '-') }}.tar"
+    owner: root
+    group: root
+    mode: "0600"
+  loop: "{{ pharos_services_image_status.results }}"
+  when: item.rc != 0
+  no_log: true
+
+- name: Load missing images without pulling
+  ansible.builtin.command:
+    argv: [docker, image, load, --input, "{{ pharos_services_root }}/images/{{ item.item.id | replace(':', '-') }}.tar"]
+  loop: "{{ pharos_services_image_status.results }}"
+  when: item.rc != 0
+  changed_when: true
+  no_log: true
+
+- name: Require exact image identities after loading
+  ansible.builtin.command:
+    argv: [docker, image, inspect, "{{ item.id }}"]
+  loop: "{{ pharos_services_images }}"
+  changed_when: false
+  no_log: true
+
+- name: Remove only transferred image cache archives
+  ansible.builtin.file:
+    path: "{{ pharos_services_root }}/images/{{ item.id | replace(':', '-') }}.tar"
+    state: absent
+  loop: "{{ pharos_services_images }}"
+
+- name: Inspect retained PostgreSQL custody and data
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+  loop:
+    - "{{ pharos_services_root }}/postgresql/secrets/bootstrap"
+    - "{{ pharos_postgresql_data }}/PG_VERSION"
+  register: pharos_postgresql_retained
+
+- name: Refuse replacement credentials for existing PostgreSQL data
+  ansible.builtin.assert:
+    that:
+      - pharos_postgresql_retained.results[0].stat.exists or not pharos_postgresql_retained.results[1].stat.exists
+      - not pharos_postgresql_retained.results[0].stat.exists or (pharos_postgresql_retained.results[0].stat.isreg and not pharos_postgresql_retained.results[0].stat.islnk)
+    fail_msg: Restore retained bootstrap credentials instead of resetting an existing database.
+
+- name: Create persistent ClamAV and PostgreSQL data directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.uid }}"
+    group: "{{ item.gid }}"
+    mode: "0700"
+  loop:
+    - {path: "{{ pharos_clamav_data }}", uid: '100', gid: '101'}
+    - {path: "{{ pharos_clamav_logs }}", uid: '100', gid: '101'}
+    - {path: "{{ pharos_postgresql_data }}", uid: '70', gid: '70'}
+
+- name: Copy canonical scanner configuration unchanged
+  ansible.builtin.copy:
+    src: "{{ pharos_services_source }}/containers/clamav/{{ item }}"
+    dest: "{{ pharos_services_root }}/clamav/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: [compose.yml, clamd.conf, freshclam.conf, healthcheck.sh]
+
+- name: Configure scanner storage and bounded QA resources
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "{{ pharos_services_root }}/clamav/{{ item }}"
+    owner: root
+    group: root
+    mode: "0600"
+  loop: [service.env, qa.override.yml]
+
+- name: Inventory existing signature databases
+  ansible.builtin.find:
+    paths: "{{ pharos_clamav_data }}"
+    patterns: ['*.cvd', '*.cld']
+    file_type: file
+    recurse: false
+  register: pharos_clamav_signatures
+
+- name: Seed an empty scanner from current local signed databases
+  ansible.builtin.unarchive:
+    src: "{{ pharos_clamav_seed_archive }}"
+    dest: "{{ pharos_clamav_data }}"
+    owner: '100'
+    group: '101'
+  when: pharos_clamav_signatures.matched | int == 0
+
+- name: Generate initial operator-only PostgreSQL credentials
+  ansible.builtin.command:
+    argv: [openssl, rand, -hex, '32']
+  register: pharos_postgresql_initial_password
+  when: not pharos_postgresql_retained.results[0].stat.exists
+  changed_when: true
+  no_log: true
+
+- name: Preserve initial credentials outside app artifacts
+  ansible.builtin.copy:
+    content: "{{ pharos_postgresql_initial_password.stdout }}\n"
+    dest: "{{ pharos_services_root }}/postgresql/secrets/bootstrap"
+    owner: '70'
+    group: '70'
+    mode: "0400"
+    force: false
+  when: not pharos_postgresql_retained.results[0].stat.exists
+  no_log: true
+
+- name: Protect retained PostgreSQL bootstrap credentials
+  ansible.builtin.file:
+    path: "{{ pharos_services_root }}/postgresql/secrets/bootstrap"
+    owner: '70'
+    group: '70'
+    mode: "0400"
+
+- name: Render the dedicated PostgreSQL stack
+  ansible.builtin.template:
+    src: postgresql.compose.yml.j2
+    dest: "{{ pharos_services_root }}/postgresql/compose.yml"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Validate both Compose configurations without changing services
+  ansible.builtin.command:
+    argv: "{{ item }}"
+  loop:
+    - [docker, compose, --env-file, "{{ pharos_services_root }}/clamav/service.env", -f, "{{ pharos_services_root }}/clamav/compose.yml", -f, "{{ pharos_services_root }}/clamav/qa.override.yml", config, --quiet]
+    - [docker, compose, -f, "{{ pharos_services_root }}/postgresql/compose.yml", config, --quiet]
+  changed_when: false
+
+- name: Start only the two dedicated service projects
+  ansible.builtin.command:
+    argv: "{{ item }}"
+  loop:
+    - [docker, compose, --env-file, "{{ pharos_services_root }}/clamav/service.env", -f, "{{ pharos_services_root }}/clamav/compose.yml", -f, "{{ pharos_services_root }}/clamav/qa.override.yml", up, -d, --pull, never, --wait, --wait-timeout, '420']
+    - [docker, compose, -f, "{{ pharos_services_root }}/postgresql/compose.yml", up, -d, --pull, never, --wait, --wait-timeout, '120']
+  register: pharos_services_started
+  changed_when: "'Created' in (pharos_services_started.stdout + pharos_services_started.stderr) or 'Started' in (pharos_services_started.stdout + pharos_services_started.stderr) or 'Recreated' in (pharos_services_started.stdout + pharos_services_started.stderr)"
+
+- name: Install the canonical scanner acceptance check
+  ansible.builtin.copy:
+    src: "{{ pharos_services_source }}/tests/check/clamav_service.py"
+    dest: "{{ pharos_services_root }}/check-clamav.py"
+    owner: root
+    group: root
+    mode: "0600"
+
+- name: Require real scanner clean and infected controls plus persistent logs
+  ansible.builtin.command:
+    argv: [python3, "{{ pharos_services_root }}/check-clamav.py", --log-dir, "{{ pharos_clamav_logs }}"]
+  changed_when: false
+
+- name: Require PostgreSQL readiness without selecting any app backend
+  ansible.builtin.command:
+    argv: [docker, compose, -f, "{{ pharos_services_root }}/postgresql/compose.yml", exec, -T, database, psql, --username=postgres, --dbname=postgres, --no-psqlrc, --tuples-only, --command, 'SELECT 1']
+  changed_when: false

@@ -10,6 +10,7 @@ Use this as the quick command map. The **Complete Tag Index** and **Role Notes**
 
 | Playbook | Scope | Flow | Main tags | Focus tags |
 | --- | --- | --- | --- | --- |
+| `pharos_services.yml` | `web0` | plan by default; opt-in capacity-gated ClamAV and dedicated PostgreSQL containers from local pinned images; persistent data, loopback ports and retained bootstrap custody; no app/backend cutover | `pharos_services` | `pharos_services` |
 | `pharos_access.yml` | `web0` shared QA/production host | plan by default; exact-target gate, separate real-SMTP QA realm, sandbox Stripe, persistent native access service, dedicated access HTTPS tenant and Certbot renewal; preserve existing sites | `pharos_access` | `pharos_access` |
 | `keycloak_application.yml` | `web0` shared QA/production host | plan by default; scoped subscription realm and clients, Vault provisioner secret, and Docker-private SMTP-to-SSH capture forwarding | `keycloak_application` | `keycloak_application` |
 | `keycloak.yml` | `web0` shared QA/production host | plan by default; opt-in Docker Engine and dedicated HTTPS Keycloak/PostgreSQL service installation using locally staged images and Vault credentials; dedicated auth Nginx TLS site and webroot certificate issuance | `keycloak` | `keycloak` |
@@ -114,7 +115,7 @@ apb cloud_bootstrap.yml -e cloud_bootstrap_provider=azure
 
 | Tags |
 | --- |
-| `admin`, `cloud_bootstrap`, `kymstr`, `keycloak`, `keycloak_application`, `pharos_access`, `pharos_app`, `pharos_runtime`, `terraform`, `web_server` |
+| `admin`, `cloud_bootstrap`, `kymstr`, `keycloak`, `keycloak_application`, `pharos_access`, `pharos_app`, `pharos_runtime`, `pharos_services`, `terraform`, `web_server` |
 
 ### Role-level tags
 
@@ -132,6 +133,7 @@ apb cloud_bootstrap.yml -e cloud_bootstrap_provider=azure
 
 | Role | Main tags | Extra tags / notes |
 | --- | --- | --- |
+| `roles/pharos_services` | inherited `pharos_services` | requires capacity before mutation; local pinned images, canonical scanner configuration, retained signatures/logs, dedicated PostgreSQL data and bootstrap credential; no package, app or backend configuration changes |
 | `roles/admin` | none | task tag: `update_reboot` |
 | `roles/cloud_bootstrap` | `cloud_bootstrap` | extra tags: `cloud_gcp`, `cloud_aws`, `cloud_azure`; provider-specific bootstrap for Terraform service accounts and credentials; controller-side only |
 | `roles/certbot_tls` | `certbot_tls` | ACME/TLS issuance and renewal support for nginx-hosted services |

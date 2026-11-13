@@ -1,0 +1,23 @@
+- name: Plan or provision isolated Pharos QA services
+  hosts: web0
+  become: true
+  gather_facts: false
+  vars:
+    pharos_services_apply: false
+  tags: pharos_services
+  tasks:
+    - name: Describe the service-only scope
+      ansible.builtin.debug:
+        msg: |
+          Add loopback-only ClamAV on port 3310 and dedicated PostgreSQL on port 55432.
+          Use verified local images, persistent service data and retained bootstrap credentials.
+          Require 3 GiB of free root-disk space before making changes.
+          Preserve Keycloak, Pharos apps, existing SQLite files and all runtime configuration.
+          PostgreSQL service preparation does not select it as an app backend or transfer data.
+          Apply requested: {{ pharos_services_apply | bool }}.
+    - name: Provision services only when explicitly requested
+      ansible.builtin.include_role:
+        name: pharos_services
+      when:
+        - pharos_services_apply | bool
+        - not ansible_check_mode

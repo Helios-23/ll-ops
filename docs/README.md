@@ -11,6 +11,8 @@ Documentation root for the `ops` repo.
 
 ## Specialist docs
 
+- [PHAROS_QA_SERVICES.md](PHAROS_QA_SERVICES.md): capacity-gated, local-image ClamAV and dedicated PostgreSQL service preparation without application or database cutover
+
 - [KEYCLOAK_QA_ACCEPTANCE.md](KEYCLOAK_QA_ACCEPTANCE.md): verified shared-host auth tenant rollout, operator resilience acceptance and application integration scope
 
 - [infra-consulting-spec-single-machine.md](infra-consulting-spec-single-machine.md): infrastructure planning notes

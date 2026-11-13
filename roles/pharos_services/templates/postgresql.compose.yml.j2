@@ -1,0 +1,36 @@
+name: pharos-postgresql
+services:
+  database:
+    image: {{ pharos_services_images[1].id }}
+    pull_policy: never
+    user: "70:70"
+    read_only: true
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD_FILE: /run/secrets/bootstrap
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256 --auth-local=peer
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - {{ pharos_postgresql_data }}:/var/lib/postgresql/data
+      - ./secrets/bootstrap:/run/secrets/bootstrap:ro
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m,mode=1777
+      - /var/run/postgresql:rw,nosuid,nodev,size=16m,uid=70,gid=70,mode=0770
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 512m
+    cpus: 1.0
+    pids_limit: 128
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U postgres -d postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
