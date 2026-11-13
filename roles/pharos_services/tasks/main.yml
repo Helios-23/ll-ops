@@ -126,6 +126,7 @@
     dest: "{{ pharos_clamav_data }}"
     owner: '100'
     group: '101'
+    extra_opts: [--no-overwrite-dir]
   when: pharos_clamav_signatures.matched | int == 0
 
 - name: Generate initial operator-only PostgreSQL credentials

@@ -27,7 +27,7 @@ tar -C ../pharos/.local/services/clamav/database -czf dist/service-images/clamav
 apb pharos_services.yml -l web0
 ```
 
-The exact reviewed image IDs are pinned in the role defaults. Apply checks those identities after loading missing images and never pulls. Source signatures come from the existing local ClamAV service; validate its signature age and clean/EICAR controls before staging. Only an empty remote signature store is seeded. FreshClam remains enabled for official updates and existing signature data is never overwritten by a replayed seed.
+The exact reviewed image IDs are pinned in the role defaults. Apply checks those identities after loading missing images and never pulls. Source signatures come from the existing local ClamAV service; validate its signature age and clean/EICAR controls before staging. Only an empty remote signature store is seeded, preserving the target directory's private permissions. FreshClam remains enabled for official updates and existing signature data is never overwritten by a replayed seed.
 
 ## Apply and checks
 
