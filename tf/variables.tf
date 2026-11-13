@@ -108,6 +108,16 @@ variable "gcp_machine_type" {
   default     = "e2-medium"
 }
 
+variable "gcp_boot_disk_size_gb" {
+  description = "Boot disk capacity in GiB for Pharos instances; the standard E2-medium deployment uses 40 GiB."
+  type        = number
+  default     = 40
+  validation {
+    condition     = var.gcp_boot_disk_size_gb >= 10 && floor(var.gcp_boot_disk_size_gb) == var.gcp_boot_disk_size_gb
+    error_message = "Boot disk capacity must be a whole number of GiB, at least 10."
+  }
+}
+
 variable "gcp_instance_tags" {
   description = "Optional network tags to assign to the GCP instance."
   type        = list(string)

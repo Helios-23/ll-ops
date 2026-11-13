@@ -26,6 +26,8 @@ Required local prerequisites:
 - local credentials loaded from `ops/` with `source ./bin/loadenv.sh`
 - access to the inventory hosts you intend to manage
 
+The standard Pharos instance profile is `gcp_machine_type=e2-medium` with `gcp_boot_disk_size_gb=40`. Both the Terraform variable default and checked-in deployment values specify 40 GiB so replicated instances receive the intended capacity. Disk capacity is configured independently of CPU/RAM. Existing disks can grow in place after explicit approval; retain the same instance and root mount, then verify partition/filesystem capacity and service health. Do not replace a VM to enlarge its disk.
+
 ### Private QA integration environment
 
 Run `sudo python3 provision_pharos_qa_environment.py` on the QA host to preview missing framework payment keys and Dynamic loopback settings; add `--apply` only after explicit approval. The helper preserves existing nonempty values and atomically writes `/etc/pharos/pharos.env` with its existing owner and mode 0640. It never prints secret values. Retain the payment encryption key across redeploys and include it in protected operator backups; replacing it requires an explicit key-rotation workflow.

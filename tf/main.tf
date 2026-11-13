@@ -130,6 +130,7 @@ resource "google_compute_instance" "pharos" {
   boot_disk {
     initialize_params {
       image = data.google_compute_image.ubuntu_2404.self_link
+      size  = var.gcp_boot_disk_size_gb
     }
   }
 

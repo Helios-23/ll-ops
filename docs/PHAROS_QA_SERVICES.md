@@ -6,6 +6,8 @@
 
 Require at least 3 GiB of free root-disk space and 3.8 GiB total RAM. Inspect filesystem and memory capacity before staging archives; container images, signature updates, database growth and logs need working space. A full host is a prerequisite failure. Obtain separate approval for an in-place cloud-disk enlargement; never replace the instance or erase retained data to satisfy this guard.
 
+The standard E2-medium provisioning profile uses a 40 GiB root disk, configured through `gcp_boot_disk_size_gb`. Replicas use this explicit size rather than the image's smaller default.
+
 | Service | Host binding | Persistent storage | Resource ceiling |
 | --- | --- | --- | --- |
 | ClamAV | `127.0.0.1:3310` | `/var/lib/pharos-clamav`, `/var/log/pharos-clamav` | 2 GiB, one CPU, 128 PIDs |
