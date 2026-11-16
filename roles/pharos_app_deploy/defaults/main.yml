@@ -6,6 +6,8 @@ pharos_app_deploy_controller_release_root: "{{ pharos_app_deploy_repo_dir }}/dis
 pharos_app_deploy_archive_ext: tar.gz
 pharos_app_deploy_archive_stamp: ""
 pharos_app_deploy_archive_revision: ""
+pharos_app_deploy_use_prepared_archive: false
+pharos_app_deploy_prepared_archive_sha256: ""
 pharos_app_deploy_archive_basename: >-
   {{ app_id }}-{{ pharos_app_deploy_archive_stamp }}{{ pharos_app_deploy_archive_revision | ternary('-' ~ pharos_app_deploy_archive_revision, '') }}.{{ pharos_app_deploy_archive_ext }}
 pharos_app_deploy_archive_path: "{{ pharos_app_deploy_controller_release_root }}/{{ pharos_app_deploy_archive_basename }}"
@@ -43,6 +45,16 @@ pharos_app_deploy_group: pharos
 pharos_app_deploy_directory_mode: "0755"
 pharos_app_deploy_runtime_binary_path: /usr/bin/pharos
 pharos_app_deploy_runtime_conf_path: /etc/pharos/pharos.conf
+# Server-owned credential files supplied to migration processes through systemd.
+pharos_app_deploy_runtime_environment_files: []
+pharos_app_deploy_environment: qa
+pharos_app_deploy_proof_control_dir: /var/lib/pharos/review-control
+pharos_app_deploy_proof_evidence_dir: /var/lib/pharos/review-evidence/current
+pharos_app_deploy_proof_token_path: "{{ pharos_app_deploy_proof_control_dir }}/operator.token"
+pharos_app_deploy_proof_config_token_path: "/etc/pharos/{{ pharos_app_deploy_environment }}.operator.token"
+pharos_app_deploy_proof_local_token_path: "{{ pharos_app_deploy_repo_dir }}/{{ pharos_app_deploy_environment }}.operator.token"
+# Leave empty to derive HTTPS from the host runtime base_url setting.
+pharos_app_deploy_proof_origin: ""
 pharos_app_deploy_services:
   - pharos.service
   - pharos-ha.service

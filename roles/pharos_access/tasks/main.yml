@@ -53,6 +53,48 @@
     fail_msg: Require the passing local Linux gate, exact HTTPS origin, real SMTP and sandbox Stripe credentials.
   no_log: true
 
+- name: Require protected host storage configuration paths
+  ansible.builtin.assert:
+    that:
+      - pharos_access_runtime_conf is match('^/etc/pharos-access/[A-Za-z0-9][A-Za-z0-9_.-]*$')
+      - pharos_access_runtime_conf not in ['/etc/pharos-access/service.json', '/etc/pharos-access/service.env']
+      - pharos_access_database_env_file == '' or pharos_access_database_env_file is match('^/etc/pharos-access/[A-Za-z0-9][A-Za-z0-9_.-]*$')
+      - pharos_access_database_env_file != pharos_access_runtime_conf
+      - pharos_access_database_env_file not in ['/etc/pharos-access/service.json', '/etc/pharos-access/service.env']
+
+- name: Inspect the prepared generic storage configuration
+  ansible.builtin.stat:
+    path: "{{ pharos_access_runtime_conf }}"
+    follow: false
+    get_checksum: false
+  register: pharos_access_storage_config
+
+- name: Require storage configuration before changing the running service
+  ansible.builtin.assert:
+    that:
+      - pharos_access_storage_config.stat.isreg | default(false)
+      - not (pharos_access_storage_config.stat.islnk | default(false))
+      - pharos_access_storage_config.stat.mode | default('') in ['0600', '0640']
+      - pharos_access_storage_config.stat.pw_name | default('') in ['root', 'pharos-access']
+    fail_msg: Prepare the host database, pinned field policy and separated encryption custody before service promotion.
+
+- name: Inspect the separately prepared database environment
+  ansible.builtin.stat:
+    path: "{{ pharos_access_database_env_file }}"
+    follow: false
+    get_checksum: false
+  when: pharos_access_database_env_file | length > 0
+  register: pharos_access_database_environment
+
+- name: Require protected database credentials without exporting them
+  ansible.builtin.assert:
+    that:
+      - pharos_access_database_environment.stat.isreg | default(false)
+      - not (pharos_access_database_environment.stat.islnk | default(false))
+      - pharos_access_database_environment.stat.uid | default(-1) == 0
+      - pharos_access_database_environment.stat.mode | default('') == '0600'
+  when: pharos_access_database_env_file | length > 0
+
 - name: Resolve the immutable release path
   ansible.builtin.set_fact:
     pharos_access_release: "/opt/pharos-access/releases/{{ (lookup('ansible.builtin.file', pharos_access_gate) | from_json).artifact_sha256 }}"
@@ -82,6 +124,13 @@
     - {path: /etc/pharos-access, group: pharos-access, mode: "0750"}
     - {path: "{{ pharos_access_release }}/bin", mode: "0755"}
     - {path: "{{ pharos_access_release }}/web", mode: "0755"}
+
+- name: Make host storage settings read-only to the service identity
+  ansible.builtin.file:
+    path: "{{ pharos_access_runtime_conf }}"
+    owner: root
+    group: pharos-access
+    mode: "0640"
 
 - name: Install the validated Linux binary
   ansible.builtin.copy:
@@ -177,7 +226,7 @@
   block:
     - name: Write the host-owned runtime configuration
       ansible.builtin.copy:
-        content: "{{ pharos_access_settings | combine({'listen': '127.0.0.1:7624', 'origin': pharos_access_origin, 'issuer': pharos_access_issuer, 'local': false, 'database': '/var/lib/pharos-access/subscriptions.sqlite3', 'web_root': '/opt/pharos-access/current/web'}) | to_nice_json }}"
+        content: "{{ pharos_access_settings | combine({'listen': '127.0.0.1:7624', 'origin': pharos_access_origin, 'issuer': pharos_access_issuer, 'local': false, 'database': '/var/lib/pharos-access/subscriptions.sqlite3', 'runtime_conf': pharos_access_runtime_conf, 'web_root': '/opt/pharos-access/current/web'}) | to_nice_json }}"
         dest: /etc/pharos-access/service.json
         owner: root
         group: pharos-access

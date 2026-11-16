@@ -8,3 +8,5 @@ pharos_access_issuer: https://auth.llight.io/realms/pharos-access-qa
 pharos_access_environment: {}
 pharos_access_realm_definition: {}
 pharos_access_settings: {}
+pharos_access_runtime_conf: /etc/pharos-access/runtime.conf
+pharos_access_database_env_file: ""

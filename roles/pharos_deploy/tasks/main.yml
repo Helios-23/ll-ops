@@ -217,23 +217,66 @@
   register: pharos_deploy_packaged_app_conf_raw
   when: not pharos_deploy_preserve_existing_apps | bool
 
+- name: Validate runtime migration environment file paths
+  ansible.builtin.assert:
+    that:
+      - item is string
+      - item is match('^/etc/pharos/[A-Za-z0-9_][A-Za-z0-9_.-]*$')
+    fail_msg: Runtime migration environment files must remain under /etc/pharos
+  loop: "{{ pharos_deploy_runtime_environment_files }}"
+  when:
+    - not pharos_deploy_preserve_existing_apps | bool
+    - (pharos_deploy_dynamic_apps | default([]) | length) > 0
+
+- name: Inspect runtime migration credential files without reading them
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+    get_attributes: false
+  loop: "{{ pharos_deploy_runtime_environment_files }}"
+  register: pharos_deploy_migration_environment
+  no_log: true
+  when:
+    - not pharos_deploy_preserve_existing_apps | bool
+    - (pharos_deploy_dynamic_apps | default([]) | length) > 0
+
+- name: Require root-owned protected runtime migration credential files
+  ansible.builtin.assert:
+    that:
+      - item.stat.isreg | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.uid | default(-1) == 0
+      - item.stat.mode | default('') in ['0600', '0640']
+    fail_msg: Runtime migration credential files require root ownership and mode 0600 or 0640
+  loop: "{{ pharos_deploy_migration_environment.results | default([]) }}"
+  no_log: true
+  when:
+    - not pharos_deploy_preserve_existing_apps | bool
+    - (pharos_deploy_dynamic_apps | default([]) | length) > 0
+
 - name: Apply bundled dynamic-app migrations while shared runtime is stopped
   ansible.builtin.command:
-    argv:
-      - /usr/bin/pharos
-      - migrate
-      - apply
-      - app
-      - "{{ item.item.app_id }}"
-      - --conf
-      - /etc/pharos/pharos.conf
-      - --app-dir
-      - "{{ item.item.app_dir }}"
-      - --backend
-      - "{{ ((item.content | b64decode).splitlines() | select('match', '^db_backend=') | map('regex_replace', '^db_backend=', '') | list | first | default('sqlite')) }}"
+    argv: >-
+      {{
+        (
+          ['systemd-run', '--quiet', '--wait', '--pipe', '--collect',
+           '--property=User=' ~ pharos_deploy_owner,
+           '--property=Group=' ~ pharos_deploy_group,
+           '--property=WorkingDirectory=' ~ item.item.app_dir,
+           '--setenv=PHAROS_CONFIG=/etc/pharos/pharos.conf']
+          + (pharos_deploy_runtime_environment_files | map('regex_replace', '^', '--property=EnvironmentFile=') | list)
+          if pharos_deploy_runtime_environment_files | length > 0 else []
+        )
+        + ['/usr/bin/pharos', 'migrate', 'apply', 'app', item.item.app_id,
+           '--conf', '/etc/pharos/pharos.conf',
+           '--app-dir', item.item.app_dir,
+           '--backend', ((item.content | b64decode).splitlines() | select('match', '^db_backend=') | map('regex_replace', '^db_backend=', '') | list | first | default('sqlite'))]
+      }}
   environment:
     PHAROS_CONFIG: /etc/pharos/pharos.conf
-  become_user: "{{ pharos_deploy_owner }}"
+  become_user: "{{ 'root' if pharos_deploy_runtime_environment_files | length > 0 else pharos_deploy_owner }}"
   loop: "{{ pharos_deploy_packaged_app_conf_raw.results | default([]) }}"
   when:
     - not pharos_deploy_preserve_existing_apps | bool

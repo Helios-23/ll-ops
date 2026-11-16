@@ -1,0 +1,164 @@
+- name: Require a safe operator environment name
+  ansible.builtin.assert:
+    that:
+      - pharos_app_deploy_environment is match('^[a-z][a-z0-9_-]{0,31}$')
+    quiet: true
+
+- name: Read the host runtime configuration for Proof
+  ansible.builtin.slurp:
+    path: "{{ pharos_app_deploy_runtime_conf_path }}"
+  register: pharos_app_deploy_proof_runtime_config
+
+- name: Derive the configured Proof browser origin
+  ansible.builtin.set_fact:
+    pharos_app_deploy_proof_base_url: >-
+      {{
+        (
+          pharos_app_deploy_proof_runtime_config.content
+          | b64decode
+        ).splitlines()
+        | select('match', '^base_url=')
+        | map('regex_replace', '^base_url=', '')
+        | list
+        | first
+        | default('', true)
+        | trim
+      }}
+
+- name: Normalize the configured Proof browser origin
+  ansible.builtin.set_fact:
+    pharos_app_deploy_proof_effective_origin: >-
+      {{
+        (
+          pharos_app_deploy_proof_origin
+          if pharos_app_deploy_proof_origin | trim | length > 0
+          else (
+            pharos_app_deploy_proof_base_url
+            if pharos_app_deploy_proof_base_url is match('^https?://')
+            else 'https://' ~ pharos_app_deploy_proof_base_url
+          )
+        )
+        | regex_replace('/+$', '')
+      }}
+
+- name: Require an exact HTTPS Proof browser origin
+  ansible.builtin.assert:
+    that:
+      - pharos_app_deploy_proof_effective_origin is match('^https://[A-Za-z0-9.-]+(:[0-9]{1,5})?$')
+    fail_msg: >-
+      proof_spa requires pharos_app_deploy_proof_origin or a host base_url that resolves to one exact HTTPS origin
+    quiet: true
+
+- name: Keep Proof control data outside the app artifact
+  ansible.builtin.file:
+    path: "{{ pharos_app_deploy_proof_control_dir }}"
+    state: directory
+    owner: "{{ pharos_app_deploy_owner }}"
+    group: "{{ pharos_app_deploy_group }}"
+    mode: "0700"
+
+- name: Provision private Proof state collections
+  ansible.builtin.file:
+    path: "{{ pharos_app_deploy_proof_control_dir }}/{{ item }}"
+    state: directory
+    owner: "{{ pharos_app_deploy_owner }}"
+    group: "{{ pharos_app_deploy_group }}"
+    mode: "0700"
+  loop:
+    - evidence
+    - plans
+    - project-test-uploads
+    - projects
+    - reports
+    - requests
+    - results
+    - sources
+    - target
+    - test-plan-inputs
+
+- name: Keep Proof evidence outside the app artifact
+  ansible.builtin.file:
+    path: "{{ pharos_app_deploy_proof_evidence_dir }}"
+    state: directory
+    owner: "{{ pharos_app_deploy_owner }}"
+    group: "{{ pharos_app_deploy_group }}"
+    mode: "0750"
+
+- name: Create the Proof operator credential without rotating an existing token
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/openssl
+      - rand
+      - -hex
+      - -out
+      - "{{ pharos_app_deploy_proof_token_path }}"
+      - "32"
+    creates: "{{ pharos_app_deploy_proof_token_path }}"
+  become: true
+  become_user: "{{ pharos_app_deploy_owner }}"
+  no_log: true
+
+- name: Restrict the Proof operator credential
+  ansible.builtin.file:
+    path: "{{ pharos_app_deploy_proof_token_path }}"
+    state: file
+    owner: "{{ pharos_app_deploy_owner }}"
+    group: "{{ pharos_app_deploy_group }}"
+    mode: "0600"
+
+- name: Mirror the Proof operator credential into protected Pharos configuration
+  ansible.builtin.copy:
+    src: "{{ pharos_app_deploy_proof_token_path }}"
+    dest: "{{ pharos_app_deploy_proof_config_token_path }}"
+    remote_src: true
+    owner: "{{ pharos_app_deploy_owner }}"
+    group: "{{ pharos_app_deploy_group }}"
+    mode: "0600"
+
+- name: Enable the Proof review control plane in host configuration
+  ansible.builtin.lineinfile:
+    path: "{{ pharos_app_deploy_runtime_conf_path }}"
+    regexp: "^{{ item.key }}="
+    line: "{{ item.key }}={{ item.value }}"
+    owner: "{{ pharos_app_deploy_owner }}"
+    group: "{{ pharos_app_deploy_group }}"
+    mode: "0640"
+  loop:
+    - key: review_control_app
+      value: proof_spa
+    - key: review_control_origin
+      value: "{{ pharos_app_deploy_proof_effective_origin }}"
+    - key: review_control_dir
+      value: "{{ pharos_app_deploy_proof_control_dir }}"
+    - key: review_control_token_file
+      value: "{{ pharos_app_deploy_proof_token_path }}"
+    - key: review_evidence_dir
+      value: "{{ pharos_app_deploy_proof_evidence_dir }}"
+  loop_control:
+    label: "{{ item.key }}"
+  notify: Restart Pharos services
+
+- name: Prepare the private local environment credential file
+  ansible.builtin.file:
+    path: "{{ pharos_app_deploy_proof_local_token_path }}"
+    state: touch
+    mode: "0600"
+    access_time: preserve
+    modification_time: preserve
+  delegate_to: localhost
+  become: false
+
+- name: Save the matching environment operator credential on the controller
+  ansible.builtin.fetch:
+    src: "{{ pharos_app_deploy_proof_token_path }}"
+    dest: "{{ pharos_app_deploy_proof_local_token_path }}"
+    flat: true
+  no_log: true
+
+- name: Restrict the local environment operator credential
+  ansible.builtin.file:
+    path: "{{ pharos_app_deploy_proof_local_token_path }}"
+    state: file
+    mode: "0600"
+  delegate_to: localhost
+  become: false

@@ -8,6 +8,9 @@ Type=simple
 User=pharos-access
 Group=pharos-access
 EnvironmentFile=/etc/pharos-access/service.env
+{% if pharos_access_database_env_file | length > 0 %}
+EnvironmentFile={{ pharos_access_database_env_file }}
+{% endif %}
 ExecStart=/opt/pharos-access/current/bin/pharos_access_service --conf /etc/pharos-access/service.json
 WorkingDirectory=/var/lib/pharos-access
 StateDirectory=pharos-access

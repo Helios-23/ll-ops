@@ -36,6 +36,16 @@ The controlled Dynamic receiver is the test-only `pharos/tests/support/qa_integr
 
 ## Standard operating sequence
 
+### Deploying a prepared app set
+
+Prepare and locally validate every app archive before starting a multi-app rollout. Set `pharos_app_deploy_use_prepared_archive=true`, a fixed `pharos_app_deploy_archive_stamp`, the prepared archive root, and `pharos_app_deploy_prepared_archive_sha256` for each app. The app role checks the exact archive SHA-256 before any target changes and skips controller rebuilding, documentation generation and archive replacement. Architect still requires its separately prepared model archive. The default single-app flow continues to build on the controller. Retain the package and app checksum inventory with the rollout evidence.
+
+For database credentials supplied through host environment files, set `pharos_app_deploy_runtime_environment_files` for app deployment or `pharos_deploy_runtime_environment_files` for bundled-app migrations during runtime deployment. For example, use `/etc/pharos/db-ucal.env`. Each file must be a direct child of the protected `/etc/pharos` directory, a regular file with mode 0600 or 0640 and root ownership. The app role additionally verifies that the directory has mode 0700, 0750 or 0755. Both roles use a transient systemd unit to load the files and run the same generic migration CLI as the Pharos user. Credential contents remain on the target; they are not copied to the controller, placed in arguments or included in app archives. An empty list retains ordinary CLI execution for hosts that do not need an additional environment.
+
+### Proof operator credential
+
+Deploying `proof_spa` provisions the external control directory, external evidence directory and complete host-owned review configuration. It retains a private operator token at `/var/lib/pharos/review-control/operator.token`, mirrors it to `/etc/pharos/<environment>.operator.token`, and saves the matching controller copy as `../pharos/<environment>.operator.token`. Set `pharos_app_deploy_environment` to select the safe environment prefix. The role derives the exact HTTPS review origin from the host `base_url` unless `pharos_app_deploy_proof_origin` is explicitly set. Existing remote tokens are retained across deployments; every token copy has mode 0600, and the remote control directory has mode 0700. The Pharos repository excludes `*.operator.token` from Git. Never include tokens in app archives, public artifacts, URLs or deployment output.
+
 ### Dedicated Pharos database and scanner services
 
 Use [PHAROS_QA_SERVICES.md](PHAROS_QA_SERVICES.md) to stage the pinned local image/signature inputs, preview the plan and explicitly apply the service-only stack. `pharos_services.yml` requires at least 3 GiB free root-disk space and 3.8 GiB total RAM before creating service files. It never deletes logs, backups, rollback packages or app data to make room. Disk enlargement requires a separate reviewed infrastructure action.
@@ -204,7 +214,7 @@ Install the newest staged Pharos package on `web0`:
 apb deploy.yml -l web0 -t pharos_runtime
 ```
 
-If needed, pass an explicit controller-side package path with `-e pharos_deploy_package_src=/path/to/pharos_<version>.deb`. For a server-only update that preserves every deployed app bundle, add `-e pharos_deploy_preserve_existing_apps=true` and deploy changed apps separately with `pharos_app`.
+If needed, pass an explicit controller-side package path with `-e pharos_deploy_package_src=/path/to/pharos_<version>.deb`. When bundled dynamic apps use credentials from a protected host file, also pass `-e '{"pharos_deploy_runtime_environment_files":["/etc/pharos/db-qa-postgresql.env"]}'`. For a server-only update that preserves every deployed app bundle, add `-e pharos_deploy_preserve_existing_apps=true` and deploy changed apps separately with `pharos_app`.
 
 Do not use Ansible `--check` during a Pharos release deployment after the local green gate has approved the exact package or app archive. The release path stages and promotes concrete artifacts, and check mode can spend time on paths that intentionally do not exist until apply.
 
@@ -415,6 +425,8 @@ The authentication tenant logs only method, path, status and timing; query strin
 The standalone access service runs at https://access.llight.io on the shared QA/production machine. It is independent of the shared Pharos runtime and uses Stripe sandbox with real Keycloak SMTP. It does not require live Stripe credentials or actual sales. Clippy is a local build lint tool; it is not a server prerequisite. The exact Linux artifact must pass local compile/check, targeted tests and deployment-shaped authenticated validation before installation. Native Rust source changes retain the repository's lint requirements; no additional target-server compiler or lint installation is needed.
 
 The pharos_access.yml playbook defaults to a plan. Its role validates binary and browser hashes against the approved local gate, stages an immutable release, creates an independent pharos-access-qa realm, and enables pharos-access.service. The application binds 127.0.0.1:7624 behind its dedicated Nginx tenant. Certbot issues the access certificate through a dedicated webroot without stopping Nginx; the renewal hook validates and reloads Nginx. Existing runtime, capture realm and other Nginx sites are preserved.
+
+Prepare pharos_access_runtime_conf on the server before applying the role; its default is /etc/pharos-access/runtime.conf. This protected host file owns generic db_* selection, pinned field policy and separated encryption custody. The role checks it before promotion and grants the service read-only access. For a backend requiring environment credentials, set pharos_access_database_env_file to a separately prepared root-owned 0600 file under /etc/pharos-access, such as database.env. Systemd requires that file when configured. Database secrets stay on the server and remain separate from the five payment/provisioning environment values. Complete native retained-order adoption and the exact-target local gate before promotion.
 
 The access DNS A record is managed by tf/main.tf in the existing Spaceship zone resource. Use a targeted saved plan and bin/check_keycloak_dns_plan.py with --name access --address 34.169.129.168. The guard permits only that single addition and preserves every existing record; never include unrelated server drift in the apply. Review and apply the exact accepted saved plan, then require a targeted no-change plan.
 

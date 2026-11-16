@@ -277,7 +277,28 @@
   delegate_to: localhost
   become: false
   run_once: true
+  when: not pharos_app_deploy_use_prepared_archive | bool
 ## END Host Archive Prep
+
+- name: Read the frozen app archive identity on the controller
+  ansible.builtin.stat:
+    path: "{{ pharos_app_deploy_archive_path }}"
+    checksum_algorithm: sha256
+  delegate_to: localhost
+  become: false
+  register: pharos_app_deploy_prepared_identity
+  when: pharos_app_deploy_use_prepared_archive | bool
+
+- name: Require the exact locally validated prepared archive
+  ansible.builtin.assert:
+    that:
+      - pharos_app_deploy_archive_stamp | length > 0
+      - pharos_app_deploy_prepared_archive_sha256 is match('^[a-f0-9]{64}$')
+      - pharos_app_deploy_prepared_identity.stat.isreg | default(false)
+      - pharos_app_deploy_prepared_identity.stat.checksum | default('') == pharos_app_deploy_prepared_archive_sha256
+    quiet: true
+    fail_msg: Prepared app deployment requires an existing archive with the validated SHA-256 and a frozen archive stamp.
+  when: pharos_app_deploy_use_prepared_archive | bool
 
 - name: Ensure Pharos app directories exist on target host
   file:
@@ -359,7 +380,7 @@
     - >-
       (not pharos_app_deploy_models_archive_remote_checksum.stat.exists)
       or
-      (pharos_app_deploy_models_archive_remote_checksum.stat.checksum != pharos_app_deploy_models_archive_local_checksum.stat.checksum)
+      ((pharos_app_deploy_models_archive_remote_checksum.stat.checksum | default('')) != (pharos_app_deploy_models_archive_local_checksum.stat.checksum | default('')))
 
 - name: Ensure staged Architect model directory exists
   ansible.builtin.file:
@@ -522,6 +543,10 @@
       }}
   when: pharos_app_deploy_host_profile == 'dynamic-app'
 
+- name: Provision private Proof operator access
+  ansible.builtin.import_tasks: proof_operator.yml
+  when: app_id == 'proof_spa'
+
 - name: Read existing services before app migration and promotion
   ansible.builtin.service_facts:
 
@@ -532,25 +557,86 @@
   loop: "{{ pharos_app_deploy_services | reverse | list }}"
   when: item in ansible_facts.services
 
+- name: Inspect protected migration configuration directory
+  ansible.builtin.stat:
+    path: /etc/pharos
+    follow: false
+    get_checksum: false
+    get_mime: false
+    get_attributes: false
+  register: pharos_app_deploy_migration_configuration
+  when:
+    - pharos_app_deploy_host_profile == 'dynamic-app'
+    - pharos_app_deploy_runtime_environment_files | length > 0
+
+- name: Require service-owned migration configuration directory
+  ansible.builtin.assert:
+    that:
+      - pharos_app_deploy_migration_configuration.stat.isdir | default(false)
+      - not (pharos_app_deploy_migration_configuration.stat.islnk | default(false))
+      - pharos_app_deploy_migration_configuration.stat.pw_name | default('') == pharos_app_deploy_owner
+      - pharos_app_deploy_migration_configuration.stat.gr_name | default('') == pharos_app_deploy_group
+      - pharos_app_deploy_migration_configuration.stat.mode | default('') in ['0700', '0750', '0755']
+  when:
+    - pharos_app_deploy_host_profile == 'dynamic-app'
+    - pharos_app_deploy_runtime_environment_files | length > 0
+
+- name: Validate server-owned migration environment file paths
+  ansible.builtin.assert:
+    that:
+      - item is string
+      - item is match('^/etc/pharos/[A-Za-z0-9_][A-Za-z0-9_.-]*$')
+    fail_msg: Migration environment files must remain under the protected host configuration directory
+  loop: "{{ pharos_app_deploy_runtime_environment_files }}"
+  when: pharos_app_deploy_host_profile == 'dynamic-app'
+
+- name: Inspect migration credential files without reading their contents
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    follow: false
+    get_checksum: false
+    get_mime: false
+    get_attributes: false
+  loop: "{{ pharos_app_deploy_runtime_environment_files }}"
+  register: pharos_app_deploy_migration_environment
+  no_log: true
+  when: pharos_app_deploy_host_profile == 'dynamic-app'
+
+- name: Require root-owned protected migration credential files
+  ansible.builtin.assert:
+    that:
+      - item.stat.isreg | default(false)
+      - not (item.stat.islnk | default(false))
+      - item.stat.uid | default(-1) == 0
+      - item.stat.mode | default('') in ['0600', '0640']
+    fail_msg: Migration credential files require root ownership and mode 0600 or 0640
+  loop: "{{ pharos_app_deploy_migration_environment.results | default([]) }}"
+  no_log: true
+  when: pharos_app_deploy_host_profile == 'dynamic-app'
+
 - name: Apply staged {{ app_id }} migrations for dynamic app runtime
   ansible.builtin.command:
-    argv:
-      - "{{ pharos_app_deploy_runtime_binary_path }}"
-      - migrate
-      - apply
-      - app
-      - "{{ app_id }}"
-      - --conf
-      - "{{ pharos_app_deploy_runtime_conf_path }}"
-      - --app-dir
-      - "{{ pharos_app_deploy_remote_stage_dir }}"
-      - --backend
-      - "{{ pharos_app_deploy_runtime_backend }}"
+    argv: >-
+      {{
+        (
+          ['systemd-run', '--quiet', '--wait', '--pipe', '--collect',
+           '--property=User=' ~ pharos_app_deploy_owner,
+           '--property=Group=' ~ pharos_app_deploy_group,
+           '--property=WorkingDirectory=' ~ pharos_app_deploy_remote_stage_dir,
+           '--setenv=PHAROS_CONFIG=' ~ pharos_app_deploy_runtime_conf_path]
+          + (pharos_app_deploy_runtime_environment_files | map('regex_replace', '^', '--property=EnvironmentFile=') | list)
+          if pharos_app_deploy_runtime_environment_files | length > 0 else []
+        )
+        + [pharos_app_deploy_runtime_binary_path, 'migrate', 'apply', 'app', app_id,
+           '--conf', pharos_app_deploy_runtime_conf_path,
+           '--app-dir', pharos_app_deploy_remote_stage_dir,
+           '--backend', pharos_app_deploy_runtime_backend]
+      }}
     chdir: "{{ pharos_app_deploy_remote_stage_dir }}"
   environment:
     PHAROS_CONFIG: "{{ pharos_app_deploy_runtime_conf_path }}"
   become: true
-  become_user: "{{ pharos_app_deploy_owner }}"
+  become_user: "{{ 'root' if pharos_app_deploy_runtime_environment_files | length > 0 else pharos_app_deploy_owner }}"
   register: pharos_app_deploy_migrate_apply
   changed_when: false
   when: pharos_app_deploy_host_profile == 'dynamic-app'

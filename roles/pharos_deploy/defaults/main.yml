@@ -14,6 +14,9 @@ pharos_deploy_log_dir: /var/log/pharos
 pharos_deploy_services:
   - pharos.service
   - pharos-ha.service
+# Root-owned environment files loaded only by the transient migration unit.
+# Keep empty for backends whose credentials are already available to the CLI.
+pharos_deploy_runtime_environment_files: []
 # These two defaults mirror what `roles/pharos_build/defaults/main.yml`
 # defines in the build play. The deploy role runs in a separate play
 # (hosts: web0) so it does not inherit pharos_build's defaults, and is
