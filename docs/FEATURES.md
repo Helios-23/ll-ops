@@ -164,6 +164,6 @@ For AI-agent edits inside `ops/`:
 
 The native QA access service accepts an approved local Linux release with matching binary and browser hashes. The retained approved artifact is under the Pharos checkout at dist/keycloak-qa-approved; private deployment input stays in ignored controller storage.
 
-The Proof app deployment integrates the central Keycloak realm through the shared native login flow and registers the exact app callback without resetting realm identities. Reviewer access includes approved local folder and URL selection; review signing keys remain separate from IAM sessions.
+The Proof app deployment integrates the central Keycloak realm through the shared native login flow, registers exact callback and account-setup return URLs, and assigns the standard basic scope with signed authentication timestamps without resetting realm identities. Reviewer access includes approved local folder and URL selection; review signing keys remain separate from IAM sessions.
 
 Proof registration resolves accounts by registered email and assigns the `proof_review` group. Deployment prepares separate `proof_ops` membership and an owner-bound operator credential for `devops@llight.io`, with protected service credentials and bounded live membership checks.

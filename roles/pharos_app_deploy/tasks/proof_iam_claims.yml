@@ -1,0 +1,49 @@
+- name: Read standard central OIDC client scopes
+  ansible.builtin.uri:
+    url: "{{ pharos_app_deploy_proof_iam_issuer | replace('/realms/', '/admin/realms/') }}/client-scopes"
+    headers:
+      Authorization: "Bearer {{ proof_iam_admin.json.access_token }}"
+  register: proof_iam_claim_scopes
+  no_log: true
+
+- name: Select the standard basic identity scope
+  ansible.builtin.set_fact:
+    proof_iam_basic_scopes: "{{ proof_iam_claim_scopes.json | selectattr('name', 'equalto', 'basic') | list }}"
+
+- name: Require one standard identity scope
+  ansible.builtin.assert:
+    that:
+      - proof_iam_basic_scopes | length == 1
+      - proof_iam_basic_scopes[0].protocol == 'openid-connect'
+    fail_msg: The central basic scope must supply auth_time in signed ID tokens before enabling managed signing.
+
+- name: Select the authentication timestamp mapper
+  ansible.builtin.set_fact:
+    proof_iam_auth_time_mappers: "{{ proof_iam_basic_scopes[0].protocolMappers | default([]) | selectattr('name', 'equalto', 'auth_time') | list }}"
+
+- name: Require the authentication timestamp in signed identity tokens
+  ansible.builtin.assert:
+    that:
+      - proof_iam_auth_time_mappers | length == 1
+      - proof_iam_auth_time_mappers[0].config['id.token.claim'] | default(false) | bool
+      - proof_iam_auth_time_mappers[0].config['claim.name'] | default('') == 'auth_time'
+    fail_msg: Enable the standard auth_time mapper in ID tokens before enabling managed signing.
+
+- name: Read assigned default identity scopes
+  ansible.builtin.uri:
+    url: "{{ pharos_app_deploy_proof_iam_issuer | replace('/realms/', '/admin/realms/') }}/clients/{{ proof_iam_clients.json[0].id }}/default-client-scopes"
+    headers:
+      Authorization: "Bearer {{ proof_iam_admin.json.access_token }}"
+  register: proof_iam_default_scopes
+  no_log: true
+
+- name: Include the standard signed authentication timestamp in Pharos sign-ins
+  ansible.builtin.uri:
+    url: "{{ pharos_app_deploy_proof_iam_issuer | replace('/realms/', '/admin/realms/') }}/clients/{{ proof_iam_clients.json[0].id }}/default-client-scopes/{{ proof_iam_basic_scopes[0].id }}"
+    method: PUT
+    headers:
+      Authorization: "Bearer {{ proof_iam_admin.json.access_token }}"
+    status_code: 204
+  changed_when: true
+  when: proof_iam_basic_scopes[0].id not in (proof_iam_default_scopes.json | map(attribute='id') | list)
+  no_log: true

@@ -24,6 +24,12 @@
       - proof_iam_clients.json[0].publicClient | bool
       - proof_iam_clients.json[0].standardFlowEnabled | bool
 
+- name: Require standard signed central authentication claims
+  ansible.builtin.import_tasks: proof_iam_claims.yml
+
+- name: Refresh administration authority after identity scope checks
+  ansible.builtin.include_tasks: proof_iam_auth.yml
+
 - name: Define exact Proof login and account-setup return targets
   ansible.builtin.set_fact:
     proof_iam_required_redirects:
