@@ -1,0 +1,203 @@
+- name: Require the central Proof IAM realm and exact app callback
+  ansible.builtin.assert:
+    that:
+      - pharos_app_deploy_proof_iam_issuer == 'https://auth.llight.io/realms/pharos-access-qa'
+      - pharos_app_deploy_proof_iam_client == 'pharos'
+      - pharos_app_deploy_proof_effective_origin is match('^https://[A-Za-z0-9.-]+$')
+
+- name: Authenticate the existing central Keycloak administrator privately
+  ansible.builtin.include_tasks: proof_iam_auth.yml
+
+- name: Locate the existing shared Pharos OIDC client
+  ansible.builtin.uri:
+    url: "{{ pharos_app_deploy_proof_iam_issuer | replace('/realms/', '/admin/realms/') }}/clients?clientId={{ pharos_app_deploy_proof_iam_client }}"
+    headers:
+      Authorization: "Bearer {{ proof_iam_admin.json.access_token }}"
+    return_content: true
+  register: proof_iam_clients
+  no_log: true
+
+- name: Require one existing shared client without recreating identities
+  ansible.builtin.assert:
+    that:
+      - proof_iam_clients.json | length == 1
+      - proof_iam_clients.json[0].publicClient | bool
+      - proof_iam_clients.json[0].standardFlowEnabled | bool
+
+- name: Add only the exact Proof callback to the existing client
+  ansible.builtin.uri:
+    url: "{{ pharos_app_deploy_proof_iam_issuer | replace('/realms/', '/admin/realms/') }}/clients/{{ proof_iam_clients.json[0].id }}"
+    method: PUT
+    headers:
+      Authorization: "Bearer {{ proof_iam_admin.json.access_token }}"
+    body_format: json
+    body: "{{ proof_iam_clients.json[0] | combine({'redirectUris': proof_iam_clients.json[0].redirectUris + [pharos_app_deploy_proof_effective_origin ~ '/proof_spa/__pharos/keycloak/callback']}) }}"
+    status_code: 204
+  when: (pharos_app_deploy_proof_effective_origin ~ '/proof_spa/__pharos/keycloak/callback') not in proof_iam_clients.json[0].redirectUris
+  no_log: true
+
+- name: Read the dedicated Proof reviewer client role
+  ansible.builtin.uri:
+    url: "{{ pharos_app_deploy_proof_iam_issuer | replace('/realms/', '/admin/realms/') }}/clients/{{ proof_iam_clients.json[0].id }}/roles/proof_reviewer"
+    headers:
+      Authorization: "Bearer {{ proof_iam_admin.json.access_token }}"
+    status_code: [200, 404]
+  register: proof_iam_role_lookup
+  no_log: true
+
+- name: Require an initial reviewer assignment before enabling a new role
+  ansible.builtin.assert:
+    that:
+      - proof_iam_role_lookup.status == 200 or (pharos_app_deploy_proof_iam_reviewers | length > 0) or (pharos_app_deploy_proof_iam_reviewer_groups | length > 0)
+    fail_msg: Select the initial central reviewer username, email or group before switching Proof to Keycloak.
+
+- name: Create only the Proof reviewer role when absent
+  ansible.builtin.uri:
+    url: "{{ pharos_app_deploy_proof_iam_issuer | replace('/realms/', '/admin/realms/') }}/clients/{{ proof_iam_clients.json[0].id }}/roles"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ proof_iam_admin.json.access_token }}"
+    body_format: json
+    body:
+      name: proof_reviewer
+      description: Review projects and select approved local folders and application URLs
+    status_code: 201
+  when: proof_iam_role_lookup.status == 404
+  no_log: true
+
+- name: Resolve the dedicated reviewer role identity
+  ansible.builtin.uri:
+    url: "{{ pharos_app_deploy_proof_iam_issuer | replace('/realms/', '/admin/realms/') }}/clients/{{ proof_iam_clients.json[0].id }}/roles/proof_reviewer"
+    headers:
+      Authorization: "Bearer {{ proof_iam_admin.json.access_token }}"
+  register: proof_iam_role
+  no_log: true
+
+- name: Read the shared client role scope
+  ansible.builtin.uri:
+    url: "{{ pharos_app_deploy_proof_iam_issuer | replace('/realms/', '/admin/realms/') }}/clients/{{ proof_iam_clients.json[0].id }}/scope-mappings/clients/{{ proof_iam_clients.json[0].id }}"
+    headers:
+      Authorization: "Bearer {{ proof_iam_admin.json.access_token }}"
+  register: proof_iam_scope
+  no_log: true
+
+- name: Include only the dedicated reviewer role in the client scope
+  ansible.builtin.uri:
+    url: "{{ pharos_app_deploy_proof_iam_issuer | replace('/realms/', '/admin/realms/') }}/clients/{{ proof_iam_clients.json[0].id }}/scope-mappings/clients/{{ proof_iam_clients.json[0].id }}"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ proof_iam_admin.json.access_token }}"
+    body_format: json
+    body: "{{ [proof_iam_role.json] }}"
+    status_code: 204
+  when: proof_iam_role.json.id not in (proof_iam_scope.json | map(attribute='id') | list)
+  no_log: true
+
+- name: Read configured OIDC claim mappers
+  ansible.builtin.uri:
+    url: "{{ pharos_app_deploy_proof_iam_issuer | replace('/realms/', '/admin/realms/') }}/clients/{{ proof_iam_clients.json[0].id }}/protocol-mappers/models"
+    headers:
+      Authorization: "Bearer {{ proof_iam_admin.json.access_token }}"
+  register: proof_iam_mappers
+  no_log: true
+
+- name: Declare the signed client-role claim for Proof
+  ansible.builtin.set_fact:
+    proof_iam_mapper:
+      name: proof-reviewer-client-roles
+      protocol: openid-connect
+      protocolMapper: oidc-usermodel-client-role-mapper
+      consentRequired: false
+      config:
+        multivalued: "true"
+        claim.name: resource_access.${client_id}.roles
+        jsonType.label: String
+        id.token.claim: "true"
+        access.token.claim: "false"
+        userinfo.token.claim: "false"
+    proof_iam_existing_mappers: "{{ proof_iam_mappers.json | selectattr('name', 'equalto', 'proof-reviewer-client-roles') | list }}"
+
+- name: Add the dedicated signed role mapper without changing other mappers
+  ansible.builtin.uri:
+    url: "{{ pharos_app_deploy_proof_iam_issuer | replace('/realms/', '/admin/realms/') }}/clients/{{ proof_iam_clients.json[0].id }}/protocol-mappers/models"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ proof_iam_admin.json.access_token }}"
+    body_format: json
+    body: "{{ proof_iam_mapper }}"
+    status_code: 201
+  when: proof_iam_existing_mappers | length == 0
+  no_log: true
+
+- name: Keep the dedicated mapper aligned with the declared role claim
+  ansible.builtin.uri:
+    url: "{{ pharos_app_deploy_proof_iam_issuer | replace('/realms/', '/admin/realms/') }}/clients/{{ proof_iam_clients.json[0].id }}/protocol-mappers/models/{{ proof_iam_existing_mappers[0].id }}"
+    method: PUT
+    headers:
+      Authorization: "Bearer {{ proof_iam_admin.json.access_token }}"
+    body_format: json
+    body: "{{ proof_iam_mapper | combine({'id': proof_iam_existing_mappers[0].id}) }}"
+    status_code: 204
+  when:
+    - proof_iam_existing_mappers | length == 1
+    - proof_iam_existing_mappers[0].config != proof_iam_mapper.config
+  no_log: true
+
+- name: Prepare the separate reviewer and operations groups
+  ansible.builtin.include_tasks: proof_iam_group.yml
+  loop: [proof_review, proof_ops]
+  loop_control:
+    loop_var: proof_iam_group_name
+
+- name: Assign reviewer access only to explicitly named central users
+  ansible.builtin.include_tasks: proof_iam_reviewer.yml
+  vars:
+    proof_iam_principal_kind: users
+  loop: "{{ pharos_app_deploy_proof_iam_reviewers }}"
+  loop_control:
+    loop_var: proof_iam_principal
+
+- name: Assign reviewer access only to explicitly named central groups
+  ansible.builtin.include_tasks: proof_iam_reviewer.yml
+  vars:
+    proof_iam_principal_kind: groups
+  loop: "{{ pharos_app_deploy_proof_iam_reviewer_groups }}"
+  loop_control:
+    loop_var: proof_iam_principal
+
+- name: Configure the operations identity and programmatic credential association
+  ansible.builtin.include_tasks: proof_iam_ops.yml
+
+- name: Read configured Keycloak app selection without exposing host secrets
+  ansible.builtin.slurp:
+    src: "{{ pharos_app_deploy_runtime_conf_path }}"
+  register: proof_iam_host_config
+  no_log: true
+
+- name: Enable Proof through the shared host Keycloak configuration
+  ansible.builtin.lineinfile:
+    path: "{{ pharos_app_deploy_runtime_conf_path }}"
+    regexp: "^{{ item.key }}="
+    line: "{{ item.key }}={{ item.value }}"
+    owner: "{{ pharos_app_deploy_owner }}"
+    group: "{{ pharos_app_deploy_group }}"
+    mode: "0640"
+  loop:
+    - key: keycloak_apps
+      value: "{{ (((proof_iam_host_config.content | b64decode | regex_findall('(?m)^keycloak_apps=(.*)$') | first | default('')).split(',') | reject('equalto', '') | list) + ['proof_spa']) | unique | join(',') }}"
+    - key: keycloak_issuer
+      value: "{{ pharos_app_deploy_proof_iam_issuer }}"
+    - key: keycloak_client_id
+      value: "{{ pharos_app_deploy_proof_iam_client }}"
+    - key: keycloak_callback_origin
+      value: "{{ pharos_app_deploy_proof_effective_origin }}"
+    - key: review_keycloak_provisioner_client_id
+      value: pharos-provisioner
+    - key: review_keycloak_provisioner_secret_env
+      value: PHAROS_PROOF_IAM_PROVISIONER_SECRET
+    - key: review_operator_email
+      value: "{{ pharos_app_deploy_proof_operator_email }}"
+  loop_control:
+    label: "{{ item.key }}"
+  notify: Restart Pharos services
+

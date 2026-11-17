@@ -1,0 +1,43 @@
+- name: Refresh administration credentials for this principal mapping
+  ansible.builtin.include_tasks: proof_iam_auth.yml
+
+- name: Require an exact central IAM principal selection
+  ansible.builtin.assert:
+    that:
+      - proof_iam_principal_kind in ['users', 'groups']
+      - proof_iam_principal | length > 0
+      - proof_iam_principal | length <= 254
+
+- name: Resolve the explicitly selected Keycloak principal
+  ansible.builtin.uri:
+    url: "{{ pharos_app_deploy_proof_iam_issuer | replace('/realms/', '/admin/realms/') }}/{{ proof_iam_principal_kind }}?exact=true&{{ 'search' if proof_iam_principal_kind == 'groups' else ('email' if '@' in proof_iam_principal else 'username') }}={{ proof_iam_principal | urlencode }}"
+    headers:
+      Authorization: "Bearer {{ proof_iam_admin.json.access_token }}"
+  register: proof_iam_principals
+  no_log: true
+
+- name: Reject ambiguous or missing principal selections without creating users
+  ansible.builtin.assert:
+    that:
+      - proof_iam_principals.json | length == 1
+      - (proof_iam_principals.json[0].name == proof_iam_principal) if proof_iam_principal_kind == 'groups' else ((proof_iam_principals.json[0].email | default('') == proof_iam_principal) if '@' in proof_iam_principal else (proof_iam_principals.json[0].username == proof_iam_principal))
+
+- name: Read the principal's existing client roles
+  ansible.builtin.uri:
+    url: "{{ pharos_app_deploy_proof_iam_issuer | replace('/realms/', '/admin/realms/') }}/{{ proof_iam_principal_kind }}/{{ proof_iam_principals.json[0].id }}/role-mappings/clients/{{ proof_iam_clients.json[0].id }}"
+    headers:
+      Authorization: "Bearer {{ proof_iam_admin.json.access_token }}"
+  register: proof_iam_principal_roles
+  no_log: true
+
+- name: Grant only the selected dedicated Proof client role
+  ansible.builtin.uri:
+    url: "{{ pharos_app_deploy_proof_iam_issuer | replace('/realms/', '/admin/realms/') }}/{{ proof_iam_principal_kind }}/{{ proof_iam_principals.json[0].id }}/role-mappings/clients/{{ proof_iam_clients.json[0].id }}"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ proof_iam_admin.json.access_token }}"
+    body_format: json
+    body: "{{ [proof_iam_role.json] }}"
+    status_code: 204
+  when: proof_iam_role.json.id not in (proof_iam_principal_roles.json | map(attribute='id') | list)
+  no_log: true

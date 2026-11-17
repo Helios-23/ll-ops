@@ -1,0 +1,43 @@
+- name: Read existing Proof worker services
+  ansible.builtin.service_facts:
+
+- name: Disable the source-copying server worker
+  ansible.builtin.systemd:
+    name: pharos-proof-worker.service
+    state: stopped
+    enabled: false
+  when: "'pharos-proof-worker.service' in ansible_facts.services"
+
+- name: Clear the retired worker failure state
+  ansible.builtin.command:
+    argv: [systemctl, reset-failed, pharos-proof-worker.service]
+  changed_when: false
+  when: "'pharos-proof-worker.service' in ansible_facts.services"
+
+- name: Remove the obsolete server worker unit
+  ansible.builtin.file:
+    path: /etc/systemd/system/pharos-proof-worker.service
+    state: absent
+  register: pharos_proof_retired_unit
+
+- name: Reload systemd after retiring the server worker unit
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: pharos_proof_retired_unit.changed
+
+- name: Locate only deployment-owned source snapshots
+  ansible.builtin.find:
+    paths: /opt/pharos-proof-worker
+    file_type: directory
+    recurse: false
+    use_regex: true
+    patterns: ['^[a-f0-9]{64}$']
+  register: pharos_proof_retired_sources
+
+- name: Remove retired deployment source copies while retaining external reports and keys
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ pharos_proof_retired_sources.files }}"
+  loop_control:
+    label: "{{ item.path }}"

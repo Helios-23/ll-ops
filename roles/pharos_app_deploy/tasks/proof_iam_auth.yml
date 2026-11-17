@@ -1,0 +1,13 @@
+- name: Obtain a fresh short-lived central IAM administration credential
+  ansible.builtin.uri:
+    url: https://auth.llight.io/realms/master/protocol/openid-connect/token
+    method: POST
+    body_format: form-urlencoded
+    body:
+      client_id: admin-cli
+      grant_type: password
+      username: "{{ keycloak_admin_user }}"
+      password: "{{ keycloak_admin_password }}"
+    return_content: true
+  register: proof_iam_admin
+  no_log: true

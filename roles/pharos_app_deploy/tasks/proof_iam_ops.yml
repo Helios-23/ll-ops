@@ -1,0 +1,174 @@
+- name: Refresh administration credentials for operations provisioning
+  ansible.builtin.include_tasks: proof_iam_auth.yml
+
+- name: Look up the dedicated operations client role
+  ansible.builtin.uri:
+    url: "{{ pharos_app_deploy_proof_iam_issuer | replace('/realms/', '/admin/realms/') }}/clients/{{ proof_iam_clients.json[0].id }}/roles/proof_operator"
+    headers:
+      Authorization: "Bearer {{ proof_iam_admin.json.access_token }}"
+    status_code: [200, 404]
+  register: proof_iam_ops_role_lookup
+  no_log: true
+
+- name: Create the operations role separately from reviewer authority
+  ansible.builtin.uri:
+    url: "{{ pharos_app_deploy_proof_iam_issuer | replace('/realms/', '/admin/realms/') }}/clients/{{ proof_iam_clients.json[0].id }}/roles"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ proof_iam_admin.json.access_token }}"
+    body_format: json
+    body:
+      name: proof_operator
+      description: Proof user provisioning and server administration
+    status_code: 201
+  when: proof_iam_ops_role_lookup.status == 404
+  no_log: true
+
+- name: Resolve the operations role identity
+  ansible.builtin.uri:
+    url: "{{ pharos_app_deploy_proof_iam_issuer | replace('/realms/', '/admin/realms/') }}/clients/{{ proof_iam_clients.json[0].id }}/roles/proof_operator"
+    headers:
+      Authorization: "Bearer {{ proof_iam_admin.json.access_token }}"
+  register: proof_iam_ops_role
+  no_log: true
+
+- name: Add the operations role to the existing client scope
+  ansible.builtin.uri:
+    url: "{{ pharos_app_deploy_proof_iam_issuer | replace('/realms/', '/admin/realms/') }}/clients/{{ proof_iam_clients.json[0].id }}/scope-mappings/clients/{{ proof_iam_clients.json[0].id }}"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ proof_iam_admin.json.access_token }}"
+    body_format: json
+    body: "{{ [proof_iam_ops_role.json] }}"
+    status_code: 204
+  when: proof_iam_ops_role.json.id not in (proof_iam_scope.json | map(attribute='id') | list)
+  no_log: true
+
+- name: Map operations authority only to proof_ops
+  ansible.builtin.include_tasks: proof_iam_reviewer.yml
+  vars:
+    proof_iam_principal_kind: groups
+    proof_iam_principal: proof_ops
+    proof_iam_role: "{{ proof_iam_ops_role }}"
+
+- name: Resolve the configured operator's registered email
+  ansible.builtin.uri:
+    url: "{{ pharos_app_deploy_proof_iam_issuer | replace('/realms/', '/admin/realms/') }}/users?email={{ pharos_app_deploy_proof_operator_email | urlencode }}&exact=true&max=2"
+    headers:
+      Authorization: "Bearer {{ proof_iam_admin.json.access_token }}"
+  register: proof_iam_ops_lookup
+  no_log: true
+
+- name: Reject ambiguous operator identities
+  ansible.builtin.assert:
+    that:
+      - pharos_app_deploy_proof_operator_email is match('^[A-Za-z0-9_.+-]+@[A-Za-z0-9.-]+$')
+      - proof_iam_ops_lookup.json | length <= 1
+
+- name: Create only the missing configured operator account
+  ansible.builtin.uri:
+    url: "{{ pharos_app_deploy_proof_iam_issuer | replace('/realms/', '/admin/realms/') }}/users"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ proof_iam_admin.json.access_token }}"
+    body_format: json
+    body:
+      username: "{{ pharos_app_deploy_proof_operator_email }}"
+      email: "{{ pharos_app_deploy_proof_operator_email }}"
+      enabled: true
+      emailVerified: false
+      requiredActions: [VERIFY_EMAIL, UPDATE_PASSWORD]
+      attributes:
+        pharos-managed: ["true"]
+    status_code: 201
+  when: proof_iam_ops_lookup.json | length == 0
+  no_log: true
+
+- name: Read the exact operator account without replacing existing credentials
+  ansible.builtin.uri:
+    url: "{{ pharos_app_deploy_proof_iam_issuer | replace('/realms/', '/admin/realms/') }}/users?email={{ pharos_app_deploy_proof_operator_email | urlencode }}&exact=true&max=2"
+    headers:
+      Authorization: "Bearer {{ proof_iam_admin.json.access_token }}"
+  register: proof_iam_ops_users
+  no_log: true
+
+- name: Require one enabled operator with the exact registered email
+  ansible.builtin.assert:
+    that:
+      - proof_iam_ops_users.json | length == 1
+      - proof_iam_ops_users.json[0].enabled | bool
+      - proof_iam_ops_users.json[0].email == pharos_app_deploy_proof_operator_email
+
+- name: Resolve the operations group identity
+  ansible.builtin.uri:
+    url: "{{ pharos_app_deploy_proof_iam_issuer | replace('/realms/', '/admin/realms/') }}/groups?search=proof_ops&exact=true&max=2"
+    headers:
+      Authorization: "Bearer {{ proof_iam_admin.json.access_token }}"
+  register: proof_iam_ops_group
+  no_log: true
+
+- name: Add the configured operator only to proof_ops
+  ansible.builtin.uri:
+    url: "{{ pharos_app_deploy_proof_iam_issuer | replace('/realms/', '/admin/realms/') }}/users/{{ proof_iam_ops_users.json[0].id }}/groups/{{ proof_iam_ops_group.json[0].id }}"
+    method: PUT
+    headers:
+      Authorization: "Bearer {{ proof_iam_admin.json.access_token }}"
+    status_code: 204
+  changed_when: false
+  no_log: true
+
+- name: Read the existing realm service environment privately
+  ansible.builtin.slurp:
+    src: /etc/pharos-access/service.env
+  register: proof_iam_service_environment
+  no_log: true
+
+- name: Expose only the required provisioning credential to the shared runtime
+  ansible.builtin.copy:
+    dest: /etc/pharos/proof-iam.env
+    content: "PHAROS_PROOF_IAM_PROVISIONER_SECRET={{ proof_iam_service_environment.content | b64decode | regex_findall('(?m)^PHAROS_PROVISIONER_SECRET=(.+)$') | first }}\n"
+    owner: "{{ pharos_app_deploy_owner }}"
+    group: "{{ pharos_app_deploy_group }}"
+    mode: "0600"
+  no_log: true
+  notify: Restart Pharos services
+
+- name: Ensure runtime service override directories exist
+  ansible.builtin.file:
+    path: "/etc/systemd/system/{{ item }}.d"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop: "{{ pharos_app_deploy_services }}"
+
+- name: Load the protected provisioning environment in each runtime service
+  ansible.builtin.copy:
+    dest: "/etc/systemd/system/{{ item }}.d/proof-iam.conf"
+    content: "[Service]\nEnvironmentFile=/etc/pharos/proof-iam.env\n"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ pharos_app_deploy_services }}"
+  register: proof_iam_runtime_dropins
+  notify: Restart Pharos services
+
+- name: Reload the service environment declarations when changed
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  when: proof_iam_runtime_dropins.changed
+
+- name: Read the operator credential privately for identity association
+  ansible.builtin.slurp:
+    src: "{{ pharos_app_deploy_proof_token_path }}"
+  register: proof_iam_operator_credential
+  no_log: true
+
+- name: Associate the retained operator token with its central operations identity
+  ansible.builtin.copy:
+    dest: "{{ pharos_app_deploy_proof_control_dir }}/iam-operator.json"
+    content: "{{ {'schema': 'pharos.proof.operator-identity.v1', 'issuer': pharos_app_deploy_proof_iam_issuer, 'client_id': pharos_app_deploy_proof_iam_client, 'email': pharos_app_deploy_proof_operator_email, 'subject': proof_iam_ops_users.json[0].id, 'group': 'proof_ops', 'token_sha256': proof_iam_operator_credential.content | b64decode | trim | hash('sha256')} | to_nice_json }}"
+    owner: "{{ pharos_app_deploy_owner }}"
+    group: "{{ pharos_app_deploy_group }}"
+    mode: "0600"
+  no_log: true

@@ -162,3 +162,10 @@
     mode: "0600"
   delegate_to: localhost
   become: false
+
+- name: Keep Proof source execution on local resource runners
+  ansible.builtin.import_tasks: proof_worker.yml
+
+- name: Configure central Keycloak as the Proof sign-in authority
+  ansible.builtin.import_tasks: proof_iam.yml
+  when: pharos_app_deploy_proof_iam_enabled | bool

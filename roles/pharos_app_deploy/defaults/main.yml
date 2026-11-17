@@ -60,3 +60,12 @@ pharos_app_deploy_services:
   - pharos-ha.service
 
 dist_clean: ""
+
+# Proof uses the central Pharos Access realm through the shared native Keycloak client.
+pharos_app_deploy_proof_iam_enabled: true
+pharos_app_deploy_proof_iam_issuer: https://auth.llight.io/realms/pharos-access-qa
+pharos_app_deploy_proof_iam_client: pharos
+pharos_app_deploy_proof_iam_reviewers: []
+pharos_app_deploy_proof_iam_reviewer_groups: [proof_review]
+
+pharos_app_deploy_proof_operator_email: devops@llight.io

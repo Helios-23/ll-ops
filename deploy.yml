@@ -1,3 +1,15 @@
+- name: Configure Proof local-runner execution boundary
+  hosts: web0
+  become: true
+  gather_facts: false
+  tags:
+    - pharos_proof_worker
+  tasks:
+    - name: Retire server-side source copies and preserve generated evidence
+      ansible.builtin.import_role:
+        name: pharos_app_deploy
+        tasks_from: proof_worker.yml
+
 - name: Deploy Pharos runtime package
   hosts: web0
   become: true

@@ -1,0 +1,29 @@
+- name: Refresh administration credentials for this group operation
+  ansible.builtin.include_tasks: proof_iam_auth.yml
+
+- name: Locate a required Proof IAM group
+  ansible.builtin.uri:
+    url: "{{ pharos_app_deploy_proof_iam_issuer | replace('/realms/', '/admin/realms/') }}/groups?search={{ proof_iam_group_name | urlencode }}&exact=true&max=2"
+    headers:
+      Authorization: "Bearer {{ proof_iam_admin.json.access_token }}"
+  register: proof_iam_group_lookup
+  no_log: true
+
+- name: Reject ambiguous group declarations
+  ansible.builtin.assert:
+    that:
+      - proof_iam_group_lookup.json | length <= 1
+      - (proof_iam_group_lookup.json | length == 0) or (proof_iam_group_lookup.json[0].name == proof_iam_group_name)
+
+- name: Create only a missing required group
+  ansible.builtin.uri:
+    url: "{{ pharos_app_deploy_proof_iam_issuer | replace('/realms/', '/admin/realms/') }}/groups"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ proof_iam_admin.json.access_token }}"
+    body_format: json
+    body:
+      name: "{{ proof_iam_group_name }}"
+    status_code: 201
+  when: proof_iam_group_lookup.json | length == 0
+  no_log: true
