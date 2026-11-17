@@ -24,16 +24,22 @@
       - proof_iam_clients.json[0].publicClient | bool
       - proof_iam_clients.json[0].standardFlowEnabled | bool
 
-- name: Add only the exact Proof callback to the existing client
+- name: Define exact Proof login and account-setup return targets
+  ansible.builtin.set_fact:
+    proof_iam_required_redirects:
+      - "{{ pharos_app_deploy_proof_effective_origin }}/proof_spa/__pharos/keycloak/callback"
+      - "{{ pharos_app_deploy_proof_effective_origin }}/proof_spa/__pharos/keycloak/login"
+
+- name: Add exact Proof callback and account-setup return targets to the existing client
   ansible.builtin.uri:
     url: "{{ pharos_app_deploy_proof_iam_issuer | replace('/realms/', '/admin/realms/') }}/clients/{{ proof_iam_clients.json[0].id }}"
     method: PUT
     headers:
       Authorization: "Bearer {{ proof_iam_admin.json.access_token }}"
     body_format: json
-    body: "{{ proof_iam_clients.json[0] | combine({'redirectUris': proof_iam_clients.json[0].redirectUris + [pharos_app_deploy_proof_effective_origin ~ '/proof_spa/__pharos/keycloak/callback']}) }}"
+    body: "{{ proof_iam_clients.json[0] | combine({'redirectUris': (proof_iam_clients.json[0].redirectUris + proof_iam_required_redirects) | unique(case_sensitive=true) | list}) }}"
     status_code: 204
-  when: (pharos_app_deploy_proof_effective_origin ~ '/proof_spa/__pharos/keycloak/callback') not in proof_iam_clients.json[0].redirectUris
+  when: proof_iam_required_redirects | difference(proof_iam_clients.json[0].redirectUris) | length > 0
   no_log: true
 
 - name: Read the dedicated Proof reviewer client role
