@@ -24,6 +24,14 @@
   const username=document.getElementById('username');
   if(username&&(document.getElementById('kc-form-login')||document.getElementById('kc-reset-password-form'))){username.type='email';username.autocomplete='username';username.inputMode='email';username.placeholder='you@example.com';const label=document.querySelector('label[for="username"]');if(label)label.textContent='Email';}
   const submit=document.getElementById('kc-login');if(submit){submit.title='Sign in';submit.setAttribute('aria-label','Sign in');}
+  const actions=submit?.closest('.pf-v5-c-form__actions'),reviewers=document.getElementById('proof-add-reviewers');
+  if(actions){
+   actions.classList.add('proof-login-actions');actions.classList.remove('pf-v5-u-pt-xs');
+   const forgot=document.querySelector('#kc-form-login a[href*="reset-credentials"]'),helper=forgot?.closest('.pf-v5-c-helper-text');
+   if(forgot){actions.insertBefore(forgot,submit);if(helper&&!helper.textContent.trim())helper.hidden=true;}
+   if(reviewers){const footer=reviewers.closest('.pf-v5-c-login__main-footer');actions.append(reviewers);if(footer&&!footer.textContent.trim()&&!footer.querySelector('a,button,input'))footer.hidden=true;}
+  }
+
   document.addEventListener('submit',update,true);
   document.addEventListener('click',event=>{if(event.target.closest('a[href]'))update();},true);
   // Keep provider action codes out of the visible page URL; native form actions retain their full CSRF context.

@@ -35,3 +35,11 @@ html[data-proof-signin=true]{--proof-action-size:36px}
 html[data-proof-signin=true] .pf-v5-c-button.pf-m-primary{background:#5AE058;border-color:#5AE058;color:#172033}
 html[data-proof-signin=true] .pf-v5-c-button.pf-m-primary:is(:disabled,[aria-disabled="true"],[aria-busy="true"]){background:#e5e7eb;border-color:#cbd5e1;color:#6b7280;opacity:1}
 html[data-proof-signin=true] #kc-form-login #kc-login,html[data-proof-signin=true] button[data-password-toggle]{box-sizing:border-box;flex:0 0 var(--proof-action-size);width:var(--proof-action-size);min-width:var(--proof-action-size);max-width:var(--proof-action-size);height:var(--proof-action-size);padding:0}
+
+/* Keep the login actions together without stretching the space between controls. */
+html[data-proof-signin=true] #kc-form-login .proof-login-actions:has(> #kc-login){display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;padding:0;margin:0}
+html[data-proof-signin=true] #kc-form-login .proof-login-actions #kc-login{margin:0}
+html[data-proof-signin=true] .proof-login-actions a{white-space:nowrap}
+html[data-proof-signin=true] .proof-login-actions #proof-add-reviewers{display:inline-flex;align-items:center;gap:6px;text-decoration:none;font:600 13px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+
+html[data-proof-signin=true] #kc-form-login .proof-login-actions>*{margin:0}
