@@ -461,6 +461,8 @@ Proof deployment assigns the existing central basic client scope, including its 
 
 ### Proof sign-in presentation
 
+Proof account-setup invitations use a twenty-four-hour signed action link and retain email verification, profile completion and password setup. The pharos-proof email theme provides the Proof invitation subject and HTML/plain-text messages. Select it as the realm email theme and set the SMTP sender display name to Pharos Proof Reviewer access, retaining pharos_noreply@llight.io as the sender address. Email themes and SMTP sender names apply to every client in a realm. Confirm the intended branding for every service sharing that realm before selecting the theme; client login-theme selection does not isolate email branding. Existing invitation links retain their original expiry; issue a fresh invitation to use the updated lifetime.
+
 Enable pharos_auth_gateway_enabled for the Pharos HTTPS host and install the pharos theme through keycloak_themes. The Keycloak container mounts the selected theme directory read-only; adding the mount requires a controlled Keycloak service restart. Proof app deployment selects the client login theme without changing default scopes, realm identities or the canonical issuer.
 
 The login footer links Add reviewers to /proof_spa/#operator. This page verifies the environment operator token before enabling invitation controls; its public navigation flag grants no authority and does not create a reviewer session.
