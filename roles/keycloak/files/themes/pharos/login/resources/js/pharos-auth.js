@@ -27,9 +27,7 @@
   const actions=submit?.closest('.pf-v5-c-form__actions'),reviewers=document.getElementById('proof-add-reviewers');
   if(actions){
    actions.classList.add('proof-login-actions');actions.classList.remove('pf-v5-u-pt-xs');
-   const forgot=document.querySelector('#kc-form-login a[href*="reset-credentials"]'),helper=forgot?.closest('.pf-v5-c-helper-text');
-   if(forgot){actions.insertBefore(forgot,submit);if(helper&&!helper.textContent.trim())helper.hidden=true;}
-   if(reviewers){const footer=reviewers.closest('.pf-v5-c-login__main-footer');actions.append(reviewers);if(footer&&!footer.textContent.trim()&&!footer.querySelector('a,button,input'))footer.hidden=true;}
+   if(reviewers){const footer=reviewers.closest('.pf-v5-c-login__main-footer');actions.insertBefore(reviewers,submit);if(footer&&!footer.textContent.trim()&&!footer.querySelector('a,button,input'))footer.hidden=true;}
   }
 
   document.addEventListener('submit',update,true);
