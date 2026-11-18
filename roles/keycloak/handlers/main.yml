@@ -5,3 +5,21 @@
   when:
     - keycloak_service_state == 'started'
     - keycloak_service_control.status.ActiveState | default('inactive') == 'active'
+
+- name: Clear Keycloak compressed theme assets
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - --project-name
+      - keycloak
+      - --file
+      - "{{ keycloak_directory }}/compose.yml"
+      - exec
+      - -T
+      - keycloak
+      - rm
+      - -rf
+      - --
+      - /opt/keycloak/data/tmp/kc-gzip-cache
+  when: keycloak_service_state == 'started'

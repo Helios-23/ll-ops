@@ -118,7 +118,9 @@
     directory_mode: '0755'
     mode: '0644'
   loop: "{{ keycloak_themes }}"
-  notify: Restart Keycloak service
+  notify:
+    - Restart Keycloak service
+    - Clear Keycloak compressed theme assets
 
 - name: Validate the generated Compose configuration
   ansible.builtin.command:
