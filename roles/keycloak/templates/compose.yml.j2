@@ -36,6 +36,14 @@ services:
         read_only: true
         bind:
           create_host_path: false
+{% if keycloak_themes | length > 0 %}
+      - type: bind
+        source: {{ (keycloak_directory ~ '/themes') | to_json }}
+        target: /opt/keycloak/themes
+        read_only: true
+        bind:
+          create_host_path: false
+{% endif %}
     networks: [database, outbound]
     security_opt: [no-new-privileges:true]
     cap_drop: [ALL]

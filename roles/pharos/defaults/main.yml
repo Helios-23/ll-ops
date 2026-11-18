@@ -17,3 +17,10 @@ pharos_service_port: 7323
 pharos_access_log: "/var/log/nginx/pharos.access.log"
 pharos_error_log: "/var/log/nginx/pharos.error.log"
 pharos_certbot_email: "{{ admin_email | default('helios23@gmail.com') }}"
+pharos_auth_gateway_enabled: false
+pharos_auth_gateway_host: "{{ pharos_domain }}"
+pharos_auth_gateway_origin: "https://{{ pharos_auth_gateway_host }}"
+pharos_auth_gateway_issuer: https://auth.llight.io
+pharos_auth_gateway_upstream: https://127.0.0.1:8443
+pharos_auth_gateway_realm: pharos-access-qa
+pharos_auth_gateway_prefix: /proof_spa/identity

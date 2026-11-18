@@ -1,0 +1,6 @@
+{% for name in ['AUTH_SESSION_ID', 'AUTH_SESSION_ID_HASH', 'AUTH_SESSION_ID_LEGACY', 'KC_RESTART', 'KEYCLOAK_IDENTITY', 'KEYCLOAK_IDENTITY_LEGACY', 'KEYCLOAK_SESSION', 'KEYCLOAK_SESSION_LEGACY', 'KEYCLOAK_REMEMBER_ME', 'KEYCLOAK_LOCALE'] %}
+map $cookie_{{ name | lower }} $pharos_auth_cookie_{{ loop.index }} {
+    "" "";
+    default "{{ name }}=$cookie_{{ name | lower }}; ";
+}
+{% endfor %}

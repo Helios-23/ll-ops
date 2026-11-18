@@ -109,6 +109,17 @@
   no_log: true
   notify: Restart Keycloak service
 
+- name: Install selected declarative login themes
+  ansible.builtin.copy:
+    src: "themes/{{ item }}/"
+    dest: "{{ keycloak_directory }}/themes/{{ item }}/"
+    owner: root
+    group: root
+    directory_mode: '0755'
+    mode: '0644'
+  loop: "{{ keycloak_themes }}"
+  notify: Restart Keycloak service
+
 - name: Validate the generated Compose configuration
   ansible.builtin.command:
     argv: [docker, compose, --project-name, keycloak, --file, "{{ keycloak_directory }}/compose.yml", config, --quiet]

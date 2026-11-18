@@ -45,6 +45,19 @@
   tags:
     - pharos_nginx
   block:
+    - name: Validate the same-domain authentication gateway boundary
+      ansible.builtin.assert:
+        that:
+          - pharos_auth_gateway_host == pharos_domain
+          - pharos_auth_gateway_host is match('^[a-z0-9][a-z0-9.-]+$')
+          - pharos_auth_gateway_origin == 'https://' ~ pharos_auth_gateway_host
+          - pharos_auth_gateway_issuer is match('^https://[a-z0-9][a-z0-9.-]+$')
+          - pharos_auth_gateway_upstream is match('^https://127[.]0[.]0[.]1:[0-9]+$')
+          - pharos_auth_gateway_realm is match('^[a-zA-Z0-9_-]+$')
+          - pharos_auth_gateway_prefix == '/proof_spa/identity'
+        fail_msg: Authentication gateway settings must name the trusted HTTPS host and realm.
+      when: pharos_auth_gateway_enabled
+
     - name: Deploy nginx reverse proxy config for Pharos with TLS
       template:
         src: pharos_nginx.conf.j2

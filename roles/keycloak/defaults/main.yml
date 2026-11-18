@@ -18,3 +18,4 @@ keycloak_postgres_image: postgres:16-alpine@sha256:57c72fd2a128e416c7fcc49995886
 # Archives are loaded without registry pulls; entries are absolute target paths.
 keycloak_image_archives: []
 keycloak_proxy_headers: ""
+keycloak_themes: []

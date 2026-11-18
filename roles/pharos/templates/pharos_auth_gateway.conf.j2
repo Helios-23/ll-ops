@@ -1,0 +1,48 @@
+    # Only this realm's browser flows are exposed. Administration and token exchange keep their canonical host.
+    location ~ ^{{ pharos_auth_gateway_prefix }}/realms/{{ pharos_auth_gateway_realm }}/(login-actions/|protocol/openid-connect/(auth|logout)(/|$)|broker/) {
+        rewrite ^{{ pharos_auth_gateway_prefix }}/(.*)$ /$1 break;
+{% include 'pharos_auth_gateway_upstream.conf.j2' %}
+        proxy_set_header Cookie "{% for index in range(1, 11) %}$pharos_auth_cookie_{{ index }}{% endfor %}";
+        proxy_set_header Accept-Encoding "";
+        sub_filter_once off;
+        sub_filter '"/resources/' '"{{ pharos_auth_gateway_prefix }}/resources/';
+        sub_filter '"/realms/{{ pharos_auth_gateway_realm }}/' '"{{ pharos_auth_gateway_prefix }}/realms/{{ pharos_auth_gateway_realm }}/';
+        proxy_redirect {{ pharos_auth_gateway_issuer }}/ {{ pharos_auth_gateway_origin }}{{ pharos_auth_gateway_prefix }}/;
+        proxy_cookie_path /realms/{{ pharos_auth_gateway_realm }}/ {{ pharos_auth_gateway_prefix }}/realms/{{ pharos_auth_gateway_realm }}/;
+        proxy_cookie_domain {{ pharos_auth_gateway_issuer | urlsplit('hostname') }} {{ pharos_auth_gateway_host }};
+{% if pharos_auth_gateway_origin.startswith('https://') %}
+        proxy_cookie_flags ~ secure;
+{% endif %}
+        client_max_body_size 64k;
+        access_log off;
+        add_header Cache-Control "no-store" always;
+        add_header Referrer-Policy "no-referrer" always;
+        add_header X-Content-Type-Options "nosniff" always;
+    }
+
+    location {{ pharos_auth_gateway_prefix }}/ { return 404; }
+
+    # Keep identity resources inside this app's gateway namespace.
+    location ^~ {{ pharos_auth_gateway_prefix }}/resources/ {
+        rewrite ^{{ pharos_auth_gateway_prefix }}/(.*)$ /$1 break;
+{% include 'pharos_auth_gateway_upstream.conf.j2' %}
+        proxy_set_header Cookie "";
+        limit_except GET HEAD { deny all; }
+    }
+
+{% for path in ['/proof_spa/sign-in', '/proof_spa/__pharos/keycloak/login', '/proof_spa/__pharos/keycloak/callback'] %}
+    location = {{ path }} {
+        proxy_pass http://pharos_app{% if path.endswith('/callback') %}{{ path }}{% else %}/proof_spa/__pharos/keycloak/login{% endif %};
+        proxy_http_version 1.1;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $http_host;
+        proxy_set_header X-Forwarded-Port $server_port;
+        proxy_redirect {{ pharos_auth_gateway_issuer }}/ {{ pharos_auth_gateway_origin }}{{ pharos_auth_gateway_prefix }}/;
+        access_log off;
+        add_header Cache-Control "no-store" always;
+        add_header Referrer-Policy "no-referrer" always;
+    }
+{% endfor %}

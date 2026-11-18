@@ -5,6 +5,9 @@ upstream pharos_app {
     server {{ pharos_service_host }}:{{ pharos_service_port }};
 {% endif %}
 }
+{% if pharos_auth_gateway_enabled %}
+{% include 'pharos_auth_gateway_maps.conf.j2' %}
+{% endif %}
 
 server {
     listen 80;
@@ -66,6 +69,10 @@ server {
     location = /favicon.ico {
         return 302 {{ domain.favicon_url }};
     }
+{% endif %}
+
+{% if pharos_auth_gateway_enabled and domain.name == pharos_auth_gateway_host %}
+{% include 'pharos_auth_gateway.conf.j2' %}
 {% endif %}
 
     location / {

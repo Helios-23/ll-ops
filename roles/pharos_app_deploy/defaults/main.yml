@@ -65,6 +65,7 @@ dist_clean: ""
 pharos_app_deploy_proof_iam_enabled: true
 pharos_app_deploy_proof_iam_issuer: https://auth.llight.io/realms/pharos-access-qa
 pharos_app_deploy_proof_iam_client: pharos
+pharos_app_deploy_proof_login_theme: ""
 pharos_app_deploy_proof_iam_reviewers: []
 pharos_app_deploy_proof_iam_reviewer_groups: [proof_review]
 

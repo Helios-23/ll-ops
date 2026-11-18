@@ -10,6 +10,7 @@
       - keycloak_admin_user is match('^[a-zA-Z0-9_-]+$')
       - keycloak_proxy_headers in ['', 'xforwarded']
       - keycloak_service_state in ['started', 'stopped']
+      - keycloak_themes | reject('match', '^[a-z][a-z0-9_-]{0,63}$') | list | length == 0
       - "'@sha256:' in keycloak_image"
       - "'@sha256:' in keycloak_postgres_image"
     fail_msg: Configure the HTTPS origin, target TLS paths and pinned image digests before apply.
