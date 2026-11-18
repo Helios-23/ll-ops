@@ -138,7 +138,7 @@ apb cloud_bootstrap.yml -e cloud_bootstrap_provider=azure
 | `roles/cloud_bootstrap` | `cloud_bootstrap` | extra tags: `cloud_gcp`, `cloud_aws`, `cloud_azure`; provider-specific bootstrap for Terraform service accounts and credentials; controller-side only |
 | `roles/certbot_tls` | `certbot_tls` | ACME/TLS issuance and renewal support for nginx-hosted services |
 | `roles/docker_engine` | none | installs Docker Engine and Compose prerequisites on build-capable hosts and the dedicated QA Keycloak host |
-| `roles/keycloak` | inherited `keycloak` | Vault credentials, canonical `keycloak_admin_user`, pinned local images, PostgreSQL volume, HTTPS Compose stack and enabled systemd service; no Pharos deployment |
+| `roles/keycloak` | inherited `keycloak` | Vault credentials, canonical `keycloak_admin_user`, pinned local images, PostgreSQL volume, HTTPS Compose stack, enabled systemd service and explicit realm email branding with preserved SMTP transport and credentials; no Pharos deployment |
 | `roles/keycloak_application` | inherited `keycloak_application` | exact browser callbacks, separate confidential service account, existing realm identity preservation, and private capture forwarder; no native Pharos deployment |
 | `roles/keycloak_nginx` | inherited `keycloak` | dedicated auth HTTP/HTTPS site, webroot ACME issuance without stopping Nginx, verified HTTPS upstream, certificate renewal hook and site rollback on invalid configuration |
 | `roles/fail2ban` | `fail2ban` | extra tags: `fail2ban_sshd_invalid_user`, `reverse_proxy_fail2ban`; configure jails, filters, and helper scripts; run immediately after `harden` |

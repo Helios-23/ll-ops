@@ -19,3 +19,4 @@ keycloak_postgres_image: postgres:16-alpine@sha256:57c72fd2a128e416c7fcc49995886
 keycloak_image_archives: []
 keycloak_proxy_headers: ""
 keycloak_themes: []
+keycloak_realm_branding: {}

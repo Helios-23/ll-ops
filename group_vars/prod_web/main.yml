@@ -16,6 +16,11 @@ keycloak_database_password: "{{ vault.keycloak.db_pass }}"
 keycloak_hostname: https://auth.llight.io
 keycloak_nginx_hostname: auth.llight.io
 keycloak_proxy_headers: xforwarded
-keycloak_themes: [pharos]
+keycloak_themes: [pharos, pharos-proof]
+keycloak_realm_branding:
+  realm: pharos-access-qa
+  display_name: Pharos Proof review app
+  email_theme: pharos-proof
+  sender_name: Pharos Proof Reviewer access
 pharos_auth_gateway_enabled: true
 pharos_app_deploy_proof_login_theme: pharos

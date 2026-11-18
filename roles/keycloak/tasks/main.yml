@@ -142,3 +142,7 @@
     enabled: "{{ keycloak_service_enabled }}"
     state: "{{ keycloak_service_state }}"
   register: keycloak_service_control
+
+- name: Apply explicitly configured realm email branding
+  ansible.builtin.include_tasks: realm_branding.yml
+  when: keycloak_realm_branding | length > 0

@@ -1,0 +1,101 @@
+- name: Require an explicit installed email theme and realm
+  ansible.builtin.assert:
+    that:
+      - keycloak_hostname is match('^https://[a-zA-Z0-9][a-zA-Z0-9.-]*(:[0-9]+)?$')
+      - keycloak_realm_branding.realm is match('^[a-zA-Z0-9_-]{1,64}$')
+      - keycloak_realm_branding.email_theme is match('^[a-z][a-z0-9_-]{0,63}$')
+      - keycloak_realm_branding.email_theme in keycloak_themes
+      - keycloak_realm_branding.display_name | length > 0
+      - keycloak_realm_branding.sender_name | length > 0
+
+- name: Install the selected email theme in the existing theme mount
+  ansible.builtin.copy:
+    src: "themes/{{ keycloak_realm_branding.email_theme }}/"
+    dest: "{{ keycloak_directory }}/themes/{{ keycloak_realm_branding.email_theme }}/"
+    owner: root
+    group: root
+    directory_mode: '0755'
+    mode: '0644'
+
+- name: Authenticate for the scoped realm branding update
+  ansible.builtin.uri:
+    url: "{{ keycloak_hostname }}/realms/master/protocol/openid-connect/token"
+    method: POST
+    body_format: form-urlencoded
+    body:
+      client_id: admin-cli
+      grant_type: password
+      username: "{{ keycloak_admin_user }}"
+      password: "{{ keycloak_admin_password }}"
+  register: keycloak_branding_admin
+  no_log: true
+
+- name: Read existing realm branding and masked SMTP configuration
+  ansible.builtin.uri:
+    url: "{{ keycloak_hostname }}/admin/realms/{{ keycloak_realm_branding.realm }}"
+    headers:
+      Authorization: "Bearer {{ keycloak_branding_admin.json.access_token }}"
+  register: keycloak_branding_before
+  no_log: true
+
+- name: Require an existing authenticated SMTP configuration
+  ansible.builtin.assert:
+    that:
+      - keycloak_branding_before.json.realm == keycloak_realm_branding.realm
+      - keycloak_branding_before.json.smtpServer.auth | bool
+      - keycloak_branding_before.json.smtpServer.starttls | bool
+      - keycloak_branding_before.json.smtpServer.password | length > 0
+      - keycloak_branding_before.json.smtpServer.from | length > 0
+  no_log: true
+
+- name: Retain the prior branding for scoped rollback
+  ansible.builtin.copy:
+    dest: "{{ keycloak_directory }}/realm-branding-{{ keycloak_realm_branding.realm }}.before.json"
+    content: "{{ {'displayName': keycloak_branding_before.json.displayName | default(''), 'displayNameHtml': keycloak_branding_before.json.displayNameHtml | default(''), 'emailTheme': keycloak_branding_before.json.emailTheme | default(''), 'smtpServer': keycloak_branding_before.json.smtpServer} | to_nice_json }}"
+    owner: root
+    group: root
+    mode: '0600'
+    force: false
+  no_log: true
+
+- name: Update only realm presentation and SMTP sender display name
+  ansible.builtin.uri:
+    url: "{{ keycloak_hostname }}/admin/realms/{{ keycloak_realm_branding.realm }}"
+    method: PUT
+    headers:
+      Authorization: "Bearer {{ keycloak_branding_admin.json.access_token }}"
+    body_format: json
+    body:
+      displayName: "{{ keycloak_realm_branding.display_name }}"
+      displayNameHtml: "{{ keycloak_realm_branding.display_name }}"
+      emailTheme: "{{ keycloak_realm_branding.email_theme }}"
+      smtpServer: "{{ keycloak_branding_before.json.smtpServer | combine({'fromDisplayName': keycloak_realm_branding.sender_name}) }}"
+    status_code: 204
+  when: >-
+    keycloak_branding_before.json.displayName | default('') != keycloak_realm_branding.display_name or
+    keycloak_branding_before.json.displayNameHtml | default('') != keycloak_realm_branding.display_name or
+    keycloak_branding_before.json.emailTheme | default('') != keycloak_realm_branding.email_theme or
+    keycloak_branding_before.json.smtpServer.fromDisplayName | default('') != keycloak_realm_branding.sender_name
+  changed_when: true
+  no_log: true
+
+- name: Read back the effective realm branding
+  ansible.builtin.uri:
+    url: "{{ keycloak_hostname }}/admin/realms/{{ keycloak_realm_branding.realm }}"
+    headers:
+      Authorization: "Bearer {{ keycloak_branding_admin.json.access_token }}"
+  register: keycloak_branding_after
+  no_log: true
+
+- name: Confirm presentation and preserved SMTP transport
+  ansible.builtin.assert:
+    that:
+      - keycloak_branding_after.json.realm == keycloak_branding_before.json.realm
+      - keycloak_branding_after.json.id == keycloak_branding_before.json.id
+      - keycloak_branding_after.json.displayName == keycloak_realm_branding.display_name
+      - keycloak_branding_after.json.displayNameHtml == keycloak_realm_branding.display_name
+      - keycloak_branding_after.json.emailTheme == keycloak_realm_branding.email_theme
+      - >-
+        keycloak_branding_after.json.smtpServer ==
+        (keycloak_branding_before.json.smtpServer | combine({'fromDisplayName': keycloak_realm_branding.sender_name}))
+  no_log: true
