@@ -20,7 +20,7 @@
   update();document.documentElement.dataset.proofSignin='true';
   document.title='Proof · Sign in';
   const brand=document.getElementById('kc-header-wrapper');if(brand){brand.textContent='PHAROS';const label=document.createElement('span');label.textContent='PROOF';brand.append(label);}
-  const heading=document.getElementById('kc-page-title');if(heading&&document.getElementById('kc-form-login'))heading.textContent='Sign in to Proof';
+  const heading=document.getElementById('kc-page-title');if(heading&&document.getElementById('kc-form-login'))heading.hidden=true;
   const username=document.getElementById('username');
   if(username&&(document.getElementById('kc-form-login')||document.getElementById('kc-reset-password-form'))){username.type='email';username.autocomplete='username';username.inputMode='email';username.placeholder='you@example.com';const label=document.querySelector('label[for="username"]');if(label)label.textContent='Email';}
   const submit=document.getElementById('kc-login');if(submit){submit.title='Sign in';submit.setAttribute('aria-label','Sign in');}

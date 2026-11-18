@@ -9,6 +9,11 @@ html[data-proof-signin=true] .pf-v5-c-login__main-header,html[data-proof-signin=
 html[data-proof-signin=true] .pf-v5-c-login__main-header{padding-bottom:0;border-top:0}html[data-proof-signin=true] .pf-v5-c-login__main-body{padding-top:16px}
 html[data-proof-signin=true] #kc-form-login,html[data-proof-signin=true] #kc-reset-password-form{font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 html[data-proof-signin=true] #kc-page-title{margin:0;font-size:21px;font-weight:650;line-height:1.3;color:var(--proof-ink)}
+html[data-proof-signin=true] #kc-page-title[hidden]{display:none!important}
+html[data-proof-signin=true] .pf-v5-c-login__main-header:has(#kc-page-title[hidden]){padding:0}
+.proof-operator-access{display:none}
+html[data-proof-signin=true] .proof-operator-access{display:flex;justify-content:flex-end;padding-top:12px;border-top:1px solid var(--proof-line)}
+html[data-proof-signin=true] .proof-operator-access a{display:inline-flex;align-items:center;gap:7px;text-decoration:none;font:600 13px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 html[data-proof-signin=true] .pf-v5-c-form{gap:14px}html[data-proof-signin=true] .pf-v5-c-form__label-text{font-size:13px;font-weight:600}
 html[data-proof-signin=true] .pf-v5-c-form-control{min-height:36px;border:1px solid #bfcfc4;border-radius:5px;background:#fff;box-shadow:none}
 html[data-proof-signin=true] .pf-v5-c-form-control:before,html[data-proof-signin=true] .pf-v5-c-form-control:after{display:none}
@@ -16,6 +21,9 @@ html[data-proof-signin=true] .pf-v5-c-form-control input{font:inherit;min-height
 html[data-proof-signin=true] .pf-v5-c-form-control:focus-within{outline:2px solid #78ac94;outline-offset:2px}
 html[data-proof-signin=true] .pf-v5-c-button.pf-m-primary{background:var(--proof-accent);color:#fff;border:1px solid var(--proof-accent);border-radius:5px;min-height:36px;font-family:inherit;font-size:13px;font-weight:600;line-height:1.4;padding:8px 14px}
 html[data-proof-signin=true] #kc-form-buttons{display:flex;justify-content:flex-end;margin-top:6px}
+html[data-proof-signin=true] #kc-form-login :has(> #kc-login){display:flex;justify-content:flex-end;width:100%;padding-inline:0;margin:0}
+html[data-proof-signin=true] #kc-form-login #kc-login{min-width:36px;width:36px;height:36px;padding:0;margin:0 0 0 auto;font-size:0;background-position:center}
+html[data-proof-signin=true] #kc-form-login #kc-login *{font-size:0}
 html[data-proof-signin=true] #kc-login{width:auto;min-width:112px;padding-left:34px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='white'%3E%3Cpath fill-rule='evenodd' d='M10 1.5A1.5 1.5 0 0 1 11.5 0h3A1.5 1.5 0 0 1 16 1.5v13a1.5 1.5 0 0 1-1.5 1.5h-3a1.5 1.5 0 0 1-1.5-1.5v-2a.5.5 0 0 1 1 0v2a.5.5 0 0 0 .5.5h3a.5.5 0 0 0 .5-.5v-13a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5v2a.5.5 0 0 1-1 0zM.5 8a.5.5 0 0 1 .5-.5h9.793L8.146 4.854a.5.5 0 1 1 .708-.708l3.5 3.5a.5.5 0 0 1 0 .708l-3.5 3.5a.5.5 0 0 1-.708-.708L10.793 8.5H1a.5.5 0 0 1-.5-.5'/%3E%3C/svg%3E");background-size:16px;background-repeat:no-repeat;background-position:12px center}
 html[data-proof-signin=true] a,html[data-proof-signin=true] .pf-v5-c-button.pf-m-link{color:var(--proof-accent);font-size:13px}
 html[data-proof-signin=true] .pf-v5-c-login__main-footer{padding-top:0}html[data-proof-signin=true] .pf-v5-c-login__main-footer-band{background:#f5f7f6;font-size:13px}
